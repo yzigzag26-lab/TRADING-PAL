@@ -40,9 +40,7 @@ class Settings:
                 raise ValueError("CORS_ALLOWED_ORIGINS must be set in production")
             raw_origins = ",".join(DEFAULT_CORS_ORIGINS)
         origins = tuple(
-            origin.strip().rstrip("/")
-            for origin in raw_origins.split(",")
-            if origin.strip()
+            origin.strip().rstrip("/") for origin in raw_origins.split(",") if origin.strip()
         )
         if not origins:
             raise ValueError("CORS_ALLOWED_ORIGINS must contain at least one origin")
