@@ -25,3 +25,14 @@ venv/
 coverage/
 playwright-report/
 test-results/
+# Python quality and packaging
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+
+# Generated documentation
+site/

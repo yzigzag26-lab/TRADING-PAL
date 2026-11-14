@@ -60,14 +60,14 @@ A. **Backend documentation foundation**
 - Create or improve backend-specific developer documentation.
 - Draft local setup, test, environment-variable and deployment-operation instructions using placeholders only.
 - Create an architecture-document skeleton that links to the approved handoff, but do not make new architecture decisions.
-- Document the API documentation workflow: FastAPI-generated OpenAPI is authoritative; Scalar is the interactive reference; MkDocs Material is the human-readable engineering documentation.
+- Document the API documentation workflow: FastAPI-generated OpenAPI is authoritative; Scalar is the interactive reference; Zensical is the human-readable engineering documentation.
 - Record unresolved decisions instead of guessing.
 
 B. **Python quality-tooling foundation**
-- Propose and configure Python formatting/linting, static type checking and test tooling.
+- Configure Python formatting/linting, static type checking and test tooling for approved Python 3.12.
 - Preferred candidates: Ruff for lint/format and pytest for tests; propose the type checker and explain its trade-offs before locking it in.
 - Keep tool configuration small and compatible with the chosen Python runtime.
-- Do not invent an unapproved Python version or package manager. Record the proposed versions and wait for approval if a choice affects deployment/runtime compatibility.
+- Use the owner-approved Python 3.12 runtime and the standard venv + pip workflow. Do not change either without owner approval.
 
 C. **Test infrastructure scaffolding**
 - Establish pytest configuration and a minimal test layout/fixtures.
@@ -76,7 +76,7 @@ C. **Test infrastructure scaffolding**
 - Do not create fake database credentials or require production secrets to run local tests.
 
 D. **Documentation build**
-- Add MkDocs Material configuration and navigation for existing/approved documentation.
+- Add Zensical configuration and navigation for existing/approved documentation.
 - Ensure docs build locally and in CI.
 - Keep the docs hosting destination undecided until account/plan eligibility is checked and approved.
 
@@ -86,7 +86,7 @@ E. **CI preparation**
 - CI must not print environment values or credentials.
 
 F. **Backend package metadata**
-- Prepare a minimal backend project metadata file only after documenting the proposed Python runtime and dependency/package-manager choice.
+- Prepare minimal backend project metadata for approved Python 3.12 using pip-compatible PEP 621 metadata.
 - Avoid adding speculative runtime dependencies for AI, market data, databases or indicator calculations before the corresponding implementation phase.
 - Pin/lock dependencies reproducibly once the package manager and runtime are agreed.
 
@@ -119,7 +119,7 @@ Likely files (create only when needed):
 - `docs/development/ENVIRONMENT_VARIABLES.md`
 - `docs/operations/DEPLOYMENT.md` (instructions only; no deployment action)
 - `docs/operations/SECURITY.md` (document approved requirements; do not invent controls)
-- `mkdocs.yml`
+- `zensical.toml`
 - relevant documentation workflow under `.github/workflows/`
 
 Claude must not create empty directories merely to match a proposed tree.
@@ -131,7 +131,7 @@ The pull request description and final handoff must include:
 1. Summary of completed work and explicit out-of-scope items.
 2. Exact files created/changed.
 3. Decisions proposed, with alternatives and rationale.
-4. Python runtime, package manager and dependency versions proposed.
+4. Approved Python runtime (3.12), package manager workflow (venv + pip), and pinned development/documentation tool versions.
 5. Exact commands executed.
 6. Test, lint, type-check and documentation-build results.
 7. Any checks not run and why.
@@ -259,7 +259,7 @@ The browser must not send a permanent public chart URL to the model. Use a contr
 | Request/response validation | Pydantic | Selected |
 | Machine-readable API contract | FastAPI-generated OpenAPI | Authoritative |
 | Interactive API reference | Scalar | Selected |
-| Engineering documentation | MkDocs Material | Selected |
+| Engineering documentation | Zensical | Selected |
 | Schema migrations | SQL migration files + Supabase CLI | Selected direction |
 
 Keep OpenAPI generated from actual FastAPI routes and schemas. Do not maintain a second manually edited API specification. Disable default Swagger UI and ReDoc routes as required by the implementation handoff; use the approved Scalar reference route.
@@ -347,7 +347,7 @@ Use official documentation and re-check current versions, quotas and model avail
 - Binance Spot API documentation: https://github.com/binance/binance-spot-api-docs
 - Binance public market-data-only endpoints: https://github.com/binance/binance-spot-api-docs/blob/master/faqs/market_data_only.md
 - Scalar FastAPI integration: https://github.com/scalar/scalar
-- MkDocs Material: https://squidfunk.github.io/mkdocs-material/
+- Zensical: https://zensical.org/docs/
 - Render: https://render.com/docs
 - Vercel: https://vercel.com/docs
 - GitHub Actions: https://docs.github.com/actions

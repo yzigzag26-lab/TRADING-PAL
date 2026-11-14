@@ -63,7 +63,7 @@ The initial experience must work on a real mobile phone and degrade gracefully o
 - Preferences read/update endpoints.
 - Health endpoint and authenticated current-user endpoint.
 - OpenAPI generation and Scalar API reference.
-- MkDocs Material engineering documentation.
+- Zensical engineering documentation.
 - CI, deployment configuration, environment-variable documentation, and handover.
 
 ### Explicitly excluded
@@ -90,14 +90,14 @@ Use a **modular monolith**: one Next.js application and one FastAPI application,
 | Frontend | Next.js + TypeScript | Mobile-first user interface |
 | Frontend styling | Tailwind CSS | Responsive design system |
 | Frontend authentication | Supabase Auth client with the supported SSR integration | Sign-in, sign-out, session lifecycle |
-| Backend | Python + FastAPI | API, authorization, business rules |
+| Backend | Python 3.12 + FastAPI | API, authorization, business rules |
 | Backend schemas | Pydantic | Input/output validation |
 | Database | Supabase-hosted PostgreSQL | Persistent application data |
 | Authentication provider | Supabase Auth | Identity and token issuance |
 | Database migrations | Version-controlled SQL migrations | Reproducible schema changes |
 | API contract | OpenAPI | Machine-readable API specification |
 | API reference | Scalar | Interactive API reference; do not expose Swagger UI |
-| Engineering docs | MkDocs Material | Human-readable project documentation |
+| Engineering docs | Zensical | Human-readable project documentation |
 | Frontend hosting | Vercel | Web application deployment |
 | Backend hosting | Render | FastAPI deployment |
 | Source control and CI | GitHub + GitHub Actions | Review, automation, and traceability |
@@ -170,7 +170,7 @@ TRADING-PAL/
 │   ├── operations/
 │   ├── decisions/
 │   ├── IMPLEMENTATION_HANDOFF.md
-│   └── ... MkDocs pages and configuration
+│   └── ... Zensical pages and configuration
 ├── .github/
 │   └── workflows/
 ├── .gitignore
@@ -199,7 +199,7 @@ At minimum, create and maintain:
 - `CHANGELOG.md`: user-visible and engineering changes by release.
 - `apps/web/README.md` and `apps/api/README.md`: service-specific development instructions.
 
-Use MkDocs Material to render the engineering documentation. The documentation deployment destination must be selected after checking the owner's actual free-tier/account eligibility. Do not assume a private GitHub repository can publish private Pages content on the current plan, and do not purchase a docs domain or hosting plan. Until a destination is approved, the docs must build locally and in CI.
+Use Zensical to render the engineering documentation. The documentation deployment destination must be selected after checking the owner's actual free-tier/account eligibility. Do not assume a private GitHub repository can publish private Pages content on the current plan, and do not purchase a docs domain or hosting plan. Until a destination is approved, the docs must build locally and in CI.
 
 ---
 
@@ -401,7 +401,7 @@ The sequence below is mandatory. Limited parallel work is allowed only where the
 **Tasks**
 - Run all frontend, backend, integration, and security tests.
 - Run linting, formatting, type checks, dependency/build checks, and migration validation.
-- Build MkDocs Material documentation.
+- Build Zensical documentation.
 - Validate Scalar/OpenAPI output.
 - Review environment-variable documentation and deployment instructions.
 - Add a release changelog and record remaining known limitations.
@@ -430,7 +430,7 @@ One accountable lead agent must coordinate the work and maintain this handoff. S
 | Backend engineer | FastAPI, schemas, JWT verification, database access, migrations, backend tests, OpenAPI | Trust client-supplied identity or bypass authorization |
 | Frontend engineer | Next.js UI, Supabase session flow, typed API client, responsive states, frontend tests | Access database directly or expose privileged secrets |
 | QA / security reviewer | Test plans, auth and isolation tests, negative cases, acceptance evidence | Approve untested claims or weaken expected security |
-| DevOps / documentation engineer | CI, Vercel/Render configuration, environment guides, Scalar, MkDocs, deployment docs | Provision paid services without consent or publish secrets |
+| DevOps / documentation engineer | CI, Vercel/Render configuration, environment guides, Scalar, Zensical, deployment docs | Provision paid services without consent or publish secrets |
 
 ### Coordination rules
 
@@ -497,7 +497,7 @@ Testing is a release requirement, not an optional final activity.
 - Clean install/build for frontend and backend.
 - Lint, format, type checks, and automated tests in GitHub Actions.
 - OpenAPI schema validation and Scalar route check.
-- MkDocs build check.
+- Zensical build check.
 - Deployment smoke tests against the deployed commit.
 - Secret scan and dependency vulnerability review using available CI tooling.
 - Verify production configuration is not accidentally used by local tests.
@@ -545,7 +545,7 @@ Phase 1 is complete only when every applicable criterion below is evidenced and 
 - [ ] OpenAPI is generated from actual FastAPI routes and schemas.
 - [ ] Scalar API reference works.
 - [ ] Default Swagger UI and ReDoc routes are disabled.
-- [ ] MkDocs Material documentation builds successfully.
+- [ ] Zensical documentation builds successfully.
 - [ ] Architecture, database, API, auth, security, environment, testing, and deployment docs are complete.
 - [ ] Developer onboarding works from a clean checkout.
 - [ ] Changelog and architecture decisions are maintained.
