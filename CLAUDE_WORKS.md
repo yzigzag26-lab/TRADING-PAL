@@ -31,7 +31,7 @@ The current Phase 1 foundation remains narrower: backend foundation, Supabase Au
 
 Non-negotiable:
 1. No fabricated prices, balances, signals, users, chart analyses or history.
-2. No Binance account API keys in Version 1. Public market data does not require a key.
+2. No Binance integration during Phase 1. For the later, separately approved market-data phase, the owner has chosen to configure a dedicated personal Binance API key on the backend. Never put it in the frontend, Git, logs, prompts, or CI. Binance Spot endpoints marked `NONE` remain public even if an API-key header is supplied; the key does not make their data private or account-specific. Do not enable private account, trading, transfer, margin, futures, or withdrawal permissions for market-data retrieval.
 3. No live trading, order endpoints or withdrawal permissions.
 4. No paid service, plan upgrade or usage-based resource without explicit owner approval.
 5. Never commit secrets or expose privileged keys in browser code, logs, prompts, docs or CI output.
@@ -43,7 +43,7 @@ Non-negotiable:
 
 The required sequence is:
 
-1. Claude completes the bounded supporting work in Section 4 on a dedicated branch and opens a pull request.
+1. After the owner approves this work order and explicitly authorizes the supporting-work start, Claude completes the bounded supporting work in Section 4 on a dedicated branch and opens a pull request.
 2. Claude provides the handoff report in Section 5.
 3. ChatGPT inspects the complete diff, checks it against the implementation handoff, runs/reviews verification evidence and requests corrections where needed.
 4. ChatGPT then owns and implements the core backend architecture and required integration work in a separate, clearly scoped change set.
@@ -199,7 +199,7 @@ Security: browser may use only public/publishable Supabase configuration. Servic
 
 ### C. Market data — later phase
 
-**Initial exchange:** Binance Spot public market data only. No Binance account connection or API key is needed for public endpoints.
+**Initial exchange:** Binance Spot. The owner has chosen to use a dedicated personal Binance API key for the later market-data integration, configured only in the trusted backend. This is explicitly out of Phase 1 scope. Binance Spot endpoints marked `NONE` do not require authentication; sending the owner's API-key header does not make those responses private or account-specific. Do not request or use private account endpoints or enable trading-related permissions. The exact endpoints and authentication behaviour must be verified against current Binance documentation when that phase is approved.
 
 Official public REST API surfaces to evaluate:
 - `GET /api/v3/exchangeInfo` — symbol metadata, filters and trading status.
@@ -290,7 +290,7 @@ Free service tiers may sleep, pause, impose quotas or lack production safeguards
 
 ### I. Services deliberately not required for Version 1 foundation
 
-- Binance private account API, trading keys or order endpoints.
+- Binance private account endpoints, trading permissions, or order endpoints. The owner's dedicated read-only API-key configuration for the later public market-data integration is documented separately and remains out of Phase 1.
 - Broker/MT5 APIs.
 - Payment processors or billing.
 - Email provider beyond the selected Supabase Auth configuration.
@@ -352,4 +352,4 @@ Use official documentation and re-check current versions, quotas and model avail
 - Vercel: https://vercel.com/docs
 - GitHub Actions: https://docs.github.com/actions
 
-**Final instruction:** Claude, perform only the first assignment in Section 4. Do not begin core backend implementation. Submit a reviewable PR and wait for ChatGPT/owner review.
+**Final instruction:** Claude, perform only the first assignment in Section 4 after the owner explicitly authorizes that supporting-work start. Do not begin core backend implementation, Binance integration, AI integration, database/auth implementation, cloud provisioning, or deployment. Submit a reviewable PR and wait for ChatGPT/owner review.
