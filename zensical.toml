@@ -1,0 +1,20 @@
+[project]
+site_name = "Baymax"
+site_description = "Engineering documentation for the Baymax trading intelligence workspace"
+docs_dir = "docs"
+site_dir = "site"
+strict = true
+nav = [
+  { "Home" = "index.md" },
+  { "Project handoff" = "IMPLEMENTATION_HANDOFF.md" },
+  { "Development" = [
+    "development/LOCAL_DEVELOPMENT.md",
+    "development/TESTING.md",
+    "development/ENVIRONMENT_VARIABLES.md",
+  ] },
+  { "Operations" = [
+    "operations/DEPLOYMENT.md",
+    "operations/SECURITY.md",
+    "operations/BINANCE_API_SETUP.md",
+  ] },
+]
