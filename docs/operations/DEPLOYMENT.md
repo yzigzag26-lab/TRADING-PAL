@@ -16,7 +16,7 @@ release actions.
 
 The repository-level `render.yaml` prepares a single web service with:
 
-- Python version from `apps/api/.python-version`.
+- Python 3.12.16, pinned in both `apps/api/.python-version` and the Blueprint environment.
 - Root directory `apps/api`.
 - Build command: `python -m pip install .`.
 - Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.

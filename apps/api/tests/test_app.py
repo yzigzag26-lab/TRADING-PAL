@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from app.core.config import Settings
 from app.main import create_app
@@ -127,16 +129,10 @@ def test_validation_errors_use_the_standard_error_envelope() -> None:
     assert "input" not in response.json()["error"]["details"][0]
 
 
-def test_application_rejects_wildcard_cors_configuration(monkeypatch) -> None:
+def test_application_rejects_wildcard_cors_configuration(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("LOG_LEVEL", "INFO")
     monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "*")
 
-    from app.core.config import Settings as RuntimeSettings
-
-    try:
-        RuntimeSettings.from_environment()
-    except ValueError as error:
-        assert "Wildcard CORS" in str(error)
-    else:
-        raise AssertionError("Wildcard CORS configuration must be rejected")
+    with pytest.raises(ValueError, match="Wildcard CORS"):
+        Settings.from_environment()

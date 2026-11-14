@@ -9,6 +9,9 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from collections.abc import Awaitable, Callable
+
+from fastapi import Response
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -16,9 +19,6 @@ from app.api.v1.router import api_router
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
-
-logger = logging.getLogger("baymax")
-
 
 def _request_id(request: Request) -> str:
     """Return the request ID assigned by the middleware."""
@@ -55,7 +55,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(api_router)
 
     @application.middleware("http")
-    async def request_context_middleware(request: Request, call_next):
+    async def request_context_middleware(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         request_id = str(uuid4())
         request.state.request_id = request_id
         token = request_id_context.set(request_id)
@@ -154,6 +157,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse(
             status_code=500,
             content=payload.model_dump(mode="json", exclude_none=True),
+            headers={"X-Request-ID": _request_id(request)},
         )
 
     return application

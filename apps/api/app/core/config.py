@@ -33,10 +33,11 @@ class Settings:
         if not isinstance(getattr(logging, log_level, None), int):
             raise ValueError("LOG_LEVEL must be a valid Python logging level")
 
-        raw_origins = os.getenv(
-            "CORS_ALLOWED_ORIGINS",
-            ",".join(DEFAULT_CORS_ORIGINS),
-        )
+        raw_origins = os.getenv("CORS_ALLOWED_ORIGINS")
+        if raw_origins is None:
+            if app_env == "production":
+                raise ValueError("CORS_ALLOWED_ORIGINS must be set in production")
+            raw_origins = ",".join(DEFAULT_CORS_ORIGINS)
         origins = tuple(
             origin.strip().rstrip("/")
             for origin in raw_origins.split(",")
@@ -46,6 +47,18 @@ class Settings:
             raise ValueError("CORS_ALLOWED_ORIGINS must contain at least one origin")
         if "*" in origins:
             raise ValueError("Wildcard CORS origins are not allowed")
+        for origin in origins:
+            from urllib.parse import urlsplit
+
+            parsed = urlsplit(origin)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.netloc
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("CORS entries must be exact HTTP or HTTPS origins")
 
         return cls(
             app_env=app_env,

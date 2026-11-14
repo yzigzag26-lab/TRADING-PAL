@@ -36,7 +36,7 @@ $env:CORS_ALLOWED_ORIGINS = "http://localhost:3000,https://baymax-nu.vercel.app"
 uvicorn app.main:app --reload
 ```
 
-The API listens at `http://127.0.0.1:8000`. The public liveness endpoint is
+The API listens at `http://127.0.0.1:8000`. Set `APP_ENV` and `CORS_ALLOWED_ORIGINS` in the shell before starting the server; the app intentionally does not load secret files implicitly. The public liveness endpoint is
 `/api/v1/health`; the generated OpenAPI document is `/openapi.json`.
 Swagger UI and ReDoc are disabled. Scalar is introduced in the API docs stage.
 
