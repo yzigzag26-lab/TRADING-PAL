@@ -170,7 +170,7 @@ TRADING-PAL/
 │   ├── operations/
 │   ├── decisions/
 │   ├── IMPLEMENTATION_HANDOFF.md
-│   └── ... MkDocs pages and configuration
+│   └── ... Zensical pages and configuration
 ├── .github/
 │   └── workflows/
 ├── .gitignore
@@ -430,7 +430,7 @@ One accountable lead agent must coordinate the work and maintain this handoff. S
 | Backend engineer | FastAPI, schemas, JWT verification, database access, migrations, backend tests, OpenAPI | Trust client-supplied identity or bypass authorization |
 | Frontend engineer | Next.js UI, Supabase session flow, typed API client, responsive states, frontend tests | Access database directly or expose privileged secrets |
 | QA / security reviewer | Test plans, auth and isolation tests, negative cases, acceptance evidence | Approve untested claims or weaken expected security |
-| DevOps / documentation engineer | CI, Vercel/Render configuration, environment guides, Scalar, MkDocs, deployment docs | Provision paid services without consent or publish secrets |
+| DevOps / documentation engineer | CI, Vercel/Render configuration, environment guides, Scalar, Zensical, deployment docs | Provision paid services without consent or publish secrets |
 
 ### Coordination rules
 
@@ -497,7 +497,7 @@ Testing is a release requirement, not an optional final activity.
 - Clean install/build for frontend and backend.
 - Lint, format, type checks, and automated tests in GitHub Actions.
 - OpenAPI schema validation and Scalar route check.
-- MkDocs build check.
+- Zensical build check.
 - Deployment smoke tests against the deployed commit.
 - Secret scan and dependency vulnerability review using available CI tooling.
 - Verify production configuration is not accidentally used by local tests.
