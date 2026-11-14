@@ -12,13 +12,21 @@ secret stores. Never commit a real `.env` file.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase publishable key |
 | `NEXT_PUBLIC_API_BASE_URL` | Public FastAPI base URL |
 
-## Backend — `apps/api/.env`
+## Backend — `apps/api` and Render service
+
+| Variable | Required now | Purpose |
+|---|---|---|
+| `APP_ENV` | Yes | `development`, `test`, or `production` |
+| `LOG_LEVEL` | No | Python logging level; defaults to `INFO` |
+| `CORS_ALLOWED_ORIGINS` | Yes in production | Comma-separated exact browser origins; no wildcard |
+
+The backend currently requires no database, authentication, Binance, or AI
+credentials. Those variables will be introduced only in their approved stages.
+
+## Later-stage variables — not used by the current API
 
 | Variable | Purpose |
 |---|---|
-| `APP_ENV` | Runtime environment |
-| `LOG_LEVEL` | Application log level |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed browser origins |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key; never a service-role key |
 | `SUPABASE_JWKS_URL` | Supabase Auth JWKS endpoint |

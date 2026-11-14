@@ -16,7 +16,9 @@ Version 1 is analysis-oriented and does not execute trades.
 
 ## Current foundation status
 
-This repository contains a frontend foundation and backend supporting
-configuration, documentation, and CI scaffolding. FastAPI routes, authentication,
-database integration, and market-data integration remain later implementation
-stages. Documentation must not imply those features are already available.
+The repository now contains a runnable FastAPI application with a public
+liveness endpoint, versioned routing, strict CORS configuration, request
+correlation, structured logs, and standardized error responses. Supabase
+authentication, database migrations, profiles, preferences, market data, and
+AI integrations remain unimplemented and are gated by the approved Phase 1
+sequence.

@@ -5,20 +5,18 @@ Trading Pal is a private, mobile-first cryptocurrency trading intelligence works
 ## Repository layout
 
 - `apps/web` — Next.js + TypeScript frontend, deployed independently to Vercel.
-- `apps/api` — planned Python + FastAPI backend, deployed independently to Render.
+- `apps/api` — Python 3.12 + FastAPI backend, prepared for Render.
 - `docs` — architecture and implementation documentation.
 
 ## Current implementation status
 
-The first frontend experience is being developed on `feat/version-1-frontend`. It includes a responsive workspace shell and honest disconnected/empty states. Authentication, persistent preferences, live market data, chart-analysis processing and risk calculations are not connected yet. No sample prices, balances, signals, analyses or history records are fabricated.
+The frontend foundation is present with honest disconnected/empty states. The backend now runs a minimal FastAPI application with a public liveness endpoint, CORS allow-list, request IDs, structured logs, and standardized errors. Supabase authentication, persistent preferences, live market data, chart-analysis processing and risk calculations are not connected yet. No sample prices, balances, signals, analyses or history records are fabricated.
 
-## Frontend development
+## Development
 
-See [apps/web/README.md](apps/web/README.md). Vercel should use `apps/web` as its project Root Directory.
-
-## Architecture and scope
-
-Read [the Phase 1 implementation handoff](docs/IMPLEMENTATION_HANDOFF.md) before changing architecture, backend scope, security boundaries or deployment configuration.
+- Frontend: [apps/web/README.md](apps/web/README.md)
+- Backend: [apps/api/README.md](apps/api/README.md)
+- Architecture and scope: [Phase 1 implementation handoff](docs/IMPLEMENTATION_HANDOFF.md)
 
 ## Security
 
