@@ -12,6 +12,8 @@ def test_environment_templates_are_documented() -> None:
     )
     variables: set[str] = set()
     for template in templates:
-        variables.update(VARIABLE_PATTERN.findall(template.read_text(encoding="utf-8")))
+        variables.update(
+            VARIABLE_PATTERN.findall(template.read_text(encoding="utf-8"))
+        )
     missing = sorted(name for name in variables if f"`{name}`" not in inventory)
     assert not missing, f"Undocumented environment variables: {missing}"
