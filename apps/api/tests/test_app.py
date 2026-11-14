@@ -136,3 +136,22 @@ def test_application_rejects_wildcard_cors_configuration(monkeypatch: MonkeyPatc
 
     with pytest.raises(ValueError, match="Wildcard CORS"):
         Settings.from_environment()
+
+
+
+def test_production_requires_explicit_cors_origins(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
+    monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
+
+    with pytest.raises(ValueError, match="must be set in production"):
+        Settings.from_environment()
+
+
+def test_production_rejects_http_cors_origins(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+
+    with pytest.raises(ValueError, match="must use HTTPS"):
+        Settings.from_environment()

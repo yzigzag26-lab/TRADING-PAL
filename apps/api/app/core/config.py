@@ -58,6 +58,8 @@ class Settings:
                 or parsed.fragment
             ):
                 raise ValueError("CORS entries must be exact HTTP or HTTPS origins")
+            if app_env == "production" and parsed.scheme != "https":
+                raise ValueError("Production CORS origins must use HTTPS")
 
         return cls(
             app_env=app_env,

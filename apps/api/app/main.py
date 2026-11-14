@@ -93,11 +93,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             405: "method_not_allowed",
             422: "validation_error",
         }
-        message = (
-            str(exc.detail)
-            if status_code < 500 and isinstance(exc.detail, str)
-            else "The request could not be completed."
-        )
+        safe_messages = {
+            400: "The request could not be completed.",
+            401: "Authentication is required.",
+            403: "You are not permitted to perform this action.",
+            404: "The requested resource was not found.",
+            405: "The requested method is not allowed.",
+            422: "Request validation failed.",
+        }
+        message = safe_messages.get(status_code, "The request could not be completed.")
         payload = ErrorResponse(
             error=ErrorDetail(
                 code=code_by_status.get(status_code, "http_error"),
