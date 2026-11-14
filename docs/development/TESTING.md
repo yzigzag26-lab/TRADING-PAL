@@ -1,23 +1,23 @@
 # Testing and quality checks
 
-The supporting foundation must be testable from a clean checkout and must not
+The backend foundation must be testable from a clean checkout and must not
 require production credentials or a live Supabase project.
 
-## Backend foundation
+## Backend
 
 From `apps/api` with Python 3.12 and the development extra installed:
 
 ```bash
-ruff format --check tests
-ruff check tests
-mypy tests
+ruff format --check app tests
+ruff check app tests
+mypy app tests
 pytest
 ```
 
-These tests validate repository configuration, environment-variable inventory,
-Python runtime alignment, and documentation setup. They do not claim to test
-FastAPI endpoints, authentication, database behaviour, or trading logic that
-has not yet been implemented.
+The first application tests cover the liveness contract, generated OpenAPI,
+disabled default documentation routes, CORS allow-list behaviour, request
+correlation, and safe error envelopes. They do not claim to test authentication,
+database behaviour, or trading logic that has not yet been implemented.
 
 ## Documentation
 
