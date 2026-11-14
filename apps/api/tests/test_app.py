@@ -36,7 +36,7 @@ def test_health_endpoint_returns_minimal_liveness_payload() -> None:
         "service": "baymax-api",
         "version": "0.1.0",
     }
-    UUID(response.headers["x-request-id"])
+    assert str(UUID(response.headers["x-request-id"])) == response.headers["x-request-id"]
 
 
 def test_openapi_contains_only_the_implemented_versioned_endpoint() -> None:

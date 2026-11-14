@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:3000",
@@ -48,8 +49,6 @@ class Settings:
         if "*" in origins:
             raise ValueError("Wildcard CORS origins are not allowed")
         for origin in origins:
-            from urllib.parse import urlsplit
-
             parsed = urlsplit(origin)
             if (
                 parsed.scheme not in {"http", "https"}

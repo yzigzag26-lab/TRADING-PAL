@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 from time import perf_counter
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from collections.abc import Awaitable, Callable
 
-from fastapi import Response
+from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -19,6 +17,7 @@ from app.api.v1.router import api_router
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
+
 
 def _request_id(request: Request) -> str:
     """Return the request ID assigned by the middleware."""
@@ -119,7 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> JSONResponse:
         issues = [
             ValidationIssue(
-                location=[str(part) if not isinstance(part, int) else part for part in item["loc"]],
+                location=[part if isinstance(part, int) else str(part) for part in item["loc"]],
                 message=item["msg"],
                 code=item["type"],
             )
