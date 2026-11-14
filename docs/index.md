@@ -6,7 +6,7 @@ Version 1 is analysis-oriented and does not execute trades.
 ## Start here
 
 - [Phase 1 implementation handoff](IMPLEMENTATION_HANDOFF.md)
-- [Claude work allocation](../CLAUDE_WORKS.md)
+- [Claude work allocation](https://github.com/yzigzag26-lab/TRADING-PAL/blob/main/CLAUDE_WORKS.md)
 - [Local development](development/LOCAL_DEVELOPMENT.md)
 - [Testing](development/TESTING.md)
 - [Environment variables](development/ENVIRONMENT_VARIABLES.md)
