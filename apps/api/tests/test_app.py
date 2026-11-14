@@ -138,7 +138,6 @@ def test_application_rejects_wildcard_cors_configuration(monkeypatch: MonkeyPatc
         Settings.from_environment()
 
 
-
 def test_production_requires_explicit_cors_origins(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("LOG_LEVEL", "INFO")
