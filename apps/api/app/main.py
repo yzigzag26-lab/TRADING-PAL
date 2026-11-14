@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from time import perf_counter
 from uuid import uuid4
-
-from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
