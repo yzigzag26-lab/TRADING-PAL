@@ -49,7 +49,7 @@ def create_database_engine(database_url: str) -> Engine:
 def verify_database_connection(engine: Engine) -> None:
     """Verify PostgreSQL connectivity without exposing connection details."""
     with engine.connect() as connection:
-        result = connection.execute(text("SELECT 1")).scalar_one()
+        result: int = connection.execute(text("SELECT 1")).scalar_one()
         if result != 1:
             raise RuntimeError("Database connectivity verification returned an unexpected result")
 
