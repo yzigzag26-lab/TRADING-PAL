@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import pytest
-from sqlalchemy.pool import QueuePool
-from sqlalchemy.engine import make_url
 from typing import cast
+
+import pytest
+from sqlalchemy.engine import make_url
+from sqlalchemy.pool import QueuePool
 
 from app.db.session import create_database_engine, normalize_database_url
 
