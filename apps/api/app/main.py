@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from time import perf_counter
@@ -41,7 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app_logger = configure_logging(active_settings.log_level)
 
     @asynccontextmanager
-    async def lifespan(application: FastAPI):
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         """Initialize and verify the runtime database connection when configured."""
         engine = None
         if active_settings.database_url is not None:
