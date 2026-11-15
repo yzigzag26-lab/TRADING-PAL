@@ -10,8 +10,8 @@ from app.db.base import Base
 from app.db.models import AppSettings, RiskSettings
 
 
-def _constraint_names(table: Table) -> set[str | None]:
-    return {constraint.name for constraint in table.constraints}
+def _constraint_names(table: Table) -> set[str]:
+    return {str(constraint.name) for constraint in table.constraints}
 
 
 def test_application_settings_are_private_singleton_metadata() -> None:
