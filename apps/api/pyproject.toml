@@ -9,7 +9,10 @@ description = "Backend API for the Baymax trading intelligence workspace"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "alembic>=1.14,<2.0",
     "fastapi==0.162.7",
+    "psycopg[binary]>=3.2,<4.0",
+    "SQLAlchemy>=2.0,<3.0",
     "uvicorn[standard]==0.54.0",
 ]
 
