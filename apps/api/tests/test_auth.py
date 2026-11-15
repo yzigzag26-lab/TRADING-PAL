@@ -52,7 +52,7 @@ def test_wrong_password_does_not_issue_a_session() -> None:
         session = client.get("/api/v1/auth/session")
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "The password is incorrect."
+    assert response.json()["error"]["code"] == "unauthorized"
     assert session.json() == {"authenticated": False}
 
 
@@ -83,6 +83,7 @@ def test_login_rejects_untrusted_browser_origin() -> None:
         )
 
     assert response.status_code == 403
+    assert response.json()["error"]["code"] == "forbidden"
 
 
 def test_login_fails_closed_when_password_hash_is_not_configured() -> None:
@@ -94,7 +95,7 @@ def test_login_fails_closed_when_password_hash_is_not_configured() -> None:
         )
 
     assert response.status_code == 503
-    assert "not configured" in response.json()["detail"].lower()
+    assert response.json()["error"]["code"] == "service_unavailable"
 
 
 def test_login_rate_limiter_blocks_after_five_failed_attempts() -> None:
@@ -114,3 +115,4 @@ def test_login_rate_limiter_blocks_after_five_failed_attempts() -> None:
     assert failed.status_code == 401
     assert limited.status_code == 429
     assert limited.headers["retry-after"] == "900"
+    assert limited.json()["error"]["code"] == "too_many_requests"
