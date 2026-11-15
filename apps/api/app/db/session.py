@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-from urllib.parse import parse_qsl
 
 from fastapi import HTTPException, Request
 from sqlalchemy import Engine, create_engine, text
