@@ -18,7 +18,10 @@ class AppSettings(Base):
     __tablename__ = "app_settings"
     __table_args__ = (
         CheckConstraint("id = 1", name="ck_app_settings_singleton"),
-        CheckConstraint("length(btrim(timezone)) > 0", name="ck_app_settings_timezone_nonempty"),
+        CheckConstraint(
+            "length(btrim(timezone)) > 0",
+            name="ck_app_settings_timezone_nonempty",
+        ),
         CheckConstraint(
             "default_currency IS NULL OR default_currency ~ '^[A-Z0-9]{2,12}$'",
             name="ck_app_settings_currency_format",
@@ -34,7 +37,9 @@ class AppSettings(Base):
         {"schema": "baymax"},
     )
 
-    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, server_default=text("1"))
+    id: Mapped[int] = mapped_column(
+        SmallInteger, primary_key=True, server_default=text("1")
+    )
     timezone: Mapped[str] = mapped_column(
         String(64), nullable=False, server_default=text("'UTC'")
     )
