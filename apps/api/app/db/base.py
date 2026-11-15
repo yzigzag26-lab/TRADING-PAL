@@ -10,4 +10,5 @@ class Base(DeclarativeBase):
 
 
 # Register model metadata before Alembic autogeneration.
-from app.db.models import AuditLog as _AuditLog  # noqa: F401
+# noqa is deliberate: importing models earlier would create a Base/model cycle.
+from app.db.models import AuditLog as _AuditLog  # noqa: E402, F401
