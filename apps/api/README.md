@@ -76,8 +76,10 @@ operations. ReDoc remains disabled.
     pytest
 
 No live Supabase project or production secret is required to run the API unit tests.
-Database migrations require a trusted PostgreSQL connection supplied through
-MIGRATION_DATABASE_URL.
+The runtime API uses a dedicated PostgreSQL login supplied through
+DATABASE_URL. Alembic requires a separate privileged connection supplied
+through MIGRATION_DATABASE_URL; never configure that variable on the Render
+web service or Vercel.
 
 ## Deployment preparation
 
@@ -97,8 +99,11 @@ service_role; those API roles also have no privileges on Baymax tables.
 
 Two non-login PostgreSQL privilege-group roles are created:
 
-- baymax_app: runtime privilege group; schema usage only at foundation stage.
-- baymax_migrator: migration privilege group; schema usage and create privileges.
+- baymax_app: non-login runtime privilege group.
+- baymax_migrator: non-login migration privilege group.
+- baymax_runtime: dedicated login inheriting baymax_app; configure only in Render.
+- baymax_migration: dedicated login inheriting baymax_migrator; keep its credential
+  in the private operator environment and use it only for Alembic.
 
 The initial audit foundation creates baymax.audit_logs with UUID identity,
 event and actor classification, optional resource/request references, JSONB
@@ -119,15 +124,23 @@ stored in baymax.alembic_version. The initial revision is intentionally
 idempotent so the repository migration history can be initialized against the
 already-provisioned foundation.
 
-Set MIGRATION_DATABASE_URL to a PostgreSQL connection string for a trusted,
-privileged migration environment. The initial foundation revision manages
-roles and schema privileges, so do not run it with the application runtime
-role. Keep this privileged URL out of the Render runtime environment; use it
-only in a controlled migration job or local operator environment. The Alembic
-environment automatically selects psycopg 3 for postgresql:// and
-postgres:// URLs. Use the Supabase session pooler or a direct connection
-appropriate for migrations; do not use a transaction-pooler URL for schema
-migration operations.
+Set DATABASE_URL on Render to a PostgreSQL connection string authenticated as
+baymax_runtime. The runtime engine uses SQLAlchemy 2.x with psycopg 3,
+connection pre-ping, a bounded pool, and TLS required by default. Startup
+verifies connectivity with SELECT 1; it never logs the connection URL or
+password. Request handlers can obtain a request-scoped SQLAlchemy Session via
+the get_db_session dependency in app.db.session.
+
+Set MIGRATION_DATABASE_URL only in the private operator environment to a
+connection authenticated as baymax_migration. Never place it on the Render
+web service, Vercel, or in the frontend. The Alembic environment automatically
+selects psycopg 3 for postgresql:// and postgres:// URLs. Use the Supabase
+session pooler or a direct connection appropriate for migrations; do not use
+a transaction-pooler URL for schema migration operations.
+
+The two login roles are separate PostgreSQL identities. baymax_runtime inherits
+only baymax_app; baymax_migration inherits only baymax_migrator. Do not reuse
+the Supabase postgres owner credential for either connection.
 
 Run migrations from apps/api:
 
