@@ -128,3 +128,29 @@ def test_login_rate_limiter_blocks_after_five_failed_attempts() -> None:
     assert limited.status_code == 429
     assert limited.headers["retry-after"] == "900"
     assert limited.json()["error"]["code"] == "too_many_requests"
+
+
+def test_private_guide_rejects_unauthenticated_pages_and_assets() -> None:
+    with make_client() as client:
+        page = client.get("/guide/")
+        asset = client.get("/guide/assets/stylesheets/main.css")
+
+    assert page.status_code == 401
+    assert asset.status_code == 401
+    assert page.headers["cache-control"] == "no-store"
+    assert page.json()["error"]["code"] == "unauthorized"
+
+
+def test_private_guide_requires_the_same_owner_session_after_login() -> None:
+    with make_client() as client:
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"password": PASSWORD},
+            headers={"Origin": ORIGIN},
+        )
+        response = client.get("/guide/assets/stylesheets/main.css")
+
+    assert login.status_code == 200
+    # The test suite does not run the Zensical build; 404 proves the request passed
+    # the authentication middleware and reached the static-file handler.
+    assert response.status_code == 404
