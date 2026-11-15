@@ -46,7 +46,12 @@ def test_openapi_contains_only_the_implemented_versioned_endpoint() -> None:
     assert response.status_code == 200
     document = response.json()
     assert document["info"]["title"] == "Baymax API"
-    assert set(document["paths"]) == {"/api/v1/health"}
+    assert set(document["paths"]) == {
+        "/api/v1/health",
+        "/api/v1/auth/login",
+        "/api/v1/auth/session",
+        "/api/v1/auth/logout",
+    }
 
 
 def test_swagger_ui_is_enabled_and_redoc_remains_disabled() -> None:
