@@ -19,6 +19,8 @@ secret stores. Never commit a real `.env` file.
 | `APP_ENV` | Yes | `development`, `test`, or `production` |
 | `LOG_LEVEL` | No | Python logging level; defaults to `INFO` |
 | `CORS_ALLOWED_ORIGINS` | Yes in production | Comma-separated exact browser origins; no wildcard |
+| `BAYMAX_PASSWORD_HASH` | Required to enable login | Argon2id hash generated locally with `python scripts/create_password_hash.py`; never the plaintext password |
+| `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie; generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 
 The backend currently requires no database, authentication, Binance, or AI
 credentials. Those variables will be introduced only in their approved stages.

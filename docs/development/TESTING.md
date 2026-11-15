@@ -12,10 +12,12 @@ From apps/api with Python 3.12 and the development extra installed:
     mypy app tests
     pytest
 
-The first application tests cover the liveness contract, generated OpenAPI,
+The application tests cover the liveness contract, generated OpenAPI,
 Swagger UI availability and its OpenAPI document link, disabled ReDoc,
 CORS allow-list behaviour, request correlation, and safe error envelopes.
-They do not claim to test authentication, database behaviour, or trading logic
+Authentication tests cover Argon2id password verification, trusted-origin enforcement,
+rate limiting, secure cookie flags, session recognition, logout, and fail-closed
+configuration. They do not claim to test database behaviour or trading logic
 that has not yet been implemented.
 
 ## Documentation
