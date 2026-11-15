@@ -1,5 +1,7 @@
 """Tests for the Gate 1 audit-log metadata."""
 
+from sqlalchemy.dialects.postgresql import JSONB
+
 from app.db.base import Base
 from app.db.models import AuditLog
 
@@ -21,7 +23,6 @@ def test_audit_log_has_required_integrity_constraints() -> None:
     }.issubset(constraint_names)
 
 
-def test_audit_log_has_no_update_or_delete_api_columns() -> None:
-    assert "occurred_at" in AuditLog.__table__.columns
-    assert "metadata" in AuditLog.__table__.columns
-    assert "password" not in AuditLog.__table__.columns
+def test_audit_log_uses_jsonb_and_timezone_aware_timestamps() -> None:
+    assert isinstance(AuditLog.__table__.columns["metadata"].type, JSONB)
+    assert AuditLog.__table__.columns["occurred_at"].type.timezone is True
