@@ -49,6 +49,9 @@ def create_database_engine(database_url: str) -> Engine:
 def verify_database_connection(engine: Engine) -> None:
     """Verify PostgreSQL connectivity without exposing connection details."""
     with engine.connect() as connection:
+        current_user: str = connection.execute(text("SELECT current_user")).scalar_one()
+        if current_user != "baymax_runtime":
+            raise RuntimeError("DATABASE_URL must authenticate as the dedicated baymax_runtime role")
         result: int = connection.execute(text("SELECT 1")).scalar_one()
         if result != 1:
             raise RuntimeError("Database connectivity verification returned an unexpected result")
