@@ -1,3 +1,1 @@
-# Pinned Zensical toolchain for the approved Python 3.12 environment.
-zensical==0.1.1
-zensical-ui==0.0.42
+# Keep the repository-root and Render-local Zensical toolchains identical.\n-r apps/api/requirements-docs.txt\n
