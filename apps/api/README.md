@@ -40,7 +40,13 @@ Generate the password hash locally from this directory with `python scripts/crea
 
 The Vercel frontend proxies `/api/*` and `/guide/*` through to Render so the browser uses a same-origin cookie. Zensical is built during the Render service build into `app/static/guide`; FastAPI serves it only after validating the existing `__Host-baymax_session` cookie. The same authentication middleware protects HTML pages and every static asset. The backend-local documentation sources live in `apps/api/docs` because the Render service root is `apps/api`.
 
-## Private engineering documentation\n\nThe private Zensical site is served at `/guide/` through the Vercel same-origin rewrite. It reuses the existing Baymax owner session; there is no second login. FastAPI checks the signed session cookie on every `/guide` request, including CSS, JavaScript, images, and page navigation. Do not mount the generated directory without this middleware. The Render build installs `requirements-docs.txt` and runs `zensical build --strict`.\n\nThe Render-local source copy is under `apps/api/docs` and is required because the existing Render service root directory is `apps/api`. Keep it synchronized with the canonical repository-level `docs/` pages when editing documentation.\n\n## Interactive API documentation
+## Private engineering documentation
+
+The private Zensical site is served at `/guide/` through the Vercel same-origin rewrite. It reuses the existing Baymax owner session; there is no second login. FastAPI checks the signed session cookie on every `/guide` request, including CSS, JavaScript, images, and page navigation. Do not mount the generated directory without this middleware. The Render build installs `requirements-docs.txt` and runs `zensical build --strict`.
+
+The Render-local source copy is under `apps/api/docs` and is required because the existing Render service root directory is `apps/api`. Keep it synchronized with the canonical repository-level `docs/` pages when editing documentation.
+
+## Interactive API documentation
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
