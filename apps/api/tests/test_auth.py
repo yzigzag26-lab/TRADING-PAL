@@ -109,13 +109,14 @@ def test_tampered_session_cookie_is_rejected() -> None:
 
 def test_login_rate_limiter_blocks_after_five_failed_attempts() -> None:
     with make_client() as client:
-        failures = []
-        for _ in range(5):
-            failures.append(client.post(
+        failures = [
+            client.post(
                 "/api/v1/auth/login",
                 json={"password": "wrong-password"},
                 headers={"Origin": ORIGIN},
-            ))
+            )
+            for _ in range(5)
+        ]
         limited = client.post(
             "/api/v1/auth/login",
             json={"password": PASSWORD},
