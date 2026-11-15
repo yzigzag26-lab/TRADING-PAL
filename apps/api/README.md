@@ -124,8 +124,15 @@ stored in baymax.alembic_version. The initial revision is intentionally
 idempotent so the repository migration history can be initialized against the
 already-provisioned foundation.
 
-Set DATABASE_URL on Render to a PostgreSQL connection string authenticated as
-baymax_runtime. The runtime engine uses SQLAlchemy 2.x with psycopg 3,
+Set DATABASE_URL on Render to a Supabase shared **session-pooler** connection
+(port 5432) authenticated as `baymax_runtime`. Render's outbound network is
+IPv4-only, while Supabase's direct endpoint is IPv6-only on the free plan. For
+a custom role, the session-pooler username is `baymax_runtime.<project-ref>`.
+Copy the exact pooler host from Supabase Dashboard → Connect → Session pooler;
+do not guess the pooler cluster hostname. Do not use transaction mode (port
+6543) for this persistent SQLAlchemy connection.
+
+The runtime engine uses SQLAlchemy 2.x with psycopg 3,
 connection pre-ping, a bounded pool, and TLS required by default. Startup
 verifies connectivity with SELECT 1; it never logs the connection URL or
 password. Request handlers can obtain a request-scoped SQLAlchemy Session via
