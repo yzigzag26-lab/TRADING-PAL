@@ -33,11 +33,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         summary="Versioned API for the Baymax trading intelligence workspace.",
         description=(
             "Phase 1 foundation. Only the public liveness endpoint is implemented "
-            "at this stage; authenticated user and preferences endpoints follow "
-            "after the Supabase security stage."
+            "at this stage. Interactive Swagger UI is available for testing this "
+            "public endpoint; private operations will require authentication before "
+            "they are introduced."
         ),
         version="0.1.0",
-        docs_url=None,
+        docs_url="/docs",
         redoc_url=None,
         openapi_url="/openapi.json",
     )
