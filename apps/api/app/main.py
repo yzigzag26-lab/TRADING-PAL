@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
+from app.auth.security import LoginRateLimiter
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
@@ -43,11 +44,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json",
     )
     application.state.settings = active_settings
+    application.state.login_limiter = LoginRateLimiter()
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(active_settings.cors_allowed_origins),
-        allow_credentials=False,
-        allow_methods=["GET", "PUT", "OPTIONS"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
         expose_headers=["X-Request-ID"],
     )
