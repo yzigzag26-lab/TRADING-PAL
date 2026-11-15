@@ -92,8 +92,52 @@ def upgrade() -> None:
           CONSTRAINT ck_risk_settings_leverage CHECK (
             max_leverage IS NULL OR max_leverage >= 1
           ),
-          CONSTRAINT ck_risk_settings_currency_nonempty CHECK (
-            default_risk_currency IS NULL OR length(btrim(default_risk_currency)) > 0
+          CONSTRAINT ck_risk_settings_currency_format CHECK (
+            default_risk_currency IS NULL OR default_risk_currency ~ '^[A-Z0-9]{2,12}
+          CONSTRAINT ck_risk_settings_additional_object CHECK (
+            jsonb_typeof(additional_settings) = 'object'
+          )
+        )
+        """
+    )
+    op.execute(
+        """
+        INSERT INTO baymax.app_settings (id, timezone, default_exchange)
+        VALUES (1, 'UTC', 'BINANCE')
+        ON CONFLICT (id) DO NOTHING
+        """
+    )
+    op.execute(
+        """
+        INSERT INTO baymax.risk_settings (id)
+        VALUES (1)
+        ON CONFLICT (id) DO NOTHING
+        """
+    )
+    op.execute(
+        """
+        REVOKE ALL ON TABLE baymax.app_settings, baymax.risk_settings
+        FROM PUBLIC, anon, authenticated, service_role
+        """
+    )
+    op.execute(
+        """
+        GRANT SELECT, INSERT, UPDATE ON TABLE baymax.app_settings, baymax.risk_settings
+        TO baymax_app
+        """
+    )
+
+
+def downgrade() -> None:
+    """Preserve owner configuration; destructive downgrade is intentionally unsupported."""
+    # These singleton rows contain owner-controlled settings. Never drop them implicitly.
+    pass
+
+          ),
+          CONSTRAINT ck_risk_settings_quote_currency_required CHECK (
+            (max_risk_per_trade_unit IS DISTINCT FROM 'quote_currency'
+              AND max_daily_loss_unit IS DISTINCT FROM 'quote_currency')
+            OR default_risk_currency IS NOT NULL
           ),
           CONSTRAINT ck_risk_settings_additional_object CHECK (
             jsonb_typeof(additional_settings) = 'object'
