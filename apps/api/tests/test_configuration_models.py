@@ -38,6 +38,8 @@ def test_risk_settings_are_private_singleton_and_fail_closed() -> None:
         "ck_risk_settings_daily_loss_range",
         "ck_risk_settings_open_positions",
         "ck_risk_settings_leverage",
+        "ck_risk_settings_currency_format",
+        "ck_risk_settings_quote_currency_required",
         "ck_risk_settings_additional_object",
     }.issubset(names)
     for field in (
