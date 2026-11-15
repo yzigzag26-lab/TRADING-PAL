@@ -1,1 +1,2 @@
-# Keep the repository-root and Render-local Zensical toolchains identical.\n-r apps/api/requirements-docs.txt\n
+# Keep the repository-root and Render-local Zensical toolchains identical.
+-r apps/api/requirements-docs.txt
