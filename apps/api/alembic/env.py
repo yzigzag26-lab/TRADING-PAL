@@ -20,9 +20,11 @@ target_metadata = Base.metadata
 
 def _database_url() -> str:
     """Return a SQLAlchemy URL using psycopg 3."""
-    value = os.getenv("DATABASE_URL", "").strip()
+    value = os.getenv("MIGRATION_DATABASE_URL", "").strip()
     if not value:
-        raise RuntimeError("DATABASE_URL must be set before running Alembic")
+        raise RuntimeError(
+            "MIGRATION_DATABASE_URL must be set to a privileged migration connection"
+        )
     if value.startswith("postgres://"):
         value = "postgresql+psycopg://" + value.removeprefix("postgres://")
     elif value.startswith("postgresql://"):
