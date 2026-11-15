@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,7 +31,7 @@ class SessionResponse(BaseModel):
 
 
 def _settings(request: Request) -> Settings:
-    return request.app.state.settings
+    return cast(Settings, request.app.state.settings)
 
 
 def _require_trusted_origin(request: Request, settings: Settings) -> None:
