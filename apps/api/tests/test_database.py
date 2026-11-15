@@ -43,7 +43,7 @@ def test_creates_bounded_pre_ping_engine_without_opening_a_connection() -> None:
         "postgresql://baymax_runtime:secret@db.example.supabase.co:5432/postgres"
     )
     try:
-        assert engine.pool._pre_ping is True
-        assert engine.pool.size() == 5
+        assert getattr(engine.pool, "_pre_ping") is True
+        assert getattr(engine.pool, "size")() == 5
     finally:
         engine.dispose()
