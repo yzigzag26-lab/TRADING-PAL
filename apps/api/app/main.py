@@ -1,8 +1,11 @@
 """FastAPI application factory and HTTP infrastructure."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
 
@@ -10,10 +13,15 @@ from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
-from app.auth.security import LoginRateLimiter
+from app.auth.security import (
+    LoginRateLimiter,
+    SESSION_COOKIE_NAME,
+    verify_session_token,
+)
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
@@ -53,6 +61,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         expose_headers=["X-Request-ID"],
     )
     application.include_router(api_router)
+
+    @application.middleware("http")
+    async def private_guide_auth_middleware(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        """Require the existing owner session for every documentation page and asset."""
+        if request.url.path == "/guide" or request.url.path.startswith("/guide/"):
+            authenticated = verify_session_token(
+                request.cookies.get(SESSION_COOKIE_NAME),
+                active_settings.session_secret,
+            )
+            if not authenticated:
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "error": {
+                            "code": "unauthorized",
+                            "message": "Authentication is required.",
+                        }
+                    },
+                    headers={"Cache-Control": "no-store", "Vary": "Cookie"},
+                )
+        return await call_next(request)
 
     @application.middleware("http")
     async def request_context_middleware(
@@ -167,6 +199,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             content=payload.model_dump(mode="json", exclude_none=True),
             headers={"X-Request-ID": _request_id(request)},
         )
+
+    guide_directory = Path(__file__).resolve().parent / "static" / "guide"
+    application.mount(
+        "/guide",
+        StaticFiles(directory=guide_directory, html=True),
+        name="private-guide",
+    )
 
     return application
 

@@ -15,6 +15,8 @@ def test_python_runtime_and_tool_targets_are_aligned() -> None:
 
 
 def test_documentation_dependencies_are_pinned() -> None:
-    requirements = (ROOT / "requirements-docs.txt").read_text(encoding="utf-8")
-    assert "zensical==" in requirements
-    assert "zensical-ui==" in requirements
+    root_requirements = (ROOT / "requirements-docs.txt").read_text(encoding="utf-8")
+    render_requirements = (ROOT / "apps/api/requirements-docs.txt").read_text(encoding="utf-8")
+    assert "-r apps/api/requirements-docs.txt" in root_requirements
+    assert "zensical==" in render_requirements
+    assert "zensical-ui==" in render_requirements

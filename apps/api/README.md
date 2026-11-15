@@ -38,7 +38,13 @@ The login UI calls `POST /api/v1/auth/login`, checks `GET /api/v1/auth/session`,
 
 Generate the password hash locally from this directory with `python scripts/create_password_hash.py`. The script prompts twice and prints only the Argon2id hash. Set that output and a fresh random session secret in Render environment variables. Generate a session secret with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Never send either value in chat, commit them, or put them in Vercel environment variables.
 
-The Vercel frontend proxies `/api/*` through to Render so the browser uses a same-origin cookie. The same proxy will carry `/guide/*` when the private Zensical site is enabled.
+The Vercel frontend proxies `/api/*` and `/guide/*` through to Render so the browser uses a same-origin cookie. Zensical is built during the Render service build into `app/static/guide`; FastAPI serves it only after validating the existing `__Host-baymax_session` cookie. The same authentication middleware protects HTML pages and every static asset. The backend-local documentation sources live in `apps/api/docs` because the Render service root is `apps/api`.
+
+## Private engineering documentation
+
+The private Zensical site is served at `/guide/` through the Vercel same-origin rewrite. It reuses the existing Baymax owner session; there is no second login. FastAPI checks the signed session cookie on every `/guide` request, including CSS, JavaScript, images, and page navigation. Do not mount the generated directory without this middleware. The Render build installs `requirements-docs.txt` and runs `zensical build --strict`.
+
+The Render-local source copy is under `apps/api/docs` and is required because the existing Render service root directory is `apps/api`. Keep it synchronized with the canonical repository-level `docs/` pages when editing documentation.
 
 ## Interactive API documentation
 
