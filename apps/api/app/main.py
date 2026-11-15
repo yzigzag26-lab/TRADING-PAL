@@ -15,7 +15,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
-from app.auth.security import LoginRateLimiter, SESSION_COOKIE_NAME, verify_session_token
+from app.auth.security import (
+    LoginRateLimiter,
+    SESSION_COOKIE_NAME,
+    verify_session_token,
+)
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
