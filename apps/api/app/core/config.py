@@ -21,6 +21,8 @@ class Settings:
     app_env: str
     log_level: str
     cors_allowed_origins: tuple[str, ...]
+    owner_password_hash: str | None = None
+    session_secret: str | None = None
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -63,4 +65,6 @@ class Settings:
             app_env=app_env,
             log_level=log_level,
             cors_allowed_origins=origins,
+            owner_password_hash=os.getenv("BAYMAX_PASSWORD_HASH"),
+            session_secret=os.getenv("BAYMAX_SESSION_SECRET"),
         )
