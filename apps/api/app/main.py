@@ -33,10 +33,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="Baymax API",
         summary="Versioned API for the Baymax trading intelligence workspace.",
         description=(
-            "Phase 1 foundation. Only the public liveness endpoint is implemented "
-            "at this stage. Interactive Swagger UI is available for testing this "
-            "public endpoint; private operations will require authentication before "
-            "they are introduced."
+            "Phase 1 foundation. Public liveness and single-owner authentication "
+            "endpoints are implemented. Private application operations remain "
+            "unavailable until their approved implementation gates."
         ),
         version="0.1.0",
         docs_url="/docs",
@@ -94,6 +93,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             404: "not_found",
             405: "method_not_allowed",
             422: "validation_error",
+            429: "too_many_requests",
+            503: "service_unavailable",
         }
         safe_messages = {
             400: "The request could not be completed.",
@@ -102,6 +103,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             404: "The requested resource was not found.",
             405: "The requested method is not allowed.",
             422: "Request validation failed.",
+            429: "Too many requests. Try again later.",
+            503: "The requested service is not configured or temporarily unavailable.",
         }
         message = safe_messages.get(status_code, "The request could not be completed.")
         payload = ErrorResponse(
