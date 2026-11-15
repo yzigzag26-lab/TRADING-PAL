@@ -71,14 +71,20 @@ The service root is `apps/api`; Python is pinned by `.python-version`.
 
 The Supabase project uses PostgreSQL 17. Application objects belong in the
 private `baymax` schema; do not create Baymax application tables in `public`.
-The schema is not part of the Supabase Data API exposed-schema list and has
-explicitly revoked schema access for `anon`, `authenticated`, and
-`service_role`.
+The schema has explicitly revoked schema access for `anon`, `authenticated`, and
+`service_role`; those API roles also have no privileges on Baymax tables.
 
 Two non-login PostgreSQL privilege-group roles are created:
 
 - `baymax_app`: runtime privilege group; schema usage only at foundation stage.
 - `baymax_migrator`: migration privilege group; schema usage and create privileges.
+
+The initial audit foundation creates `baymax.audit_logs` with UUID identity,
+event and actor classification, optional resource/request references, JSONB
+metadata, and a timezone-aware event timestamp. Metadata must be a JSON object.
+The runtime role has SELECT and INSERT only; UPDATE and DELETE are not granted,
+so normal application operations cannot rewrite or erase audit history. Never
+place passwords, API keys, tokens, or other secrets in audit metadata.
 
 No login password is embedded in source control. A dedicated login role should
 be provisioned and granted membership in the appropriate group only when the
