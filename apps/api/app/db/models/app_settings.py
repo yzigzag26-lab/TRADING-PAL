@@ -37,12 +37,8 @@ class AppSettings(Base):
         {"schema": "baymax"},
     )
 
-    id: Mapped[int] = mapped_column(
-        SmallInteger, primary_key=True, server_default=text("1")
-    )
-    timezone: Mapped[str] = mapped_column(
-        String(64), nullable=False, server_default=text("'UTC'")
-    )
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, server_default=text("1"))
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, server_default=text("'UTC'"))
     default_currency: Mapped[str | None] = mapped_column(String(12), nullable=True)
     default_exchange: Mapped[str] = mapped_column(
         String(32), nullable=False, server_default=text("'BINANCE'")
