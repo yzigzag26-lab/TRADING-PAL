@@ -30,6 +30,16 @@ On Windows PowerShell:
 
 The API listens at http://127.0.0.1:8000.
 
+## Authentication
+
+Baymax uses one owner password. There is no username, email, registration, or OTP flow. The backend verifies the password against an Argon2id hash supplied through `BAYMAX_PASSWORD_HASH`; the plaintext password is never stored in the repository or Render environment.
+
+The login UI calls `POST /api/v1/auth/login`, checks `GET /api/v1/auth/session`, and signs out through `POST /api/v1/auth/logout`. A successful login sets a `__Host-baymax_session` cookie with `Secure`, `HttpOnly`, `SameSite=Lax`, and `Path=/`. The cookie is signed by `BAYMAX_SESSION_SECRET` and expires after eight hours. Rotate the session secret to invalidate all previously issued sessions. Logout clears the current browser cookie; it cannot revoke a copied stateless cookie before its expiry.
+
+Generate the password hash locally from this directory with `python scripts/create_password_hash.py`. The script prompts twice and prints only the Argon2id hash. Set that output and a fresh random session secret in Render environment variables. Generate a session secret with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Never send either value in chat, commit them, or put them in Vercel environment variables.
+
+The Vercel frontend proxies `/api/*` through to Render so the browser uses a same-origin cookie. The same proxy will carry `/guide/*` when the private Zensical site is enabled.
+
 ## Interactive API documentation
 
 | Method | Path | Access | Purpose |
