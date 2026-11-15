@@ -55,7 +55,7 @@ pytest
 ```
 
 No live Supabase project or production secret is required to run the API unit tests.
-Database migrations require a trusted PostgreSQL connection supplied through `DATABASE_URL`.
+Database migrations require a trusted PostgreSQL connection supplied through `MIGRATION_DATABASE_URL`.
 
 ## Deployment preparation
 
