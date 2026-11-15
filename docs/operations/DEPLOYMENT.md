@@ -12,6 +12,10 @@ release actions.
 - Engineering documentation: local build and CI. A public docs host is not
   selected.
 
+## Browser-to-backend routing
+
+The Next.js frontend proxies `/api/*` to the Render FastAPI service. This keeps the browser on the Vercel origin while Render issues a host-only `__Host-` session cookie, avoiding dependence on third-party cookies. The `/guide` and `/guide/*` routes are reserved to proxy the private Zensical site from Render after its protected static mount is deployed. Do not link directly to the Render guide host as the normal user entry point.
+
 ## Render configuration
 
 The repository-level `render.yaml` prepares a single web service with:
