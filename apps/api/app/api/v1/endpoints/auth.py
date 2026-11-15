@@ -35,7 +35,10 @@ def _settings(request: Request) -> Settings:
 def _require_trusted_origin(request: Request, settings: Settings) -> None:
     origin = request.headers.get("origin")
     if origin is None or origin not in settings.cors_allowed_origins:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Request origin is not allowed.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Request origin is not allowed.",
+        )
 
 
 def _client_key(request: Request) -> str:
