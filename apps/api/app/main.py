@@ -15,7 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
@@ -48,14 +48,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             engine = create_database_engine(active_settings.database_url)
             try:
                 verify_database_connection(engine)
-            except Exception:
+            except Exception as exc:
                 engine.dispose()
-                app_logger.exception("database.startup_connection_failed")
-                raise RuntimeError("Baymax could not establish its runtime database connection") from None
+                app_logger.error(
+                    "database.startup_connection_failed",
+                    extra={"exception_type": type(exc).__name__},
+                )
+                raise RuntimeError(
+                    "Baymax could not establish its runtime database connection"
+                ) from None
             application.state.db_engine = engine
             application.state.db_session_factory = sessionmaker(
                 bind=engine,
-                class_=__import__("sqlalchemy.orm", fromlist=["Session"]).Session,
+                class_=Session,
                 expire_on_commit=False,
             )
             app_logger.info("database.runtime_connection_verified")
