@@ -22,8 +22,8 @@ secret stores. Never commit a real `.env` file.
 | `BAYMAX_PASSWORD_HASH` | Required to enable login | Argon2id hash generated locally with `python scripts/create_password_hash.py`; never the plaintext password |
 | `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie; generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 
-The backend currently requires no database, authentication, Binance, or AI
-credentials. Those variables will be introduced only in their approved stages.
+The production backend requires `DATABASE_URL` for its dedicated runtime database
+login. The migration credential is intentionally not a Render variable.
 
 ## Later-stage variables — not used by the current API
 
@@ -33,7 +33,8 @@ credentials. Those variables will be introduced only in their approved stages.
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key; never a service-role key |
 | `SUPABASE_JWKS_URL` | Supabase Auth JWKS endpoint |
 | `SUPABASE_JWT_ISSUER` | Expected JWT issuer |
-| `DATABASE_URL` | Optional server-side PostgreSQL connection string |
+| `DATABASE_URL` | Required in production; Render-only PostgreSQL connection authenticated as `baymax_runtime` |
+| `MIGRATION_DATABASE_URL` | Private operator environment only; privileged PostgreSQL connection authenticated as `baymax_migration`; never set on Render or Vercel |
 | `BINANCE_API_KEY` | Dedicated read-only key for the later market-data phase |
 | `BINANCE_API_SECRET` | Secret paired with that read-only key |
 | `BINANCE_REST_BASE_URL` | Approved Binance REST base URL |
