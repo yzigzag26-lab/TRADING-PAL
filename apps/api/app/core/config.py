@@ -23,6 +23,7 @@ class Settings:
     cors_allowed_origins: tuple[str, ...]
     owner_password_hash: str | None = None
     session_secret: str | None = None
+    database_url: str | None = None
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -61,10 +62,15 @@ class Settings:
             if app_env == "production" and parsed.scheme != "https":
                 raise ValueError("Production CORS origins must use HTTPS")
 
+        database_url = os.getenv("DATABASE_URL", "").strip() or None
+        if app_env == "production" and database_url is None:
+            raise ValueError("DATABASE_URL must be set in production")
+
         return cls(
             app_env=app_env,
             log_level=log_level,
             cors_allowed_origins=origins,
             owner_password_hash=os.getenv("BAYMAX_PASSWORD_HASH"),
             session_secret=os.getenv("BAYMAX_SESSION_SECRET"),
+            database_url=database_url,
         )
