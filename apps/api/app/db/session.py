@@ -7,7 +7,7 @@ from collections.abc import Generator
 from fastapi import HTTPException, Request
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 
 def normalize_database_url(value: str) -> str:
