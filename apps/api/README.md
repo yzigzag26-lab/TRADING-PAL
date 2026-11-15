@@ -4,9 +4,10 @@ The backend now contains the first Phase 1 application milestone: a Python 3.12
 FastAPI service with a public liveness endpoint, strict CORS allow-list,
 request correlation, structured JSON logs, and a consistent error envelope.
 
-Authentication, profiles, preferences, AI, market data and trading operations
-are not implemented yet. Gate 1 provisions the private PostgreSQL schema and
-migration infrastructure; application data models are introduced in later gates.
+Authentication is implemented with the private single-owner session. Gate 1
+provisions the private PostgreSQL schema and migration infrastructure. Gate 2
+adds singleton application and risk configuration models; market data,
+intelligence, evaluation, learning and memory remain later gates.
 
 ## Local development
 
