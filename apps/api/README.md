@@ -93,11 +93,15 @@ the schema before Alembic is used. The initial revision is intentionally
 idempotent so the repository migration history can be initialized against the
 already-provisioned foundation.
 
-Set `DATABASE_URL` to a PostgreSQL connection string for a trusted migration
-environment. The Alembic environment automatically selects psycopg 3 for
-`postgresql://` and `postgres://` URLs. Use the Supabase session pooler or a
-direct connection appropriate for migrations; do not use a transaction-pooler
-URL for schema migration operations.
+Set `MIGRATION_DATABASE_URL` to a PostgreSQL connection string for a trusted,
+privileged migration environment. The initial foundation revision manages
+roles and schema privileges, so do not run it with the application runtime
+role. Keep this privileged URL out of the Render runtime environment; use it
+only in a controlled migration job or local operator environment. The Alembic
+environment automatically selects psycopg 3 for `postgresql://` and
+`postgres://` URLs. Use the Supabase session pooler or a direct connection
+appropriate for migrations; do not use a transaction-pooler URL for schema
+migration operations.
 
 Run migrations from `apps/api`:
 
