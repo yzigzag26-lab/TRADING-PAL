@@ -1,5 +1,7 @@
 """FastAPI application factory and HTTP infrastructure."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
