@@ -30,13 +30,15 @@ class RiskSettings(Base):
         CheckConstraint("id = 1", name="ck_risk_settings_singleton"),
         CheckConstraint(
             "(max_risk_per_trade_value IS NULL AND max_risk_per_trade_unit IS NULL) OR "
-            "(max_risk_per_trade_value IS NOT NULL AND max_risk_per_trade_unit IS NOT NULL)",
+            "(max_risk_per_trade_value IS NOT NULL AND "
+            "max_risk_per_trade_unit IS NOT NULL)",
             name="ck_risk_settings_trade_risk_pair",
         ),
         CheckConstraint(
             "max_risk_per_trade_value IS NULL OR "
             "(max_risk_per_trade_value > 0 AND "
-            "((max_risk_per_trade_unit = 'percent' AND max_risk_per_trade_value <= 100) "
+            "((max_risk_per_trade_unit = 'percent' AND "
+            "max_risk_per_trade_value <= 100) "
             "OR max_risk_per_trade_unit = 'quote_currency'))",
             name="ck_risk_settings_trade_risk_range",
         ),
@@ -88,7 +90,9 @@ class RiskSettings(Base):
         {"schema": "baymax"},
     )
 
-    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, server_default=text("1"))
+    id: Mapped[int] = mapped_column(
+        SmallInteger, primary_key=True, server_default=text("1")
+    )
     max_risk_per_trade_value: Mapped[Decimal | None] = mapped_column(Numeric(20, 8))
     max_risk_per_trade_unit: Mapped[str | None] = mapped_column(String(20))
     max_daily_loss_value: Mapped[Decimal | None] = mapped_column(Numeric(20, 8))
