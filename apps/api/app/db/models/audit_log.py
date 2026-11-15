@@ -10,7 +10,6 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Index,
-    String,
     Text,
     Uuid,
     text,
@@ -65,13 +64,13 @@ class AuditLog(Base):
     )
     event_type: Mapped[str] = mapped_column(Text, nullable=False)
     actor_type: Mapped[str] = mapped_column(
-        String(16),
+        Text,
         nullable=False,
         server_default=text("'system'"),
     )
     actor_id: Mapped[str | None] = mapped_column(Text)
-    resource_type: Mapped[str | None] = mapped_column(String(100))
-    resource_id: Mapped[str | None] = mapped_column(String(255))
+    resource_type: Mapped[str | None] = mapped_column(Text)
+    resource_id: Mapped[str | None] = mapped_column(Text)
     request_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
     metadata_: Mapped[dict[str, Any]] = mapped_column(
         "metadata",
