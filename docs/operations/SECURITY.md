@@ -17,6 +17,18 @@ JWT signing secrets, private Binance credentials, or AI-provider keys in browser
 bundles, logs, documentation, prompts, or CI output. Templates contain
 placeholders only.
 
+## API documentation exposure
+
+Swagger UI is currently available at /docs, and the generated OpenAPI
+document is available at /openapi.json. Both are public at this foundation
+stage because the only implemented operation is the public health endpoint.
+Swagger UI is a testing interface, not an access-control boundary.
+
+Before introducing any private API operation, either put both documentation
+routes behind the backend authentication boundary or disable them in
+production. The same restriction applies to future private schemas, examples,
+and endpoint metadata. Never rely on CORS or an obscure URL to protect an API.
+
 ## Binance boundary
 
 The later Binance integration is market-data-only. Use a dedicated read-only
