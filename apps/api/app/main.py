@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
@@ -14,6 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import sessionmaker
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
@@ -24,6 +26,7 @@ from app.auth.security import (
 )
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
+from app.db.session import create_database_engine, verify_database_connection
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
 
 
@@ -37,6 +40,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     active_settings = settings or Settings.from_environment()
     app_logger = configure_logging(active_settings.log_level)
 
+    @asynccontextmanager
+    async def lifespan(application: FastAPI):
+        """Initialize and verify the runtime database connection when configured."""
+        engine = None
+        if active_settings.database_url is not None:
+            engine = create_database_engine(active_settings.database_url)
+            try:
+                verify_database_connection(engine)
+            except Exception:
+                engine.dispose()
+                app_logger.exception("database.startup_connection_failed")
+                raise RuntimeError("Baymax could not establish its runtime database connection") from None
+            application.state.db_engine = engine
+            application.state.db_session_factory = sessionmaker(
+                bind=engine,
+                class_=__import__("sqlalchemy.orm", fromlist=["Session"]).Session,
+                expire_on_commit=False,
+            )
+            app_logger.info("database.runtime_connection_verified")
+        try:
+            yield
+        finally:
+            if engine is not None:
+                engine.dispose()
+
     application = FastAPI(
         title="Baymax API",
         summary="Versioned API for the Baymax trading intelligence workspace.",
@@ -49,6 +77,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url="/docs",
         redoc_url=None,
         openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
     application.state.settings = active_settings
     application.state.login_limiter = LoginRateLimiter()
