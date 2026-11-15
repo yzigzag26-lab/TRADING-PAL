@@ -47,7 +47,12 @@ async def login(payload: LoginRequest, request: Request, response: Response) -> 
     """Verify the one owner password and issue a secure browser session cookie."""
     settings = _settings(request)
     _require_trusted_origin(request, settings)
-    if not settings.owner_password_hash or not settings.session_secret:
+    if (
+        not settings.owner_password_hash
+        or not settings.owner_password_hash.startswith("$argon2id$")
+        or not settings.session_secret
+        or len(settings.session_secret) < 32
+    ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authentication is not configured on this deployment.",
@@ -72,6 +77,7 @@ async def login(payload: LoginRequest, request: Request, response: Response) -> 
         )
 
     limiter.clear(client_key)
+    response.headers["Cache-Control"] = "no-store"
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=create_session_token(settings.session_secret),
@@ -85,8 +91,9 @@ async def login(payload: LoginRequest, request: Request, response: Response) -> 
 
 
 @router.get("/session", response_model=SessionResponse)
-async def read_session(request: Request) -> SessionResponse:
+async def read_session(request: Request, response: Response) -> SessionResponse:
     """Return whether the request carries a valid owner session."""
+    response.headers["Cache-Control"] = "no-store"
     settings = _settings(request)
     authenticated = verify_session_token(
         request.cookies.get(SESSION_COOKIE_NAME),
@@ -99,6 +106,7 @@ async def read_session(request: Request) -> SessionResponse:
 async def logout(request: Request, response: Response) -> SessionResponse:
     """Clear the browser's owner session cookie."""
     _require_trusted_origin(request, _settings(request))
+    response.headers["Cache-Control"] = "no-store"
     response.delete_cookie(
         key=SESSION_COOKIE_NAME,
         path="/",
