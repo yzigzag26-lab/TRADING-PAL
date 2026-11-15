@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy.pool import QueuePool
 from sqlalchemy.engine import make_url
+from typing import cast
 
 from app.db.session import create_database_engine, normalize_database_url
 
@@ -43,7 +45,8 @@ def test_creates_bounded_pre_ping_engine_without_opening_a_connection() -> None:
         "postgresql://baymax_runtime:secret@db.example.supabase.co:5432/postgres"
     )
     try:
-        assert getattr(engine.pool, "_pre_ping") is True
-        assert getattr(engine.pool, "size")() == 5
+        pool = cast(QueuePool, engine.pool)
+        assert pool._pre_ping is True
+        assert pool.size() == 5
     finally:
         engine.dispose()
