@@ -98,21 +98,32 @@ def test_login_fails_closed_when_password_hash_is_not_configured() -> None:
     assert response.json()["error"]["code"] == "service_unavailable"
 
 
+def test_tampered_session_cookie_is_rejected() -> None:
+    with make_client() as client:
+        client.cookies.set(SESSION_COOKIE_NAME, "not-a-valid-signed-session")
+        response = client.get("/api/v1/auth/session")
+
+    assert response.status_code == 200
+    assert response.json() == {"authenticated": False}
+
+
 def test_login_rate_limiter_blocks_after_five_failed_attempts() -> None:
     with make_client() as client:
+        failures = []
         for _ in range(5):
-            failed = client.post(
+            failures.append(client.post(
                 "/api/v1/auth/login",
                 json={"password": "wrong-password"},
                 headers={"Origin": ORIGIN},
-            )
+            ))
         limited = client.post(
             "/api/v1/auth/login",
             json={"password": PASSWORD},
             headers={"Origin": ORIGIN},
         )
 
-    assert failed.status_code == 401
+    assert len(failures) == 5
+    assert failures[-1].status_code == 401
     assert limited.status_code == 429
     assert limited.headers["retry-after"] == "900"
     assert limited.json()["error"]["code"] == "too_many_requests"
