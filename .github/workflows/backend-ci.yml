@@ -51,8 +51,6 @@ jobs:
           python -m pip install -e ".[dev]"
       - name: Install documentation tools
         run: python -m pip install -r ../../requirements-docs.txt
-      - name: Show Ruff formatter diff for Gate 2 models
-        run: ruff format --diff app/db/models/app_settings.py app/db/models/risk_settings.py
       - name: Ruff format check
         run: ruff format --check app tests
       - name: Ruff lint
