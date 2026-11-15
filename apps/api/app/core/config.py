@@ -63,9 +63,6 @@ class Settings:
                 raise ValueError("Production CORS origins must use HTTPS")
 
         database_url = os.getenv("DATABASE_URL", "").strip() or None
-        if app_env == "production" and database_url is None:
-            raise ValueError("DATABASE_URL must be set in production")
-
         return cls(
             app_env=app_env,
             log_level=log_level,
