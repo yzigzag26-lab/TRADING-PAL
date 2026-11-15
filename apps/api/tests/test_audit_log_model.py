@@ -12,9 +12,7 @@ def test_audit_log_is_in_private_schema() -> None:
 
 
 def test_audit_log_has_required_integrity_constraints() -> None:
-    constraint_names = {
-        constraint.name for constraint in AuditLog.__table__.constraints
-    }
+    constraint_names = {constraint.name for constraint in AuditLog.__table__.constraints}
     assert {
         "ck_audit_logs_event_type_nonempty",
         "ck_audit_logs_actor_type",
