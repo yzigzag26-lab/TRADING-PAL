@@ -10,8 +10,8 @@ from argon2 import PasswordHasher
 def main() -> None:
     password = getpass("New Baymax password: ")
     confirmation = getpass("Confirm Baymax password: ")
-    if not password:
-        raise SystemExit("Password must not be empty.")
+    if len(password) < 12:
+        raise SystemExit("Use a password with at least 12 characters.")
     if password != confirmation:
         raise SystemExit("Passwords do not match.")
     print("\nCopy this Argon2id hash into Render as BAYMAX_PASSWORD_HASH:")
