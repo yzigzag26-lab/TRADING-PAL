@@ -49,12 +49,14 @@ def test_openapi_contains_only_the_implemented_versioned_endpoint() -> None:
     assert set(document["paths"]) == {"/api/v1/health"}
 
 
-def test_default_swagger_and_redoc_routes_are_disabled() -> None:
+def test_swagger_ui_is_enabled_and_redoc_remains_disabled() -> None:
     with make_client() as client:
         swagger = client.get("/docs")
         redoc = client.get("/redoc")
 
-    assert swagger.status_code == 404
+    assert swagger.status_code == 200
+    assert "swagger-ui" in swagger.text.lower()
+    assert "/openapi.json" in swagger.text
     assert redoc.status_code == 404
 
 
