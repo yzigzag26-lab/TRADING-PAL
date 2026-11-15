@@ -1,4 +1,4 @@
-""""SQLAlchemy models for the private Baymax schema."""
+"""SQLAlchemy models for the private Baymax schema."""
 
 from app.db.models.app_settings import AppSettings
 from app.db.models.audit_log import AuditLog
