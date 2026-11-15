@@ -17,6 +17,14 @@ JWT signing secrets, private Binance credentials, or AI-provider keys in browser
 bundles, logs, documentation, prompts, or CI output. Templates contain
 placeholders only.
 
+## Single-owner password authentication
+
+Baymax has one password field and one owner; it does not use usernames, email addresses, registration, or OTP. The backend verifies the supplied password against an Argon2id hash stored in Render as `BAYMAX_PASSWORD_HASH`. The signing secret is stored separately as `BAYMAX_SESSION_SECRET`. Neither value belongs in Git, Vercel browser variables, logs, or chat.
+
+The session is an eight-hour signed cookie named `__Host-baymax_session`, with `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, and no `Domain` attribute. Vercel rewrites `/api/*` to Render so the browser sees a same-origin session. The login endpoint checks the request Origin against the configured CORS allow-list and applies a per-process failed-login limiter. Rotate `BAYMAX_SESSION_SECRET` to invalidate all outstanding sessions. Logout clears the current browser cookie; because the cookie is stateless, a copied token remains valid until expiry or secret rotation.
+
+The initial limiter is process-local and is intended for the single-instance private service. If the service is scaled to multiple instances, move rate-limit state to a shared store before scaling.
+
 ## API documentation exposure
 
 Swagger UI is currently available at /docs, and the generated OpenAPI
