@@ -12,74 +12,78 @@ migration infrastructure; application data models are introduced in later gates.
 
 From this directory:
 
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-uvicorn app.main:app --reload
-```
+    python3.12 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install --upgrade pip
+    python -m pip install -e ".[dev]"
+    uvicorn app.main:app --reload
 
 On Windows PowerShell:
 
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-$env:APP_ENV = "development"
-$env:CORS_ALLOWED_ORIGINS = "http://localhost:3000,https://baymax-nu.vercel.app"
-uvicorn app.main:app --reload
-```
+    py -3.12 -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    python -m pip install --upgrade pip
+    python -m pip install -e ".[dev]"
+    $env:APP_ENV = "development"
+    $env:CORS_ALLOWED_ORIGINS = "http://localhost:3000,https://baymax-nu.vercel.app"
+    uvicorn app.main:app --reload
 
-The API listens at `http://127.0.0.1:8000`.
+The API listens at http://127.0.0.1:8000.
 
-## Implemented routes
+## Interactive API documentation
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/health` | Public | Process liveness only |
-| GET | `/openapi.json` | Public | Generated OpenAPI document |
+| GET | /docs | Public for the current foundation | Swagger UI with interactive Try it out |
+| GET | /openapi.json | Public for the current foundation | Generated OpenAPI document |
+| GET | /api/v1/health | Public | Process liveness only |
 
-The health response deliberately does not claim that Supabase or any other
-external dependency is healthy. Swagger UI and ReDoc are disabled. Scalar is
-added in the API documentation stage.
+Open http://127.0.0.1:8000/docs during local development or
+https://baymax-api-6b49.onrender.com/docs for the deployed backend.
+Select GET /api/v1/health, choose Try it out, then Execute to send a real
+request to the backend and inspect its status, headers, and response body.
+
+Swagger UI is an API explorer, not an authentication or authorization system.
+The documentation and OpenAPI schema are currently public because the only
+implemented operation is the public liveness endpoint. Before any private
+endpoint is introduced, Swagger UI and the OpenAPI document must be protected
+behind the backend authentication boundary or disabled in production. Do not
+publish private schemas or enable unauthenticated Try it out for private
+operations. ReDoc remains disabled.
 
 ## Tests and quality
 
-```bash
-ruff format --check app tests
-ruff check app tests
-mypy app tests
-pytest
-```
+    ruff format --check app tests
+    ruff check app tests
+    mypy app tests
+    pytest
 
 No live Supabase project or production secret is required to run the API unit tests.
-Database migrations require a trusted PostgreSQL connection supplied through `MIGRATION_DATABASE_URL`.
+Database migrations require a trusted PostgreSQL connection supplied through
+MIGRATION_DATABASE_URL.
 
 ## Deployment preparation
 
-The repository-level `render.yaml` describes the Render web-service build,
+The repository-level render.yaml describes the Render web-service build,
 start command and health-check path. It does not create a Render service or
 authorize a deployment. Review the manifest and current Render plan limits
 before manually creating a service.
 
-The service root is `apps/api`; Python is pinned by `.python-version`.
-
+The service root is apps/api; Python is pinned by .python-version.
 
 ## Database foundation (Gate 1)
 
 The Supabase project uses PostgreSQL 17. Application objects belong in the
-private `baymax` schema; do not create Baymax application tables in `public`.
-The schema has explicitly revoked schema access for `anon`, `authenticated`, and
-`service_role`; those API roles also have no privileges on Baymax tables.
+private baymax schema; do not create Baymax application tables in public.
+The schema has explicitly revoked schema access for anon, authenticated, and
+service_role; those API roles also have no privileges on Baymax tables.
 
 Two non-login PostgreSQL privilege-group roles are created:
 
-- `baymax_app`: runtime privilege group; schema usage only at foundation stage.
-- `baymax_migrator`: migration privilege group; schema usage and create privileges.
+- baymax_app: runtime privilege group; schema usage only at foundation stage.
+- baymax_migrator: migration privilege group; schema usage and create privileges.
 
-The initial audit foundation creates `baymax.audit_logs` with UUID identity,
+The initial audit foundation creates baymax.audit_logs with UUID identity,
 event and actor classification, optional resource/request references, JSONB
 metadata, and a timezone-aware event timestamp. Metadata must be a JSON object.
 The runtime role has SELECT and INSERT only; UPDATE and DELETE are not granted,
@@ -93,27 +97,24 @@ environment variables, never in Vercel or frontend variables.
 
 ### Alembic
 
-Alembic revisions live in `alembic/versions`. The Alembic version table is
-stored in `baymax.alembic_version`. The initial Supabase migration creates
-the schema before Alembic is used. The initial revision is intentionally
+Alembic revisions live in alembic/versions. The Alembic version table is
+stored in baymax.alembic_version. The initial revision is intentionally
 idempotent so the repository migration history can be initialized against the
 already-provisioned foundation.
 
-Set `MIGRATION_DATABASE_URL` to a PostgreSQL connection string for a trusted,
+Set MIGRATION_DATABASE_URL to a PostgreSQL connection string for a trusted,
 privileged migration environment. The initial foundation revision manages
 roles and schema privileges, so do not run it with the application runtime
 role. Keep this privileged URL out of the Render runtime environment; use it
 only in a controlled migration job or local operator environment. The Alembic
-environment automatically selects psycopg 3 for `postgresql://` and
-`postgres://` URLs. Use the Supabase session pooler or a direct connection
+environment automatically selects psycopg 3 for postgresql:// and
+postgres:// URLs. Use the Supabase session pooler or a direct connection
 appropriate for migrations; do not use a transaction-pooler URL for schema
 migration operations.
 
-Run migrations from `apps/api`:
+Run migrations from apps/api:
 
-```bash
-alembic upgrade head
-```
+    alembic upgrade head
 
 The public health endpoint remains a process-liveness check only and does not
 depend on database availability. No private database endpoint is exposed in
@@ -121,11 +122,11 @@ this gate.
 
 ### Database conventions
 
-- Schema-qualify application objects under `baymax`.
-- Use PostgreSQL-native UUID identifiers generated with `gen_random_uuid()`.
-- Store instants as timezone-aware `timestamptz` in UTC.
+- Schema-qualify application objects under baymax.
+- Use PostgreSQL-native UUID identifiers generated with gen_random_uuid().
+- Store instants as timezone-aware timestamptz in UTC.
 - Use explicit named constraints and indexes.
-- Use `jsonb` only for intentionally flexible structured payloads.
+- Use jsonb only for intentionally flexible structured payloads.
 - Add explicit grants and RLS decisions alongside each future table migration.
 - Do not grant Supabase API roles access to Baymax tables by default.
 - Preserve migration history; do not edit a migration after it has been applied.
