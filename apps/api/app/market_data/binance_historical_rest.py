@@ -8,8 +8,8 @@ from typing import Any
 import httpx
 
 from app.market_data.candles import (
-    BinanceInterval,
     INTERVALS,
+    BinanceInterval,
     HistoricalCandle,
     interval_close_time,
     parse_utc_milliseconds,
