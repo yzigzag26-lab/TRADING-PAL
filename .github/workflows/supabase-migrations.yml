@@ -1,0 +1,88 @@
+name: Supabase production migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type APPLY to authorize the production database migration"
+        required: true
+        type: string
+      target:
+        description: "Alembic target"
+        required: true
+        type: choice
+        options:
+          - head
+
+permissions:
+  contents: read
+
+concurrency:
+  group: baymax-supabase-production-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply approved Supabase migrations
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: baymax-production
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: apps/api/.python-version
+          cache: pip
+          cache-dependency-path: apps/api/pyproject.toml
+
+      - name: Install migration dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+
+      - name: Validate explicit production approval
+        env:
+          MIGRATION_CONFIRMATION: ${{ inputs.confirmation }}
+          MIGRATION_TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          if [ "$MIGRATION_CONFIRMATION" != "APPLY" ]; then
+            echo "Production migration not authorized. Enter APPLY exactly."
+            exit 1
+          fi
+          if [ "$MIGRATION_TARGET" != "head" ]; then
+            echo "Only the reviewed Alembic head is permitted."
+            exit 1
+          fi
+
+      - name: Apply and verify Alembic migrations
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MIGRATION_DATABASE_URL" ]; then
+            echo "Missing MIGRATION_DATABASE_URL in the baymax-production environment."
+            exit 1
+          fi
+
+          echo "Current database revision:"
+          python -m alembic current
+
+          echo "Repository migration heads:"
+          python -m alembic heads
+
+          echo "Applying reviewed migrations to head..."
+          python -m alembic upgrade head
+
+          echo "Verifying resulting database revision:"
+          python -m alembic current
