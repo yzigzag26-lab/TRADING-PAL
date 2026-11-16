@@ -69,7 +69,7 @@ def test_candle_validates_decimal_ohlcv_and_interval_close() -> None:
     ],
 )
 def test_invalid_ohlcv_is_rejected(changes: dict[str, str]) -> None:
-    values = {
+    values: dict[str, object] = {
         "symbol": "BTCUSDT",
         "interval": "1m",
         "open_time": START,
@@ -228,8 +228,21 @@ def test_historical_service_reports_unrecovered_gaps_without_fabrication() -> No
 
 def test_historical_service_enforces_range_size_limit() -> None:
     async def run() -> None:
+        class EmptyRest:
+            async def klines(
+                self,
+                symbol: str,
+                interval: str,
+                *,
+                start_time: datetime,
+                end_time: datetime,
+                limit: int = 1000,
+                now: datetime | None = None,
+            ) -> list[HistoricalCandle]:
+                return []
+
         service = BinanceHistoricalCandleService(
-            rest_client=object(), max_candles=2
+            rest_client=EmptyRest(), max_candles=2
         )
         with pytest.raises(ValueError, match="exceeds"):
             await service.fetch(
