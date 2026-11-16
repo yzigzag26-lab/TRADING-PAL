@@ -34,6 +34,16 @@ class IntentClassification(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     needs_clarification: bool
 
+    @field_validator("symbol")
+    @classmethod
+    def normalize_symbol(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if not normalized.isalnum():
+            raise ValueError("symbol must contain only letters and digits")
+        return normalized
+
 
 class IntentClassificationError(Exception):
     """Raised when classification cannot be trusted."""
@@ -85,8 +95,10 @@ class BaymaxIntentClassifier:
                             "(software/code/debugging), current_market (asks about current/live "
                             "prices or present market conditions), or historical_market (asks about "
                             "past market data or a historical period). Extract a Binance Spot "
-                            "symbol only when explicitly identifiable, such as BTCUSDT. Do not "
-                            "guess a trading pair from an ambiguous asset name. Set "
+                            "symbol only when explicitly identifiable, such as BTCUSDT. If the "
+                            "user names only a base asset such as BTC without a quote asset, do "
+                            "not guess a trading pair; set symbol to null and request clarification "
+                            "for current-market intent. Do not infer a quote asset. Set "
                             "needs_clarification when the intent or required symbol is ambiguous. "
                             "Confidence must reflect classification certainty."
                         ),
