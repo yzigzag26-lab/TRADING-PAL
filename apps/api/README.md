@@ -79,7 +79,9 @@ No live Supabase project or production secret is required to run the API unit te
 The runtime API uses a dedicated PostgreSQL login supplied through
 DATABASE_URL. Alembic requires a separate privileged connection supplied
 through MIGRATION_DATABASE_URL; never configure that variable on the Render
-web service or Vercel.
+web service or Vercel. The normal production migration path is the manually
+approved GitHub Actions workflow documented in
+[Secure production database migrations](../../docs/development/SECURE_MIGRATIONS.md).
 
 ## Deployment preparation
 
@@ -138,9 +140,11 @@ verifies connectivity with SELECT 1; it never logs the connection URL or
 password. Request handlers can obtain a request-scoped SQLAlchemy Session via
 the get_db_session dependency in app.db.session.
 
-Set MIGRATION_DATABASE_URL only in the private operator environment to a
+Store MIGRATION_DATABASE_URL only as the GitHub `baymax-production`
+environment secret for the manually dispatched migration workflow, using a
 connection authenticated as baymax_migration. Never place it on the Render
-web service, Vercel, or in the frontend. The Alembic environment automatically
+web service, Vercel, or in the frontend. Keep the local PowerShell script as
+a controlled fallback for diagnostics and recovery. The Alembic environment automatically
 selects psycopg 3 for postgresql:// and postgres:// URLs. Use the Supabase
 session pooler or a direct connection appropriate for migrations; do not use
 a transaction-pooler URL for schema migration operations.
@@ -149,7 +153,11 @@ The two login roles are separate PostgreSQL identities. baymax_runtime inherits
 only baymax_app; baymax_migration inherits only baymax_migrator. Do not reuse
 the Supabase postgres owner credential for either connection.
 
-Run migrations from apps/api:
+Production migrations run through GitHub Actions → Supabase production
+migrations after the migration code is merged to main and the operator types
+`APPLY`. See [the secure migration runbook](../../docs/development/SECURE_MIGRATIONS.md).
+
+For controlled local recovery only, run from apps/api:
 
     alembic upgrade head
 
