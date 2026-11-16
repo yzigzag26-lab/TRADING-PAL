@@ -1,7 +1,7 @@
 # Gate 3 — Binance Spot market data freshness and reliability
 
 **Specification:** Baymax Market Data Freshness & Reliability v1.0  
-**Status:** Owner-approved acceptance contract; implementation has not started.  
+**Status:** Owner-approved acceptance contract; first transport/retrieval implementation slice is in review and Gate 3 remains incomplete.  
 **Applies to:** Gate 3 of the private, single-owner Baymax system.  
 **Exchange:** Binance Spot only.  
 **Access:** Public market data, read-only.  
@@ -276,3 +276,30 @@ Re-check these official pages at implementation time; they may change:
 ---
 
 **Acceptance authority:** This document is the binding Gate 3 acceptance contract. Any proposed deviation or change to an approved threshold requires explicit owner approval and a documented revision before implementation or acceptance.
+
+
+## 14. First implementation slice — current status
+
+The initial implementation is being added under `apps/api/app/market_data/`:
+
+- `models.py`: immutable, decimal-safe Binance Spot price-event models.
+- `freshness.py`: locked 3,000 ms fail-closed validation. Source-health and clock-health inputs are explicit; age is calculated using integer microseconds.
+- `binance_rest.py`: public `GET /api/v3/trades` latest-trade recovery through `https://data-api.binance.vision`. The trade timestamp is preserved; the timestamp-less ticker-price endpoint is not used as freshness evidence.
+- `binance_stream.py`: public `<symbol>@trade` stream through `wss://data-stream.binance.vision`, preserving Binance trade time and event time separately, with protocol ping/pong and bounded reconnect backoff.
+- `service.py`: one in-process raw-event cache per symbol, explicit stream start, and on-demand current-price retrieval. Every cache read is revalidated at consumption. A stale/missing stream event triggers one timestamped REST recovery attempt, which must independently pass the same 3-second boundary.
+
+### On-demand integration contract
+
+The later request/analysis orchestrator must classify whether the user's request actually requires current market information. It should call `BinanceMarketDataService.get_current_price(symbol, clock_healthy=...)` only for those requests. General educational, conceptual, and programming questions must not call the service. Historical analysis should use separately labelled historical data, not this current-price method.
+
+The service is an internal backend interface in this slice; it is not yet wired to a user-facing market endpoint or the future AI intent/orchestration layer. Do not describe Gate 3 as fully integrated or complete until that wiring and all acceptance evidence exist.
+
+### Runtime configuration and owner action
+
+No Binance API key, secret, signature, or private account permission is required or supported. No Binance environment variables need to be added to Render. The public REST and WebSocket hosts are fixed to Binance's market-data-only domains. The backend runtime dependencies now include HTTPX and WebSockets explicitly.
+
+The owner does not need to create a Binance key, change Binance security settings, or add a paid provider for this slice. Deployment/restart should wait until the PR is reviewed and merged; do not deploy this branch directly to production.
+
+### Remaining Gate 3 work
+
+This slice does not yet provide full lifecycle ownership in FastAPI lifespan, persistent audit/snapshot records, candle history and gap recovery, order-book synchronization, comprehensive WebSocket lifecycle/sequence tests, or the live Binance smoke test. Those criteria remain open and must be evidenced before Gate 3 acceptance.
