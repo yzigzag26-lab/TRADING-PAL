@@ -143,7 +143,9 @@ class BinanceHistoricalCandleService:
                 if candle.symbol != symbol or candle.interval != interval:
                     raise MarketDataUnavailable("Binance returned a mismatched candle series")
                 if candle.open_time < cursor or candle.open_time > end:
-                    raise MarketDataUnavailable("Binance returned a candle outside the requested range")
+                    raise MarketDataUnavailable(
+                        "Binance returned a candle outside the requested range"
+                    )
                 existing = candles.get(candle.open_time)
                 if existing is not None and existing != candle:
                     raise MarketDataUnavailable("Conflicting candle values found during recovery")
@@ -154,7 +156,9 @@ class BinanceHistoricalCandleService:
                 raise MarketDataUnavailable("Historical pagination did not advance")
             cursor = following
             if len(candles) > self._max_candles:
-                raise MarketDataUnavailable("Historical result exceeded its configured candle limit")
+                raise MarketDataUnavailable(
+                    "Historical result exceeded its configured candle limit"
+                )
             if len(page) < min(MAX_KLINE_LIMIT, self._max_candles):
                 return
 
