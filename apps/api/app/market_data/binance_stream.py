@@ -54,14 +54,20 @@ class BinanceSpotTradeStream:
                             trade_time = datetime.fromtimestamp(int(payload["T"]) / 1000, tz=UTC)
                             yield PriceEvent(
                                 symbol=str(payload["s"]),
-                                price=Decimal(str(payload["p"])), 
+                                price=Decimal(str(payload["p"])),
                                 market_event_timestamp=trade_time,
                                 exchange_event_timestamp=event_time,
                                 received_timestamp=received_time,
                                 source="binance_spot_websocket",
                                 event_id=str(payload["t"]),
                             )
-                        except (KeyError, TypeError, ValueError, OverflowError, InvalidOperation) as exc:
+                        except (
+                            KeyError,
+                            TypeError,
+                            ValueError,
+                            OverflowError,
+                            InvalidOperation,
+                        ) as exc:
                             raise MarketDataUnavailable(
                                 "Binance WebSocket trade payload failed validation"
                             ) from exc
