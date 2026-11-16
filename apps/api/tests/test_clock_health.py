@@ -3,10 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 
-from app.core.clock_health import (
-    ClockHealthMonitor,
-    NtpSample,
-)
+from app.core.clock_health import ClockHealthMonitor, NtpSample
 
 
 def test_clock_monitor_requires_two_independent_agreeing_sources() -> None:
