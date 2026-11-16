@@ -64,7 +64,7 @@ class BinanceHistoricalCandleService:
     async def fetch(
         self,
         symbol: str,
-        interval: str,
+        interval: BinanceInterval,
         *,
         start_time: datetime,
         end_time: datetime,
