@@ -9,6 +9,8 @@
 
 ## 1. Purpose and authority
 
+**Current implementation clarification (2026-11-16):** This work-order contains original Phase 1 planning text. For implemented behaviour, follow the current repository README and `apps/api/README.md`: Baymax uses a private single-owner Argon2id password and signed `HttpOnly` session, with Supabase PostgreSQL for persistence; it does not currently use Supabase Auth/JWT login. The current API explorer is Swagger UI at `/docs` with generated `/openapi.json`, and ReDoc is disabled. The original Scalar/Supabase Auth planning language below is historical unless explicitly re-approved. Gate 3's Binance scope and acceptance rules are controlled by `docs/development/GATE_3_MARKET_DATA.md`.
+
 This file defines the exact work split between Claude Code and ChatGPT for the Baymax backend.
 
 The existing `docs/IMPLEMENTATION_HANDOFF.md` remains the controlling Phase 1 scope document. This file supplements it by assigning responsibilities. If documents conflict, stop and ask the owner; do not silently choose one.
