@@ -20,39 +20,41 @@ secret stores. Never commit a real `.env` file.
 | `LOG_LEVEL` | No | Python logging level; defaults to `INFO` |
 | `CORS_ALLOWED_ORIGINS` | Yes in production | Comma-separated exact browser origins; no wildcard |
 | `BAYMAX_PASSWORD_HASH` | Required to enable login | Argon2id hash generated locally with `python scripts/create_password_hash.py`; never the plaintext password |
-| `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie; generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie |
 
-The production backend requires `DATABASE_URL` for its dedicated runtime database
-login. The migration credential is intentionally not a Render variable.
+The production backend requires `DATABASE_URL` for its dedicated runtime
+database login. The migration credential is intentionally not a Render
+variable.
 
 ## Later-stage variables — not used by the current API
 
 | Variable | Purpose |
 |---|---|
-| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_URL` | Supabase project URL for backend operations where approved |
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key; never a service-role key |
-| `SUPABASE_JWKS_URL` | Supabase Auth JWKS endpoint |
-| `SUPABASE_JWT_ISSUER` | Expected JWT issuer |
-| `DATABASE_URL` | Set on Render when the runtime database is provisioned; authenticates as `baymax_runtime` |
-| `MIGRATION_DATABASE_URL` | GitHub `baymax-production` environment secret for the manual production migration workflow; authenticated as `baymax_migration`; never set on Render or Vercel |
-| `BINANCE_API_KEY` | Dedicated read-only key for the later market-data phase |
-| `BINANCE_API_SECRET` | Secret paired with that read-only key |
-| `BINANCE_REST_BASE_URL` | Approved Binance REST base URL |
-| `BINANCE_RECV_WINDOW_MS` | Binance request receive window |
+| `SUPABASE_JWKS_URL` | Supabase Auth JWKS endpoint if Supabase JWT verification is introduced |
+| `SUPABASE_JWT_ISSUER` | Expected JWT issuer if Supabase JWT verification is introduced |
+| `DATABASE_URL` | Render runtime PostgreSQL connection authenticated as `baymax_runtime` |
+| `MIGRATION_DATABASE_URL` | Privileged migration connection; keep in the approved operator/GitHub environment only, never in Vercel or the Render runtime |
+| `BINANCE_REST_BASE_URL` | Optional non-secret base URL; Gate 3 default is `https://data-api.binance.vision` |
+| `BINANCE_WS_BASE_URL` | Optional non-secret base URL; Gate 3 default is `wss://data-stream.binance.vision` |
 | `GROQ_API_KEY` | Server-side Groq credential for a later AI phase |
 | `GROQ_VISION_MODEL` | Vision model identifier |
 | `GROQ_REASONING_MODEL` | Reasoning model identifier |
 | `SUPABASE_CHARTS_BUCKET` | Private chart-storage bucket name |
 
+The Binance base-URL names above are proposed configuration names for the
+future Gate 3 implementation; they are not consumed by the current API.
+**No Binance API key, secret, signature, or receive-window variable is
+required for public Spot market data.**
+
 ## Secret-handling rules
 
-- Never expose service-role keys, database passwords, JWT signing secrets,
-  Binance credentials, or Groq credentials in browser variables.
-- Store the production migration URL only as the GitHub `baymax-production`
-  environment secret. Do not use a repository-wide secret.
+- Never expose database passwords, session-signing secrets, service-role
+  credentials, or future AI-provider credentials in browser variables.
+- Keep privileged migration credentials out of Render runtime and Vercel.
 - Never paste credentials into source code, issues, pull requests, chat, or CI
   logs.
-- Binance access remains out of scope until the market-data phase is approved.
-  Use read-only permissions only; never enable trading, transfers, withdrawals,
-  margin, or futures permissions.
+- Gate 3 uses public Binance Spot market data only and requires no Binance
+  credentials. Do not add private account or trading access.
 - Do not activate paid services without owner approval.
