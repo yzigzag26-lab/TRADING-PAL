@@ -11,6 +11,8 @@ nav = [
     "development/LOCAL_DEVELOPMENT.md",
     "development/TESTING.md",
     "development/ENVIRONMENT_VARIABLES.md",
+    "development/GATE_2_CONFIGURATION.md",
+    "development/GATE_3_MARKET_DATA.md",
     "development/SECURE_MIGRATIONS.md",
   ] },
   { "Operations" = [
