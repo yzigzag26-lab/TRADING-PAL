@@ -25,6 +25,7 @@ from app.auth.security import (
     SESSION_COOKIE_NAME,
     verify_session_token,
 )
+from app.core.clock_health import ClockHealthMonitor
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.db.session import create_database_engine, verify_database_connection
@@ -42,6 +43,7 @@ def create_app(
     *,
     market_data_service_factory: Callable[[], BinanceMarketDataService] | None = None,
     clock_health_provider: Callable[[], bool] | None = None,
+    clock_health_monitor_factory: Callable[[], ClockHealthMonitor] | None = None,
 ) -> FastAPI:
     """Create an independently configurable Baymax API application."""
     active_settings = settings or Settings.from_environment()
@@ -73,21 +75,31 @@ def create_app(
             app_logger.info("database.runtime_connection_verified")
         market_data_service = (market_data_service_factory or BinanceMarketDataService)()
         application.state.market_data_service = market_data_service
+        clock_monitor: ClockHealthMonitor | None = None
+        if clock_health_provider is None and active_settings.app_env == "production":
+            clock_monitor = (clock_health_monitor_factory or ClockHealthMonitor)()
+            await clock_monitor.start()
+            application.state.clock_health_monitor = clock_monitor
+            application.state.clock_health_provider = clock_monitor.is_healthy
+        else:
+            # Non-production and explicitly injected test providers never claim
+            # production clock health by default.
+            application.state.clock_health_provider = clock_health_provider or (lambda: False)
+
         groq_client = GroqChatClient(
             api_key=active_settings.groq_api_key,
             model=active_settings.groq_model,
         )
         application.state.groq_client = groq_client
         await groq_client.start()
-        # No clock synchronization monitor is configured yet. Fail closed until
-        # a verified provider is injected by the runtime integration.
-        application.state.clock_health_provider = clock_health_provider or (lambda: False)
         try:
             await market_data_service.start()
             app_logger.info("market_data.service_started")
             yield
         finally:
             await market_data_service.close()
+            if clock_monitor is not None:
+                await clock_monitor.close()
             await groq_client.close()
             app_logger.info("market_data.service_stopped")
             if engine is not None:
