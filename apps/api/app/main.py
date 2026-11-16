@@ -11,6 +11,8 @@ from time import perf_counter
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
+
+from app.ai.groq import GroqChatClient
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -72,6 +74,12 @@ def create_app(
             app_logger.info("database.runtime_connection_verified")
         market_data_service = (market_data_service_factory or BinanceMarketDataService)()
         application.state.market_data_service = market_data_service
+        groq_client = GroqChatClient(
+            api_key=active_settings.groq_api_key,
+            model=active_settings.groq_model,
+        )
+        application.state.groq_client = groq_client
+        await groq_client.start()
         # No clock synchronization monitor is configured yet. Fail closed until
         # a verified provider is injected by the runtime integration.
         application.state.clock_health_provider = clock_health_provider or (lambda: False)
@@ -81,6 +89,7 @@ def create_app(
             yield
         finally:
             await market_data_service.close()
+            await groq_client.close()
             app_logger.info("market_data.service_stopped")
             if engine is not None:
                 engine.dispose()
