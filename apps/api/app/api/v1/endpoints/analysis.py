@@ -49,8 +49,6 @@ class HistoricalAnalysisRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_range(self) -> HistoricalAnalysisRequest:
-        if not isinstance(self.start_time, datetime) or not isinstance(self.end_time, datetime):
-            raise ValueError("Historical range timestamps must be ISO-8601 datetimes")
         if self.start_time.tzinfo is None or self.end_time.tzinfo is None:
             raise ValueError("Historical range timestamps must include a timezone")
         if self.start_time > self.end_time:
