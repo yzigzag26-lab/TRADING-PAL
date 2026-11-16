@@ -7,6 +7,7 @@ import json
 import random
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from websockets.asyncio.client import connect
@@ -53,14 +54,14 @@ class BinanceSpotTradeStream:
                             trade_time = datetime.fromtimestamp(int(payload["T"]) / 1000, tz=UTC)
                             yield PriceEvent(
                                 symbol=str(payload["s"]),
-                                price=str(payload["p"]),
+                                price=Decimal(str(payload["p"])), 
                                 market_event_timestamp=trade_time,
                                 exchange_event_timestamp=event_time,
                                 received_timestamp=received_time,
                                 source="binance_spot_websocket",
                                 event_id=str(payload["t"]),
                             )
-                        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                        except (KeyError, TypeError, ValueError, OverflowError, InvalidOperation) as exc:
                             raise MarketDataUnavailable(
                                 "Binance WebSocket trade payload failed validation"
                             ) from exc
