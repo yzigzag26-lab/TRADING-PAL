@@ -6,8 +6,6 @@ introduced without changing Baymax classification or analysis logic.
 
 from __future__ import annotations
 
-from typing import Protocol
-
 import httpx
 
 
@@ -16,11 +14,6 @@ GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 class GroqUnavailable(Exception):
     """Raised when Groq cannot provide a usable completion."""
-
-
-class ChatMessage(Protocol):
-    role: str
-    content: str
 
 
 class GroqChatClient:
@@ -88,6 +81,8 @@ class GroqChatClient:
             )
             response.raise_for_status()
             body = response.json()
+            if not isinstance(body, dict):
+                raise GroqUnavailable("Groq returned an invalid response body")
             choices = body.get("choices")
             if not isinstance(choices, list) or not choices:
                 raise GroqUnavailable("Groq returned no completion choices")
