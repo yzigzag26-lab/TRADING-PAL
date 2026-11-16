@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Protocol
 
 from app.market_data.binance_historical_rest import MAX_KLINE_LIMIT, BinanceHistoricalRestClient
