@@ -21,7 +21,7 @@ def make_event(*, age_ms: int = 1_000, event_time: datetime | None = None) -> Pr
     timestamp = event_time or NOW - timedelta(milliseconds=age_ms)
     return PriceEvent(
         symbol="btcusdt",
-        price="95000.12345678",
+        price=Decimal("95000.12345678"),
         market_event_timestamp=timestamp,
         exchange_event_timestamp=timestamp,
         received_timestamp=NOW,
@@ -101,7 +101,7 @@ def test_invalid_prices_are_rejected(price: str) -> None:
     with pytest.raises(ValidationError):
         PriceEvent(
             symbol="BTCUSDT",
-            price=price,
+            price=Decimal(price),
             market_event_timestamp=NOW,
             received_timestamp=NOW,
             source="binance_spot_rest",
