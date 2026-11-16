@@ -34,7 +34,7 @@ login. The migration credential is intentionally not a Render variable.
 | `SUPABASE_JWKS_URL` | Supabase Auth JWKS endpoint |
 | `SUPABASE_JWT_ISSUER` | Expected JWT issuer |
 | `DATABASE_URL` | Set on Render when the runtime database is provisioned; authenticates as `baymax_runtime` |
-| `MIGRATION_DATABASE_URL` | Private operator environment only; privileged PostgreSQL connection authenticated as `baymax_migration`; never set on Render or Vercel |
+| `MIGRATION_DATABASE_URL` | GitHub `baymax-production` environment secret for the manual production migration workflow; authenticated as `baymax_migration`; never set on Render or Vercel |
 | `BINANCE_API_KEY` | Dedicated read-only key for the later market-data phase |
 | `BINANCE_API_SECRET` | Secret paired with that read-only key |
 | `BINANCE_REST_BASE_URL` | Approved Binance REST base URL |
@@ -48,6 +48,8 @@ login. The migration credential is intentionally not a Render variable.
 
 - Never expose service-role keys, database passwords, JWT signing secrets,
   Binance credentials, or Groq credentials in browser variables.
+- Store the production migration URL only as the GitHub `baymax-production`
+  environment secret. Do not use a repository-wide secret.
 - Never paste credentials into source code, issues, pull requests, chat, or CI
   logs.
 - Binance access remains out of scope until the market-data phase is approved.
