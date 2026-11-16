@@ -193,15 +193,11 @@ class ClockHealthMonitor:
         median_offset = (
             offsets[len(offsets) // 2]
             if len(offsets) % 2
-            else (
-                offsets[len(offsets) // 2 - 1] + offsets[len(offsets) // 2]
-            )
-            / 2
+            else (offsets[len(offsets) // 2 - 1] + offsets[len(offsets) // 2]) / 2
         )
         spread = max(offsets) - min(offsets)
         healthy = (
-            abs(median_offset) <= MAX_CLOCK_OFFSET_SECONDS
-            and spread <= MAX_CLOCK_OFFSET_SECONDS
+            abs(median_offset) <= MAX_CLOCK_OFFSET_SECONDS and spread <= MAX_CLOCK_OFFSET_SECONDS
         )
         reason = "healthy" if healthy else "ntp_sources_disagree_or_clock_offset_exceeded"
         self._snapshot = ClockHealthSnapshot(
