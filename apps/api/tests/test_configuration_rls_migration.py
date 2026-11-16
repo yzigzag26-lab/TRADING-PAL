@@ -11,18 +11,19 @@ def test_configuration_rls_migration_targets_both_private_tables() -> None:
 
     assert 'revision = "20261116_0004"' in source
     assert 'down_revision = "20261115_0003"' in source
+    assert 'for table in ("app_settings", "risk_settings")' in source
+    for action in ("select", "insert", "update"):
+        assert f"CREATE POLICY {table}_app_{action}" in source
     for table in ("app_settings", "risk_settings"):
         assert f"ALTER TABLE baymax.{table} ENABLE ROW LEVEL SECURITY" in source
-        for action in ("select", "insert", "update"):
-            assert f"{table}_app_{action}" in source
 
 
 def test_configuration_policies_match_runtime_privilege_group() -> None:
     source = MIGRATION.read_text(encoding="utf-8")
 
-    assert source.count("TO baymax_app") == 6
-    assert source.count("USING (true)") == 4
-    assert source.count("WITH CHECK (true)") == 4
+    assert source.count("TO baymax_app") == 3
+    assert source.count("USING (true)") == 2
+    assert source.count("WITH CHECK (true)") == 2
     assert "FOR DELETE" not in source
     assert "TO baymax_runtime" not in source
 
