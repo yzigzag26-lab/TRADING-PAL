@@ -53,7 +53,9 @@ def validate_price_event(
 
     delta = validation_time - event.market_event_timestamp
     age_microseconds = (
-        delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds
+        delta.days * 86_400_000_000
+        + delta.seconds * 1_000_000
+        + delta.microseconds
     )
     if age_microseconds < 0:
         raise MarketDataUnavailable("Market event timestamp is in the future")
