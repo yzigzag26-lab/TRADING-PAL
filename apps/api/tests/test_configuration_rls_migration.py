@@ -13,7 +13,7 @@ def test_configuration_rls_migration_targets_both_private_tables() -> None:
     assert 'down_revision = "20261115_0003"' in source
     assert 'for table in ("app_settings", "risk_settings")' in source
     for action in ("select", "insert", "update"):
-        assert f"CREATE POLICY {table}_app_{action}" in source
+        assert f"CREATE POLICY {{table}}_app_{action}" in source
     for table in ("app_settings", "risk_settings"):
         assert f"ALTER TABLE baymax.{table} ENABLE ROW LEVEL SECURITY" in source
 
