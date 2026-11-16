@@ -30,13 +30,9 @@ variables. Never put a secret in a browser-exposed variable.
 |---|---|
 | `BINANCE_REST_BASE_URL` | Optional non-secret base URL; Gate 3 default is `https://data-api.binance.vision` |
 | `BINANCE_WS_BASE_URL` | Optional non-secret base URL; Gate 3 default is `wss://data-stream.binance.vision` |
-| `GROQ_API_KEY` | Server-side Groq credential for a later AI phase |
-| `GROQ_VISION_MODEL` | Vision model identifier |
-| `GROQ_REASONING_MODEL` | Reasoning model identifier |
 | `SUPABASE_CHARTS_BUCKET` | Private chart-storage bucket name |
 
-The Binance base-URL names above are proposed configuration names for the
-future Gate 3 implementation; they are not consumed by the current API.
+The Binance base-URL names above are proposed configuration names and are not consumed by the current API. Production clock health is checked with public NTP sources over UDP/123; it has no secret or environment-variable override.
 **No Binance API key, secret, signature, or receive-window variable is
 required for public Spot market data.**
 

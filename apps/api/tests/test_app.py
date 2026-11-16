@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
+from app.core.clock_health import ClockHealthMonitor, ClockHealthSnapshot
 from app.core.config import Settings
 from app.main import create_app
 
@@ -163,3 +165,40 @@ def test_production_rejects_http_cors_origins(monkeypatch: MonkeyPatch) -> None:
 
     with pytest.raises(ValueError, match="must use HTTPS"):
         Settings.from_environment()
+
+
+def test_production_lifespan_uses_and_closes_injected_clock_monitor() -> None:
+    class FakeClockMonitor:
+        def __init__(self) -> None:
+            self.started = False
+            self.closed = False
+
+        async def start(self) -> None:
+            self.started = True
+
+        async def close(self) -> None:
+            self.closed = True
+
+        def is_healthy(self) -> bool:
+            return True
+
+        @property
+        def snapshot(self) -> ClockHealthSnapshot:
+            return ClockHealthSnapshot(True, None, 0.0, 3, "healthy")
+
+    monitor = FakeClockMonitor()
+    settings = Settings(
+        app_env="production",
+        log_level="INFO",
+        cors_allowed_origins=("https://baymax-nu.vercel.app",),
+    )
+    application = create_app(
+        settings,
+        clock_health_monitor_factory=lambda: cast(ClockHealthMonitor, monitor),
+    )
+
+    with TestClient(application):
+        assert monitor.started is True
+        assert application.state.clock_health_provider() is True
+
+    assert monitor.closed is True
