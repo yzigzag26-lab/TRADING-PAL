@@ -9,12 +9,40 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 BinanceInterval = Literal[
-    "1s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h",
-    "6h", "8h", "12h", "1d", "3d", "1w", "1M",
+    "1s",
+    "1m",
+    "3m",
+    "5m",
+    "15m",
+    "30m",
+    "1h",
+    "2h",
+    "4h",
+    "6h",
+    "8h",
+    "12h",
+    "1d",
+    "3d",
+    "1w",
+    "1M",
 ]
 INTERVALS: tuple[str, ...] = (
-    "1s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h",
-    "6h", "8h", "12h", "1d", "3d", "1w", "1M",
+    "1s",
+    "1m",
+    "3m",
+    "5m",
+    "15m",
+    "30m",
+    "1h",
+    "2h",
+    "4h",
+    "6h",
+    "8h",
+    "12h",
+    "1d",
+    "3d",
+    "1w",
+    "1M",
 )
 
 
@@ -32,12 +60,18 @@ def interval_next_open(open_time: datetime, interval: str) -> datetime:
         year, month_zero = divmod(month_index, 12)
         month = month_zero + 1
         return open_time.replace(
-            year=year, month=month, day=1, hour=0, minute=0,
-            second=0, microsecond=0,
+            year=year,
+            month=month,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
         )
     units = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
     amount = int(interval[:-1]) * units[interval[-1]]
     from datetime import timedelta
+
     return open_time + timedelta(seconds=amount)
 
 
@@ -48,8 +82,7 @@ def is_interval_boundary(value: datetime, interval: str) -> bool:
     value = value.astimezone(UTC)
     if interval.endswith("M"):
         return (
-            value.day == 1
-            and value.hour == value.minute == value.second == value.microsecond == 0
+            value.day == 1 and value.hour == value.minute == value.second == value.microsecond == 0
         )
     if interval == "1w":
         return (
@@ -65,6 +98,7 @@ def is_interval_boundary(value: datetime, interval: str) -> bool:
 def interval_close_time(open_time: datetime, interval: str) -> datetime:
     """Return Binance's inclusive close timestamp (one millisecond before next open)."""
     from datetime import timedelta
+
     return interval_next_open(open_time, interval) - timedelta(milliseconds=1)
 
 
@@ -120,8 +154,15 @@ class HistoricalCandle(BaseModel):
         return normalized
 
     @field_validator(
-        "open", "high", "low", "close", "base_volume", "quote_volume",
-        "taker_buy_base_volume", "taker_buy_quote_volume", mode="before",
+        "open",
+        "high",
+        "low",
+        "close",
+        "base_volume",
+        "quote_volume",
+        "taker_buy_base_volume",
+        "taker_buy_quote_volume",
+        mode="before",
     )
     @classmethod
     def parse_decimal(cls, value: object) -> Decimal:
@@ -150,10 +191,15 @@ class HistoricalCandle(BaseModel):
             raise ValueError("Candle high cannot be below open or close")
         if self.low > self.high:
             raise ValueError("Candle low cannot exceed high")
-        if min(
-            self.base_volume, self.quote_volume,
-            self.taker_buy_base_volume, self.taker_buy_quote_volume,
-        ) < 0:
+        if (
+            min(
+                self.base_volume,
+                self.quote_volume,
+                self.taker_buy_base_volume,
+                self.taker_buy_quote_volume,
+            )
+            < 0
+        ):
             raise ValueError("Candle volumes cannot be negative")
         if self.taker_buy_base_volume > self.base_volume:
             raise ValueError("Taker-buy base volume cannot exceed total base volume")
