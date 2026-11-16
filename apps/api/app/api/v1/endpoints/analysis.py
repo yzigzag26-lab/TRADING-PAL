@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.engine import BaymaxAIEngine
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
 from app.auth.security import SESSION_COOKIE_NAME, verify_session_token
 from app.core.config import Settings
+from app.market_data.candles import (
+    BinanceInterval,
+    HistoricalCandleSeries,
+    expected_open_times,
+)
+from app.market_data.freshness import MarketDataUnavailable
 from app.orchestration.requests import (
     AnalysisInputUnavailable,
     AnalysisRequest,
@@ -20,6 +27,34 @@ from app.orchestration.requests import (
 )
 
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
+
+
+class HistoricalAnalysisRequest(BaseModel):
+    """Explicit bounded historical OHLCV range request."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    symbol: str = Field(min_length=1, max_length=30)
+    interval: BinanceInterval
+    start_time: datetime
+    end_time: datetime
+
+    @model_validator(mode="after")
+    def validate_range(self) -> HistoricalAnalysisRequest:
+        if not isinstance(self.start_time, datetime) or not isinstance(self.end_time, datetime):
+            raise ValueError("Historical range timestamps must be ISO-8601 datetimes")
+        if self.start_time.tzinfo is None or self.end_time.tzinfo is None:
+            raise ValueError("Historical range timestamps must include a timezone")
+        if self.start_time > self.end_time:
+            raise ValueError("Historical range start must not be after end")
+        opens = expected_open_times(self.start_time, self.end_time, self.interval)
+        if not opens or len(opens) > 10_000:
+            raise ValueError("Historical range must contain between 1 and 10000 candles")
+        normalized = self.symbol.strip().upper()
+        if not normalized.isalnum():
+            raise ValueError("Symbol must contain only letters and digits")
+        object.__setattr__(self, "symbol", normalized)
+        return self
 
 
 class AnalysisConversationRequest(BaseModel):
@@ -117,3 +152,30 @@ async def respond_to_message(
         market_data_status=result.market_data_status,
         needs_clarification=result.needs_clarification,
     )
+
+
+
+@router.post("/history", response_model=HistoricalCandleSeries)
+async def fetch_historical_market_data(
+    payload: HistoricalAnalysisRequest,
+    request: Request,
+) -> HistoricalCandleSeries:
+    """Fetch a bounded, validated Binance Spot OHLCV series for the owner."""
+    _require_owner(request)
+    try:
+        return await request.app.state.historical_market_data_service.fetch(
+            payload.symbol,
+            payload.interval,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+        )
+    except MarketDataUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Verified historical market data is temporarily unavailable.",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
