@@ -120,7 +120,7 @@ class BinanceHistoricalCandleService:
     async def _fetch_range(
         self,
         symbol: str,
-        interval: str,
+        interval: BinanceInterval,
         start: datetime,
         end: datetime,
         candles: dict[datetime, HistoricalCandle],
@@ -171,7 +171,7 @@ class BinanceHistoricalCandleService:
     @staticmethod
     def _missing_ranges(
         missing: list[datetime],
-        interval: str,
+        interval: BinanceInterval,
     ) -> list[tuple[datetime, datetime]]:
         if not missing:
             return []
