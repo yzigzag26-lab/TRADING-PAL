@@ -86,6 +86,7 @@ def test_general_requests_do_not_fetch_unless_service_is_called() -> None:
     assert rest.calls == 0
     assert service._events == {}
 
+
 def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
     class FakeRest:
         calls = 0
