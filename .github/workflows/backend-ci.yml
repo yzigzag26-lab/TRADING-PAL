@@ -52,9 +52,9 @@ jobs:
       - name: Install documentation tools
         run: python -m pip install -r ../../requirements-docs.txt
       - name: Ruff format check
-        run: ruff format --diff app tests || true
+        run: ruff format --check app tests
       - name: Ruff lint
-        run: ruff check --fix --diff app tests || true
+        run: ruff check app tests
       - name: Mypy
         run: mypy app tests
       - name: Pytest
