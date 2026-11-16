@@ -8,6 +8,7 @@ from typing import Protocol
 from app.market_data.binance_historical_rest import MAX_KLINE_LIMIT, BinanceHistoricalRestClient
 from app.market_data.candles import (
     INTERVALS,
+    BinanceInterval,
     HistoricalCandle,
     HistoricalCandleSeries,
     expected_open_times,
@@ -20,7 +21,7 @@ class HistoricalKlineClient(Protocol):
     async def klines(
         self,
         symbol: str,
-        interval: str,
+        interval: BinanceInterval,
         *,
         start_time: datetime,
         end_time: datetime,
