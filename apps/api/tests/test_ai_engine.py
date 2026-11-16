@@ -14,7 +14,7 @@ from app.ai.groq import GroqChatClient, GroqUnavailable
 from app.market_data.freshness import MarketDataUnavailable
 from app.market_data.models import ValidatedPrice
 from app.market_data.service import BinanceMarketDataService
-from app.orchestration.requests import BaymaxRequestOrchestrator
+from app.orchestration.requests import AnalysisInputUnavailable, BaymaxRequestOrchestrator
 
 
 class FakeGroq:
@@ -111,7 +111,7 @@ def test_current_market_request_fails_closed_before_analysis_generation() -> Non
                 clock_health_provider=lambda: True,
             ),
         )
-        with pytest.raises(Exception, match="unavailable"):
+        with pytest.raises(AnalysisInputUnavailable, match="unavailable"):
             await engine.respond("What is BTCUSDT trading at right now?")
         assert market_data.calls == [("BTCUSDT", True)]
         assert len(groq.calls) == 1
