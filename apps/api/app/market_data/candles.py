@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import calendar
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
