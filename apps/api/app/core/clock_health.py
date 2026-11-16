@@ -13,6 +13,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import cast
 
 NTP_EPOCH_OFFSET = 2_208_988_800
 NTP_PACKET_SIZE = 48
@@ -52,7 +53,9 @@ def _ntp_timestamp(epoch_seconds: float) -> bytes:
 
 
 def _decode_ntp_timestamp(packet: bytes, offset: int) -> float:
-    seconds, fraction = struct.unpack("!II", packet[offset : offset + 8])
+    seconds, fraction = cast(
+        tuple[int, int], struct.unpack("!II", packet[offset : offset + 8])
+    )
     return seconds - NTP_EPOCH_OFFSET + fraction / 2**32
 
 
