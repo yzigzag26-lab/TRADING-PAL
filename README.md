@@ -18,10 +18,10 @@ invalidation. It does not currently execute trades.
 
 ## Current implementation status
 
-- The frontend foundation is present with honest disconnected/empty states.
-- The backend has a private single-owner password/session flow, a public
-  liveness endpoint, CORS allow-list, request IDs, structured logs and
-  standardized errors.
+- The frontend's private password screen is connected to the backend's
+  single-owner login, session-restoration and logout endpoints.
+- The backend uses an Argon2id password hash and signed, secure owner session;
+  it does not currently use Supabase Auth.
 - Gate 1 database foundation and Gate 2 application/risk configuration
   migrations are present in the repository; consult their gate documents for
   verification and remaining hardening evidence.
@@ -30,8 +30,7 @@ invalidation. It does not currently execute trades.
   in [Gate 3 — Market Data](docs/development/GATE_3_MARKET_DATA.md).
 - AI analysis, chart processing, evaluation, evidence-based learning and
   curated memory remain later gates.
-- No sample prices, balances, signals, analyses or history records are
-  fabricated.
+- Market prices, balances, signals, analyses and history are not fabricated.
 
 ## Development
 
