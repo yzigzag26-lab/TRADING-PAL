@@ -48,6 +48,7 @@ def test_openapi_contains_only_the_implemented_versioned_endpoint() -> None:
     assert document["info"]["title"] == "Baymax API"
     assert set(document["paths"]) == {
         "/api/v1/health",
+        "/api/v1/analysis/prepare",
         "/api/v1/auth/login",
         "/api/v1/auth/session",
         "/api/v1/auth/logout",

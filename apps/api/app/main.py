@@ -27,6 +27,7 @@ from app.auth.security import (
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.db.session import create_database_engine, verify_database_connection
+from app.market_data.service import BinanceMarketDataService
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
 
 
@@ -35,7 +36,12 @@ def _request_id(request: Request) -> str:
     return str(getattr(request.state, "request_id", "unknown"))
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    market_data_service_factory: Callable[[], BinanceMarketDataService] | None = None,
+    clock_health_provider: Callable[[], bool] | None = None,
+) -> FastAPI:
     """Create an independently configurable Baymax API application."""
     active_settings = settings or Settings.from_environment()
     app_logger = configure_logging(active_settings.log_level)
@@ -64,9 +70,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 expire_on_commit=False,
             )
             app_logger.info("database.runtime_connection_verified")
+        market_data_service = (market_data_service_factory or BinanceMarketDataService)()
+        application.state.market_data_service = market_data_service
+        # No clock synchronization monitor is configured yet. Fail closed until
+        # a verified provider is injected by the runtime integration.
+        application.state.clock_health_provider = clock_health_provider or (lambda: False)
         try:
+            await market_data_service.start()
+            app_logger.info("market_data.service_started")
             yield
         finally:
+            await market_data_service.close()
+            app_logger.info("market_data.service_stopped")
             if engine is not None:
                 engine.dispose()
 
