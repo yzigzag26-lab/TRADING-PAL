@@ -166,7 +166,6 @@ def test_production_rejects_http_cors_origins(monkeypatch: MonkeyPatch) -> None:
         Settings.from_environment()
 
 
-
 def test_production_lifespan_uses_and_closes_injected_clock_monitor() -> None:
     class FakeClockMonitor:
         def __init__(self) -> None:
