@@ -290,9 +290,9 @@ The initial implementation is being added under `apps/api/app/market_data/`:
 
 ### On-demand integration contract
 
-The request/analysis orchestration boundary now accepts an explicit intent (`educational`, `programming`, `current_market`, or `historical_market`). It calls `BinanceMarketDataService.get_current_price(symbol, clock_healthy=...)` only for `current_market`. Educational and programming requests never call the service. Historical analysis remains a separate path and is not served by this current-price method. The AI intent classifier is not yet implemented; callers must supply a trusted structured classification.
+The request/analysis orchestration boundary now accepts an explicit intent (`educational`, `programming`, `current_market`, or `historical_market`). It calls `BinanceMarketDataService.get_current_price(symbol, clock_healthy=...)` only for `current_market`. Educational and programming requests never call the service. Historical analysis remains a separate path and is not served by this current-price method. The Groq-backed AI intent classifier now supplies this explicit classification. It does not retrieve market data itself; the orchestration boundary remains authoritative.
 
-FastAPI now owns the service through lifespan startup/shutdown, and the owner-only `POST /api/v1/analysis/prepare` endpoint routes explicitly classified requests through `BaymaxRequestOrchestrator`. Educational/programming requests do not fetch market data; historical requests are explicitly marked not implemented; current-market requests require a symbol, a healthy clock provider, and a fresh validated Binance price. This prepares inputs only—it does not generate AI analysis or trading advice.
+FastAPI now owns the service through lifespan startup/shutdown, and the owner-only `POST /api/v1/analysis/prepare` endpoint routes explicitly classified requests through `BaymaxRequestOrchestrator`. Educational/programming requests do not fetch market data; historical requests are explicitly marked not implemented; current-market requests require a symbol, a healthy clock provider, and a fresh validated Binance price. The separate Groq-backed analysis generator now consumes these prepared inputs through `POST /api/v1/analysis/respond`. The preparation endpoint remains available for internal diagnostics and does not generate an answer.
 
 ### Runtime configuration and owner action
 
@@ -302,4 +302,20 @@ The owner does not need to create a Binance key, change Binance security setting
 
 ### Remaining Gate 3 work
 
-Remaining Gate 3 work includes a production-grade clock-synchronization health provider (the default runtime provider deliberately reports unhealthy, so current-market requests fail closed until one is configured), persistent audit/snapshot records, candle history and gap recovery, order-book synchronization if required, comprehensive WebSocket lifecycle/sequence tests, and the live Binance smoke test. The new analysis preparation endpoint is not an AI response generator; the AI intent classifier and analysis engine must be integrated in a later slice.
+Remaining Gate 3 work includes a production-grade clock-synchronization health provider (the default runtime provider deliberately reports unhealthy, so current-market requests fail closed until one is configured), persistent audit/snapshot records, candle history and gap recovery, order-book synchronization if required, comprehensive WebSocket lifecycle/sequence tests, and the live Binance smoke test. The AI classifier and analysis generator are now implemented, but Gate 3 remains incomplete until the clock-health provider, persistent provenance, historical/candle ingestion, stream recovery tests, and remaining acceptance evidence are delivered.
+
+
+## 15. Groq-backed AI intelligence integration
+
+The AI layer is implemented as a separate capability from the market-data service:
+
+- `apps/api/app/ai/groq.py`: bounded-timeout asynchronous Groq Chat Completions adapter. The provider boundary is replaceable; the API key is never returned to clients or written to logs.
+- `apps/api/app/ai/classifier.py`: strict structured-output intent classifier. It selects only `educational`, `programming`, `current_market`, or `historical_market`, extracts a symbol only when identifiable, and requests clarification for low-confidence or ambiguous messages.
+- `apps/api/app/orchestration/requests.py`: remains the only component that decides whether Binance is called. Only `current_market` reaches the current-price service.
+- `apps/api/app/ai/generator.py`: produces a structured Markdown answer grounded in the original request and prepared input. It is instructed not to invent missing market values or infer trends/indicators from a single trade.
+- `apps/api/app/ai/engine.py`: runs classifier → input orchestration → response generation.
+- Owner-only `POST /api/v1/analysis/respond`: natural-language entry point for the full pipeline.
+
+The initial Groq model default is `openai/gpt-oss-20b`, selected because Groq documents strict Structured Outputs support for it. The model can be changed through `GROQ_MODEL` without changing the classifier or generator. Configure `GROQ_API_KEY` and optionally `GROQ_MODEL` on the Render backend only. Do not put the key in Vercel, browser code, or source control. The API can start without a key, but AI responses remain unavailable until one is configured.
+
+The AI layer is analysis-only and has no exchange tools or order execution. It does not make the default clock provider healthy: current-market requests remain blocked until a production-grade clock-health provider is installed. Historical retrieval is still not implemented, and the generator must state that limitation rather than fabricate past market data.
