@@ -8,6 +8,8 @@
 
 ---
 
+**Current-state clarification (2026-11-16):** This document records the original Phase 1 planning baseline; it is not a live implementation-status report. Where the original plan differs from the implemented repository, the current implementation is authoritative: Baymax currently uses a private single-owner Argon2id password and signed `HttpOnly` session (not Supabase Auth), and the current API explorer is FastAPI Swagger UI at `/docs` with generated `/openapi.json` (ReDoc disabled), not the originally proposed Scalar route. See the repository README, `apps/api/README.md`, and current operations documentation for implemented behaviour. Gate 3 is governed separately by `docs/development/GATE_3_MARKET_DATA.md`; that document is its binding acceptance contract.
+
 ## 1. Purpose and operating rules
 
 This document is the implementation contract for the development agent(s) assigned to Phase 1. Follow it as the source of truth for scope, sequencing, architecture boundaries, verification, and handover.
