@@ -177,7 +177,6 @@ def test_market_data_service_is_started_and_closed_by_fastapi_lifespan() -> None
     assert service.closed is True
 
 
-
 def test_historical_market_data_endpoint_requires_owner_session() -> None:
     settings = Settings(
         app_env="test",
