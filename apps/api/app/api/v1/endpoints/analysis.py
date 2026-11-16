@@ -156,7 +156,6 @@ async def respond_to_message(
     )
 
 
-
 @router.post("/history", response_model=HistoricalCandleSeries)
 async def fetch_historical_market_data(
     payload: HistoricalAnalysisRequest,
