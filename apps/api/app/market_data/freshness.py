@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass
-from datetime import datetime, UTC
 
 from app.market_data.models import PriceEvent, ValidatedPrice
 
@@ -30,7 +30,7 @@ class FreshnessPolicy:
 def validate_price_event(
     event: PriceEvent,
     *,
-    now: datetime | None = None,
+    now: datetime.datetime | None = None,
     source_healthy: bool,
     clock_healthy: bool,
     policy: FreshnessPolicy | None = None,
@@ -46,10 +46,10 @@ def validate_price_event(
     if not clock_healthy:
         raise MarketDataUnavailable("Baymax clock health is not verified")
 
-    validation_time = now or datetime.now(UTC)
+    validation_time = now or datetime.datetime.now(datetime.UTC)
     if validation_time.tzinfo is None or validation_time.utcoffset() is None:
         raise MarketDataUnavailable("Validation clock must be timezone-aware")
-    validation_time = validation_time.astimezone(UTC)
+    validation_time = validation_time.astimezone(datetime.UTC)
 
     delta = validation_time - event.market_event_timestamp
     age_microseconds = delta.days * 86_400_000_000 + delta.seconds * 1_000_000
