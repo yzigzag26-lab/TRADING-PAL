@@ -66,7 +66,7 @@ class BinanceSpotTradeStream:
                             ) from exc
             except asyncio.CancelledError:
                 raise
-            except (ConnectionClosed, OSError, WebSocketException):
+            except (ConnectionClosed, OSError, WebSocketException, MarketDataUnavailable):
                 attempt += 1
                 ceiling = min(30.0, 0.5 * (2 ** min(attempt, 6)))
                 await asyncio.sleep(random.uniform(0.0, ceiling))
