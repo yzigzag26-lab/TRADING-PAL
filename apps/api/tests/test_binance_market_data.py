@@ -1,6 +1,7 @@
 """Mocked tests for Binance Spot REST recovery and on-demand consumption."""
 
 import asyncio
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -101,7 +102,7 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
             )
 
     class IdleStream:
-        async def listen(self, symbol: str):
+        async def listen(self, symbol: str) -> AsyncIterator[PriceEvent]:
             if False:
                 yield PriceEvent(
                     symbol=symbol,
@@ -114,7 +115,10 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
 
     async def run() -> None:
         rest = FakeRest()
-        service = BinanceMarketDataService(rest_client=rest, stream=IdleStream())  # type: ignore[arg-type]
+        service = BinanceMarketDataService(
+            rest_client=rest,
+            stream=IdleStream(),  # type: ignore[arg-type]
+        )
         service._started = True
         service._events["BTCUSDT"] = PriceEvent(
             symbol="BTCUSDT",
