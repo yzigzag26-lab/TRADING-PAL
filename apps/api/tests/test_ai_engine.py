@@ -71,7 +71,8 @@ def test_educational_request_runs_classifier_and_generator_without_market_data()
             [
                 '{"intent":"educational","symbol":null,"confidence":0.99,'
                 '"needs_clarification":false}',
-                "## What is support?\\nSupport is a price area where demand has historically appeared.",
+                "## What is support?\\n"
+                "Support is a price area where demand has historically appeared.",
             ]
         )
         market_data = FakeMarketData()
