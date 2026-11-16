@@ -6,7 +6,7 @@ request correlation, structured JSON logs, and a consistent error envelope.
 
 Authentication is implemented with the private single-owner session. Gate 1
 provisions the private PostgreSQL schema and migration infrastructure. Gate 2
-adds singleton application and risk configuration models. Gate 3 market-data requirements are documented in [the Gate 3 acceptance contract](docs/development/GATE_3_MARKET_DATA.md). Current-price ingestion and the production NTP clock-health monitor are implemented, but Gate 3 remains incomplete pending historical candles, persistence, lifecycle/recovery tests, and live exchange/clock verification. Intelligence is implemented; evaluation, learning, and persistent conversation memory remain outstanding.
+adds singleton application and risk configuration models. Gate 3 market-data requirements are documented in [the Gate 3 acceptance contract](docs/development/GATE_3_MARKET_DATA.md). Current-price ingestion and the production NTP clock-health monitor are implemented, but Gate 3 remains incomplete pending persistent provenance, broader lifecycle/recovery tests, and live exchange/clock verification. Historical OHLCV retrieval and gap recovery are now implemented behind an owner-only endpoint. Intelligence is implemented; evaluation, learning, and persistent conversation memory remain outstanding.
 
 ## Local development
 
@@ -220,3 +220,22 @@ this gate.
 - Preserve migration history; do not edit a migration after it has been applied.
 - Destructive downgrade operations must not silently delete retained trading or
   learning history.
+
+
+### Historical candle retrieval
+
+The owner-only `POST /api/v1/analysis/history` endpoint retrieves Binance Spot
+OHLCV candles for an explicit symbol, interval, and timezone-aware range.
+It validates OHLC relationships, decimal volumes, trade counts, UTC interval
+alignment, and close-time semantics. Requests are bounded to 10,000 candles,
+with Binance pagination capped at 1,000 rows per REST request.
+
+Missing intervals are detected against the expected candle-open schedule and
+retried in up to two bounded recovery passes. The response exposes
+`complete` and `missing_open_times`; unrecovered gaps are never filled with
+synthetic data. Forming candles are explicitly marked as not closed. Historical
+data retrieval does not alter the current-price 3-second freshness rule.
+
+This structured endpoint is the backend foundation for historical analysis.
+The natural-language response pipeline and frontend chat integration still
+need to be connected to it in later work.
