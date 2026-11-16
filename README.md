@@ -23,8 +23,9 @@ invalidation. It does not currently execute trades.
 - The backend uses an Argon2id password hash and signed, secure owner session;
   it does not currently use Supabase Auth.
 - Gate 1 database foundation and Gate 2 application/risk configuration
-  migrations are present in the repository; consult their gate documents for
-  verification and remaining hardening evidence.
+  migrations are present. Gate 2 RLS migration `20261116_0004` was applied to
+  the live database by the approved workflow; consult the Gate 2 document for
+  migration evidence and the remaining live policy/grant inspection.
 - **Gate 3 Binance Spot market-data ingestion is not implemented yet.** Its
   owner-approved freshness and reliability acceptance contract is documented
   in [Gate 3 — Market Data](docs/development/GATE_3_MARKET_DATA.md).
