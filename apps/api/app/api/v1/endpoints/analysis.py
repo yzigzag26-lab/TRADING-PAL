@@ -167,9 +167,9 @@ async def fetch_historical_market_data(
         return cast(
             HistoricalCandleSeries,
             await request.app.state.historical_market_data_service.fetch(
-            payload.symbol,
-            payload.interval,
-            start_time=payload.start_time,
+                payload.symbol,
+                payload.interval,
+                start_time=payload.start_time,
                 end_time=payload.end_time,
             ),
         )
