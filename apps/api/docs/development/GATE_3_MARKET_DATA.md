@@ -319,3 +319,36 @@ The AI layer is implemented as a separate capability from the market-data servic
 The initial Groq model default is `openai/gpt-oss-20b`, selected because Groq documents strict Structured Outputs support for it. The model can be changed through `GROQ_MODEL` without changing the classifier or generator. Configure `GROQ_API_KEY` and optionally `GROQ_MODEL` on the Render backend only. Do not put the key in Vercel, browser code, or source control. The API can start without a key, but AI responses remain unavailable until one is configured.
 
 The AI layer is analysis-only and has no exchange tools or order execution. It does not make the default clock provider healthy: current-market requests remain blocked until a production-grade clock-health provider is installed. Historical retrieval is still not implemented, and the generator must state that limitation rather than fabricate past market data.
+
+
+## 16. Production clock-health monitor implementation
+
+The production API now owns a background NTP monitor in its FastAPI lifespan.
+It observes the host clock only; it never attempts to change or discipline the
+operating-system clock.
+
+- Three independently operated NTP names are queried: Cloudflare, Google, and
+  the NTP Pool Project.
+- At least two valid responses are required for a health decision.
+- Each response must be a valid server-mode NTP response with a synchronized
+  leap indicator, stratum 1–15, a matching originate timestamp, and a
+  round-trip delay no greater than 1,000 ms.
+- The median estimated offset must be within ±500 ms and the observed source
+  spread must be no greater than 500 ms.
+- Probes run every 30 seconds. A successful health assertion expires after
+  90 seconds without a new successful consensus.
+- Failed probes, insufficient sources, disagreement, excessive offset, or an
+  expired monitor all report unhealthy. The existing orchestrator then blocks
+  current-market analysis before price validation or AI generation.
+- The monitor is enabled only for `APP_ENV=production`. Development and test
+  environments remain fail-closed unless an explicit test provider is injected.
+
+The production runtime must permit outbound DNS and UDP/123 to the configured
+NTP sources. If the hosting network blocks NTP, the monitor remains unhealthy;
+do not replace it with a constant-true provider or relax the freshness policy.
+A live deployment smoke test must verify NTP reachability and the monitor's
+reported consensus before current-market analysis can be considered enabled.
+
+The 500 ms clock-offset and 1,000 ms NTP round-trip limits are conservative
+monitor implementation thresholds, not changes to the owner-approved
+3,000 ms market-price freshness limit. They must not be relaxed without review.
