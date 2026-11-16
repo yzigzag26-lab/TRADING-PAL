@@ -6,8 +6,10 @@ request correlation, structured JSON logs, and a consistent error envelope.
 
 Authentication is implemented with the private single-owner session. Gate 1
 provisions the private PostgreSQL schema and migration infrastructure. Gate 2
-adds singleton application and risk configuration models; market data,
-intelligence, evaluation, learning and memory remain later gates.
+adds singleton application and risk configuration models. Gate 3 market-data
+requirements are documented in [the Gate 3 acceptance contract](docs/development/GATE_3_MARKET_DATA.md);
+market-data ingestion is not implemented yet. Intelligence, evaluation,
+learning and memory remain later gates.
 
 ## Local development
 
