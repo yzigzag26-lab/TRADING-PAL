@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import httpx
@@ -73,8 +74,8 @@ class BinanceSpotRestClient:
             trade_time = datetime.fromtimestamp(int(trade["time"]) / 1000, tz=UTC)
             received_time = datetime.now(UTC)
             trade_id = str(trade["id"])
-            price = str(trade["price"])
-        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            price = Decimal(str(trade["price"]))
+        except (KeyError, TypeError, ValueError, OverflowError, InvalidOperation) as exc:
             raise MarketDataUnavailable("Binance latest-trade payload is invalid") from exc
 
         return PriceEvent(
