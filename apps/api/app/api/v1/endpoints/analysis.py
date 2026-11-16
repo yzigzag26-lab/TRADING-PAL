@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.engine import BaymaxAIEngine
@@ -39,6 +39,14 @@ class HistoricalAnalysisRequest(BaseModel):
     start_time: datetime
     end_time: datetime
 
+    @field_validator("symbol")
+    @classmethod
+    def normalize_symbol(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if not normalized.isalnum():
+            raise ValueError("Symbol must contain only letters and digits")
+        return normalized
+
     @model_validator(mode="after")
     def validate_range(self) -> HistoricalAnalysisRequest:
         if not isinstance(self.start_time, datetime) or not isinstance(self.end_time, datetime):
@@ -50,10 +58,6 @@ class HistoricalAnalysisRequest(BaseModel):
         opens = expected_open_times(self.start_time, self.end_time, self.interval)
         if not opens or len(opens) > 10_000:
             raise ValueError("Historical range must contain between 1 and 10000 candles")
-        normalized = self.symbol.strip().upper()
-        if not normalized.isalnum():
-            raise ValueError("Symbol must contain only letters and digits")
-        object.__setattr__(self, "symbol", normalized)
         return self
 
 
