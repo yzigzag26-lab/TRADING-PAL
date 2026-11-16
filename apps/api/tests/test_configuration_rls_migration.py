@@ -3,10 +3,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-MIGRATION = (
-    ROOT
-    / "apps/api/alembic/versions/20261116_0004_configuration_rls.py"
-)
+MIGRATION = ROOT / "apps/api/alembic/versions/20261116_0004_configuration_rls.py"
 
 
 def test_configuration_rls_migration_targets_both_private_tables() -> None:
