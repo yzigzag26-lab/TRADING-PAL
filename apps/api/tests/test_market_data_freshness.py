@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -101,7 +102,7 @@ def test_invalid_prices_are_rejected(price: str) -> None:
     with pytest.raises(ValidationError):
         PriceEvent(
             symbol="BTCUSDT",
-            price=Decimal(price),
+            price=cast(Any, price),
             market_event_timestamp=NOW,
             received_timestamp=NOW,
             source="binance_spot_rest",
