@@ -40,7 +40,10 @@ def test_owner_approved_threshold_is_exactly_three_seconds() -> None:
 @pytest.mark.parametrize("age_ms", [0, 1, 2_999, 3_000])
 def test_price_at_or_inside_boundary_is_accepted(age_ms: int) -> None:
     result = validate_price_event(
-        make_event(age_ms=age_ms), now=NOW, source_healthy=True, clock_healthy=True
+        make_event(age_ms=age_ms),
+        now=NOW,
+        source_healthy=True,
+        clock_healthy=True,
     )
     assert result.age_ms_at_validation == age_ms
     assert result.price == Decimal("95000.12345678")
@@ -51,7 +54,10 @@ def test_price_at_or_inside_boundary_is_accepted(age_ms: int) -> None:
 def test_price_older_than_boundary_is_rejected(age_ms: int) -> None:
     with pytest.raises(MarketDataUnavailable, match="older than 3 seconds"):
         validate_price_event(
-            make_event(age_ms=age_ms), now=NOW, source_healthy=True, clock_healthy=True
+            make_event(age_ms=age_ms),
+            now=NOW,
+            source_healthy=True,
+            clock_healthy=True,
         )
 
 
@@ -68,14 +74,20 @@ def test_future_source_timestamp_is_rejected() -> None:
 def test_unhealthy_source_fails_closed() -> None:
     with pytest.raises(MarketDataUnavailable, match="source is not healthy"):
         validate_price_event(
-            make_event(), now=NOW, source_healthy=False, clock_healthy=True
+            make_event(),
+            now=NOW,
+            source_healthy=False,
+            clock_healthy=True,
         )
 
 
 def test_unhealthy_clock_fails_closed() -> None:
     with pytest.raises(MarketDataUnavailable, match="clock health"):
         validate_price_event(
-            make_event(), now=NOW, source_healthy=True, clock_healthy=False
+            make_event(),
+            now=NOW,
+            source_healthy=True,
+            clock_healthy=False,
         )
 
 
