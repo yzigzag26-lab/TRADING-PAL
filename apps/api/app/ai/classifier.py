@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from app.ai.groq import GroqUnavailable
 
@@ -103,6 +103,6 @@ class BaymaxIntentClassifier:
 
         if result.confidence < self._minimum_confidence:
             return result.model_copy(update={"needs_clarification": True})
-        if result.intent == "current_market" and not result.symbol:
+        if result.intent == "current_market" and (not result.symbol or len(result.symbol) < 6):
             return result.model_copy(update={"needs_clarification": True})
         return result
