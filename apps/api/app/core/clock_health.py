@@ -53,9 +53,7 @@ def _ntp_timestamp(epoch_seconds: float) -> bytes:
 
 
 def _decode_ntp_timestamp(packet: bytes, offset: int) -> float:
-    seconds, fraction = cast(
-        tuple[int, int], struct.unpack("!II", packet[offset : offset + 8])
-    )
+    seconds, fraction = cast(tuple[int, int], struct.unpack("!II", packet[offset : offset + 8]))
     return seconds - NTP_EPOCH_OFFSET + fraction / 2**32
 
 
