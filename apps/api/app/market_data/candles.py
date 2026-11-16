@@ -47,9 +47,15 @@ def is_interval_boundary(value: datetime, interval: str) -> bool:
         return False
     value = value.astimezone(UTC)
     if interval.endswith("M"):
-        return value.day == 1 and value.hour == value.minute == value.second == value.microsecond == 0
+        return (
+            value.day == 1
+            and value.hour == value.minute == value.second == value.microsecond == 0
+        )
     if interval == "1w":
-        return value.weekday() == 0 and value.hour == value.minute == value.second == value.microsecond == 0
+        return (
+            value.weekday() == 0
+            and value.hour == value.minute == value.second == value.microsecond == 0
+        )
     units = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
     seconds = int(interval[:-1]) * units[interval[-1]]
     epoch_seconds = int(value.timestamp())
