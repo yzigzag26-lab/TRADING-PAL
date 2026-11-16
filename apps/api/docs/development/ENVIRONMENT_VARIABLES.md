@@ -4,13 +4,13 @@ This inventory documents variable names only. Use placeholders in templates
 and configure real values only in local environment files or approved hosting
 secret stores. Never commit a real `.env` file.
 
-## Frontend — `apps/web/.env.local`
+## Frontend — `apps/web`
 
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Public Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase publishable key |
-| `NEXT_PUBLIC_API_BASE_URL` | Public FastAPI base URL |
+No frontend environment variables are required by the current implementation.
+The browser calls same-origin `/api/*` routes, and Next.js rewrites them to the
+backend. The backend origin is currently configured in `apps/web/next.config.ts`.
+Do not add unused `NEXT_PUBLIC_SUPABASE_*` or `NEXT_PUBLIC_API_BASE_URL`
+variables. Never put a secret in a browser-exposed variable.
 
 ## Backend — `apps/api` and Render service
 
@@ -21,21 +21,13 @@ secret stores. Never commit a real `.env` file.
 | `CORS_ALLOWED_ORIGINS` | Yes in production | Comma-separated exact browser origins; no wildcard |
 | `BAYMAX_PASSWORD_HASH` | Required to enable login | Argon2id hash generated locally with `python scripts/create_password_hash.py`; never the plaintext password |
 | `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie |
-
-The production backend requires `DATABASE_URL` for its dedicated runtime
-database login. The migration credential is intentionally not a Render
-variable.
+| `DATABASE_URL` | Required in deployed backend | Supabase PostgreSQL connection authenticated as `baymax_runtime` |
+| `MIGRATION_DATABASE_URL` | Operator/CI only | Privileged migration connection; never a Render or Vercel runtime variable |
 
 ## Later-stage variables — not used by the current API
 
 | Variable | Purpose |
 |---|---|
-| `SUPABASE_URL` | Supabase project URL for backend operations where approved |
-| `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key; never a service-role key |
-| `SUPABASE_JWKS_URL` | Supabase Auth JWKS endpoint if Supabase JWT verification is introduced |
-| `SUPABASE_JWT_ISSUER` | Expected JWT issuer if Supabase JWT verification is introduced |
-| `DATABASE_URL` | Render runtime PostgreSQL connection authenticated as `baymax_runtime` |
-| `MIGRATION_DATABASE_URL` | Privileged migration connection; keep in the approved operator/GitHub environment only, never in Vercel or the Render runtime |
 | `BINANCE_REST_BASE_URL` | Optional non-secret base URL; Gate 3 default is `https://data-api.binance.vision` |
 | `BINANCE_WS_BASE_URL` | Optional non-secret base URL; Gate 3 default is `wss://data-stream.binance.vision` |
 | `GROQ_API_KEY` | Server-side Groq credential for a later AI phase |
