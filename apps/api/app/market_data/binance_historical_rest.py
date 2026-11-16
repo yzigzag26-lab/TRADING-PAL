@@ -10,6 +10,7 @@ import httpx
 from app.market_data.candles import (
     INTERVALS,
     HistoricalCandle,
+    BinanceInterval,
     interval_close_time,
     parse_utc_milliseconds,
 )
@@ -47,7 +48,7 @@ class BinanceHistoricalRestClient:
     async def klines(
         self,
         symbol: str,
-        interval: str,
+        interval: BinanceInterval,
         *,
         start_time: datetime,
         end_time: datetime,
@@ -70,7 +71,7 @@ class BinanceHistoricalRestClient:
         if client is None:
             raise RuntimeError("Use BinanceHistoricalRestClient as an async context manager")
 
-        params = {
+        params: dict[str, str | int] = {
             "symbol": normalized,
             "interval": interval,
             "startTime": int(start_time.timestamp() * 1000),
