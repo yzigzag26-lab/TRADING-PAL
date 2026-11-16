@@ -102,10 +102,22 @@ def test_binance_kline_parser_preserves_ohlcv_and_closed_state() -> None:
             assert request.url.params["interval"] == "1m"
             return httpx.Response(
                 200,
-                json=[[
-                    open_ms, "100", "105", "95", "101", "10.5",
-                    close_ms, "1050", 12, "4.5", "450", "0",
-                ]],
+                json=[
+                    [
+                        open_ms,
+                        "100",
+                        "105",
+                        "95",
+                        "101",
+                        "10.5",
+                        close_ms,
+                        "1050",
+                        12,
+                        "4.5",
+                        "450",
+                        "0",
+                    ]
+                ],
             )
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -136,9 +148,7 @@ def test_historical_rest_rate_limit_fails_closed(status: int) -> None:
         )
         rest = BinanceHistoricalRestClient(base_url="https://test.invalid", client=client)
         with pytest.raises(MarketDataUnavailable, match="rate limited"):
-            await rest.klines(
-                "BTCUSDT", "1m", start_time=START, end_time=START
-            )
+            await rest.klines("BTCUSDT", "1m", start_time=START, end_time=START)
         await client.aclose()
 
     asyncio.run(run())
@@ -160,9 +170,7 @@ def test_historical_service_detects_and_recovers_a_missing_candle() -> None:
         ) -> list[HistoricalCandle]:
             self.calls.append((start_time, end_time))
             all_rows = {
-                START + timedelta(minutes=index): candle(
-                    START + timedelta(minutes=index)
-                )
+                START + timedelta(minutes=index): candle(START + timedelta(minutes=index))
                 for index in range(5)
             }
             if len(self.calls) == 1:
@@ -209,9 +217,7 @@ def test_historical_service_reports_unrecovered_gaps_without_fabrication() -> No
             return [candle(START), candle(START + timedelta(minutes=1))]
 
     async def run() -> None:
-        service = BinanceHistoricalCandleService(
-            rest_client=FakeRest(), recovery_attempts=1
-        )
+        service = BinanceHistoricalCandleService(rest_client=FakeRest(), recovery_attempts=1)
         result = await service.fetch(
             "BTCUSDT",
             "1m",
@@ -241,9 +247,7 @@ def test_historical_service_enforces_range_size_limit() -> None:
             ) -> list[HistoricalCandle]:
                 return []
 
-        service = BinanceHistoricalCandleService(
-            rest_client=EmptyRest(), max_candles=2
-        )
+        service = BinanceHistoricalCandleService(rest_client=EmptyRest(), max_candles=2)
         with pytest.raises(ValueError, match="exceeds"):
             await service.fetch(
                 "BTCUSDT",
