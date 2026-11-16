@@ -21,7 +21,6 @@ secret stores. Never commit a real `.env` file.
 | `CORS_ALLOWED_ORIGINS` | Yes in production | Comma-separated exact browser origins; no wildcard |
 | `BAYMAX_PASSWORD_HASH` | Required to enable login | Argon2id hash generated locally with `python scripts/create_password_hash.py`; never the plaintext password |
 | `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie |
-| `BAYMAX_PASSWORD_HASH` | Required to enable login | Argon2id hash of the private owner's password; never the plaintext password |
 
 The production backend requires `DATABASE_URL` for its dedicated runtime
 database login. The migration credential is intentionally not a Render
