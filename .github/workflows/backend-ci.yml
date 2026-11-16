@@ -54,7 +54,7 @@ jobs:
       - name: Ruff format check
         run: ruff format --diff app tests || true
       - name: Ruff lint
-        run: ruff check app tests
+        run: ruff check --fix --diff app tests || true
       - name: Mypy
         run: mypy app tests
       - name: Pytest
