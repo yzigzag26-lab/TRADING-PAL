@@ -9,6 +9,8 @@
 
 ## 1. Purpose and authority
 
+**Current implementation clarification (2026-11-16):** This work-order contains original Phase 1 planning text. For implemented behaviour, follow the current repository README and `apps/api/README.md`: Baymax uses a private single-owner Argon2id password and signed `HttpOnly` session, with Supabase PostgreSQL for persistence; it does not currently use Supabase Auth/JWT login. The current API explorer is Swagger UI at `/docs` with generated `/openapi.json`, and ReDoc is disabled. The original Scalar/Supabase Auth planning language below is historical unless explicitly re-approved. Gate 3's Binance scope and acceptance rules are controlled by `docs/development/GATE_3_MARKET_DATA.md`.
+
 This file defines the exact work split between Claude Code and ChatGPT for the Baymax backend.
 
 The existing `docs/IMPLEMENTATION_HANDOFF.md` remains the controlling Phase 1 scope document. This file supplements it by assigning responsibilities. If documents conflict, stop and ask the owner; do not silently choose one.
@@ -31,7 +33,7 @@ The current Phase 1 foundation remains narrower: backend foundation, Supabase Au
 
 Non-negotiable:
 1. No fabricated prices, balances, signals, users, chart analyses or history.
-2. No Binance integration during Phase 1. For the later, separately approved market-data phase, the owner has chosen to configure a dedicated personal Binance API key on the backend. Never put it in the frontend, Git, logs, prompts, or CI. Binance Spot endpoints marked `NONE` remain public even if an API-key header is supplied; the key does not make their data private or account-specific. Do not enable private account, trading, transfer, margin, futures, or withdrawal permissions for market-data retrieval.
+2. Gate 3 uses Binance Spot public market-data-only REST and WebSocket interfaces. Public Spot market-data endpoints with security type `NONE` require no API key, secret, signature, or account permission. Do not create or configure Binance credentials for Gate 3. Do not call private account, user-data, trading, transfer, margin, futures, or withdrawal endpoints. The binding Gate 3 requirements are in `docs/development/GATE_3_MARKET_DATA.md`.
 3. No live trading, order endpoints or withdrawal permissions.
 4. No paid service, plan upgrade or usage-based resource without explicit owner approval.
 5. Never commit secrets or expose privileged keys in browser code, logs, prompts, docs or CI output.
@@ -199,7 +201,7 @@ Security: browser may use only public/publishable Supabase configuration. Servic
 
 ### C. Market data — later phase
 
-**Initial exchange:** Binance Spot. The owner has chosen to use a dedicated personal Binance API key for the later market-data integration, configured only in the trusted backend. This is explicitly out of Phase 1 scope. Binance Spot endpoints marked `NONE` do not require authentication; sending the owner's API-key header does not make those responses private or account-specific. Do not request or use private account endpoints or enable trading-related permissions. The exact endpoints and authentication behaviour must be verified against current Binance documentation when that phase is approved.
+**Initial exchange:** Binance Spot. Gate 3 uses public market data only and does not require an API key or secret. The owner-approved freshness, integrity, recovery, rate-limit, provenance and fail-closed requirements are binding in `docs/development/GATE_3_MARKET_DATA.md`. Do not call private account endpoints or enable trading-related permissions.
 
 Official public REST API surfaces to evaluate:
 - `GET /api/v3/exchangeInfo` — symbol metadata, filters and trading status.
@@ -290,7 +292,7 @@ Free service tiers may sleep, pause, impose quotas or lack production safeguards
 
 ### I. Services deliberately not required for Version 1 foundation
 
-- Binance private account endpoints, trading permissions, or order endpoints. The owner's dedicated read-only API-key configuration for the later public market-data integration is documented separately and remains out of Phase 1.
+- Binance private account endpoints, trading permissions, or order endpoints. Gate 3 uses public market-data-only endpoints and requires no API credentials.
 - Broker/MT5 APIs.
 - Payment processors or billing.
 - Email provider beyond the selected Supabase Auth configuration.
@@ -345,7 +347,10 @@ Use official documentation and re-check current versions, quotas and model avail
 - Supabase RLS: https://supabase.com/docs/guides/database/postgres/row-level-security
 - Supabase Storage: https://supabase.com/docs/guides/storage
 - Binance Spot API documentation: https://github.com/binance/binance-spot-api-docs
-- Binance public market-data-only endpoints: https://github.com/binance/binance-spot-api-docs/blob/master/faqs/market_data_only.md
+- Binance Spot REST API: https://developers.binance.com/en/docs/products/spot/rest-api
+- Binance Spot WebSocket Streams: https://developers.binance.com/en/docs/products/spot/web-socket-streams
+- Binance Spot market-data-only FAQ: https://developers.binance.com/en/docs/products/spot/market-data-only
+- Baymax Gate 3 acceptance contract: docs/development/GATE_3_MARKET_DATA.md
 - Scalar FastAPI integration: https://github.com/scalar/scalar
 - Zensical: https://zensical.org/docs/
 - Render: https://render.com/docs

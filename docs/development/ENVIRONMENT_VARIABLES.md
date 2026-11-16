@@ -4,13 +4,13 @@ This inventory documents variable names only. Use placeholders in templates
 and configure real values only in local environment files or approved hosting
 secret stores. Never commit a real `.env` file.
 
-## Frontend — `apps/web/.env.local`
+## Frontend — `apps/web`
 
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Public Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase publishable key |
-| `NEXT_PUBLIC_API_BASE_URL` | Public FastAPI base URL |
+No frontend environment variables are required by the current implementation.
+The browser calls same-origin `/api/*` routes, and Next.js rewrites them to the
+backend. The backend origin is currently configured in `apps/web/next.config.ts`.
+Do not add unused `NEXT_PUBLIC_SUPABASE_*` or `NEXT_PUBLIC_API_BASE_URL`
+variables. Never put a secret in a browser-exposed variable.
 
 ## Backend — `apps/api` and Render service
 
@@ -20,39 +20,33 @@ secret stores. Never commit a real `.env` file.
 | `LOG_LEVEL` | No | Python logging level; defaults to `INFO` |
 | `CORS_ALLOWED_ORIGINS` | Yes in production | Comma-separated exact browser origins; no wildcard |
 | `BAYMAX_PASSWORD_HASH` | Required to enable login | Argon2id hash generated locally with `python scripts/create_password_hash.py`; never the plaintext password |
-| `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie; generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
-
-The production backend requires `DATABASE_URL` for its dedicated runtime database
-login. The migration credential is intentionally not a Render variable.
+| `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie |
+| `DATABASE_URL` | Required in deployed backend | Supabase PostgreSQL connection authenticated as `baymax_runtime` |
+| `MIGRATION_DATABASE_URL` | Operator/CI only | Privileged migration connection; never a Render or Vercel runtime variable |
 
 ## Later-stage variables — not used by the current API
 
 | Variable | Purpose |
 |---|---|
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key; never a service-role key |
-| `SUPABASE_JWKS_URL` | Supabase Auth JWKS endpoint |
-| `SUPABASE_JWT_ISSUER` | Expected JWT issuer |
-| `DATABASE_URL` | Set on Render when the runtime database is provisioned; authenticates as `baymax_runtime` |
-| `MIGRATION_DATABASE_URL` | GitHub `baymax-production` environment secret for the manual production migration workflow; authenticated as `baymax_migration`; never set on Render or Vercel |
-| `BINANCE_API_KEY` | Dedicated read-only key for the later market-data phase |
-| `BINANCE_API_SECRET` | Secret paired with that read-only key |
-| `BINANCE_REST_BASE_URL` | Approved Binance REST base URL |
-| `BINANCE_RECV_WINDOW_MS` | Binance request receive window |
+| `BINANCE_REST_BASE_URL` | Optional non-secret base URL; Gate 3 default is `https://data-api.binance.vision` |
+| `BINANCE_WS_BASE_URL` | Optional non-secret base URL; Gate 3 default is `wss://data-stream.binance.vision` |
 | `GROQ_API_KEY` | Server-side Groq credential for a later AI phase |
 | `GROQ_VISION_MODEL` | Vision model identifier |
 | `GROQ_REASONING_MODEL` | Reasoning model identifier |
 | `SUPABASE_CHARTS_BUCKET` | Private chart-storage bucket name |
 
+The Binance base-URL names above are proposed configuration names for the
+future Gate 3 implementation; they are not consumed by the current API.
+**No Binance API key, secret, signature, or receive-window variable is
+required for public Spot market data.**
+
 ## Secret-handling rules
 
-- Never expose service-role keys, database passwords, JWT signing secrets,
-  Binance credentials, or Groq credentials in browser variables.
-- Store the production migration URL only as the GitHub `baymax-production`
-  environment secret. Do not use a repository-wide secret.
+- Never expose database passwords, session-signing secrets, service-role
+  credentials, or future AI-provider credentials in browser variables.
+- Keep privileged migration credentials out of Render runtime and Vercel.
 - Never paste credentials into source code, issues, pull requests, chat, or CI
   logs.
-- Binance access remains out of scope until the market-data phase is approved.
-  Use read-only permissions only; never enable trading, transfers, withdrawals,
-  margin, or futures permissions.
+- Gate 3 uses public Binance Spot market data only and requires no Binance
+  credentials. Do not add private account or trading access.
 - Do not activate paid services without owner approval.
