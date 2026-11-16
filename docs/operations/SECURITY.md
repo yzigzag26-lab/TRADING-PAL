@@ -29,10 +29,8 @@ login and its `baymax_app` privilege group; schema migration uses the separate
 privileged `baymax_migration` identity. Never reuse the database owner
 credential for runtime requests or expose either database URL to the browser.
 
-Gate 2's RLS migration is present in the repository. Treat its live status as
-unverified until migration history and actual policies are inspected on the
-database. RLS is defense in depth alongside private-schema isolation and
-explicit grants; it does not replace the backend's single-owner session checks.
+Gate 2's RLS migration `20261116_0004` was applied to the live database by
+[successful production workflow 43908646438](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/43908646438); the post-upgrade Alembic check reported `20261116_0004 (head)`. A direct live inspection of `pg_policies`, grants and role membership should still be run before future endpoints rely on RLS as their only protection. RLS is defense in depth alongside private-schema isolation and explicit grants; it does not replace the backend's single-owner session checks.
 
 ## Single-owner password authentication
 
