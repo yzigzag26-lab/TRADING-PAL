@@ -53,9 +53,12 @@ The Render-local source copy is under `apps/api/docs` and is required because th
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | /docs | Public for the current foundation | Swagger UI with interactive Try it out |
-| GET | /openapi.json | Public for the current foundation | Generated OpenAPI document |
-| GET | /api/v1/health | Public | Process liveness only |
+| GET | /docs | Public | Swagger UI for the generated OpenAPI contract |
+| GET | /openapi.json | Public | Generated OpenAPI document |
+| GET | /api/v1/health | Public | Process liveness |
+| POST | /api/v1/auth/login | Public; password and trusted Origin required | Verify the single owner password and set the session cookie |
+| GET | /api/v1/auth/session | Public | Return only whether the request has a valid owner session |
+| POST | /api/v1/auth/logout | Public; trusted Origin required | Clear the browser's owner session cookie |
 
 Open http://127.0.0.1:8000/docs during local development or
 https://baymax-api-6b49.onrender.com/docs for the deployed backend.
@@ -63,12 +66,14 @@ Select GET /api/v1/health, choose Try it out, then Execute to send a real
 request to the backend and inspect its status, headers, and response body.
 
 Swagger UI is an API explorer, not an authentication or authorization system.
-The documentation and OpenAPI schema are currently public because the only
-implemented operation is the public liveness endpoint. Before any private
-endpoint is introduced, Swagger UI and the OpenAPI document must be protected
-behind the backend authentication boundary or disabled in production. Do not
-publish private schemas or enable unauthenticated Try it out for private
-operations. ReDoc remains disabled.
+The documentation and OpenAPI schema are currently public because the exposed
+API contains only public liveness and the single-owner authentication lifecycle:
+password login (with trusted-Origin validation and rate limiting), a session
+status boolean, and logout. No private market, account, or trading operation is
+currently exposed. Before any private operation is introduced, protect both
+documentation routes behind the owner authentication boundary or disable them
+in production. Do not publish private schemas or enable unauthenticated Try it
+out for private operations. ReDoc remains disabled.
 
 ## Tests and quality
 
