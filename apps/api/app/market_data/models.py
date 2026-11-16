@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 
@@ -50,7 +50,7 @@ class PriceEvent(BaseModel):
             return None
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("timestamps must be timezone-aware")
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
 
 class ValidatedPrice(BaseModel):
