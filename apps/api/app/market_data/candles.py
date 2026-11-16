@@ -153,6 +153,8 @@ class HistoricalCandle(BaseModel):
             raise ValueError("Taker-buy base volume cannot exceed total base volume")
         if self.taker_buy_quote_volume > self.quote_volume:
             raise ValueError("Taker-buy quote volume cannot exceed total quote volume")
+        if not is_interval_boundary(self.open_time, self.interval):
+            raise ValueError("Candle open time is not aligned to its interval")
         if self.close_time != interval_close_time(self.open_time, self.interval):
             raise ValueError("Candle close time does not match its interval")
         if self.open_time > self.close_time:
