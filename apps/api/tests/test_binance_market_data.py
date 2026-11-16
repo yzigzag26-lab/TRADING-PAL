@@ -84,3 +84,52 @@ def test_general_requests_do_not_fetch_unless_service_is_called() -> None:
     service = BinanceMarketDataService(rest_client=rest)
     assert rest.calls == 0
     assert service._events == {}
+
+def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
+    class FakeRest:
+        calls = 0
+
+        async def latest_trade(self, symbol: str) -> PriceEvent:
+            self.calls += 1
+            return PriceEvent(
+                symbol=symbol,
+                price="95123.45",
+                market_event_timestamp=NOW - timedelta(milliseconds=500),
+                received_timestamp=NOW,
+                source="binance_spot_rest",
+                event_id="fresh-rest-trade",
+            )
+
+    class IdleStream:
+        async def listen(self, symbol: str):
+            if False:
+                yield PriceEvent(
+                    symbol=symbol,
+                    price="1",
+                    market_event_timestamp=NOW,
+                    received_timestamp=NOW,
+                    source="binance_spot_websocket",
+                )
+            await asyncio.Event().wait()
+
+    async def run() -> None:
+        rest = FakeRest()
+        service = BinanceMarketDataService(rest_client=rest, stream=IdleStream())  # type: ignore[arg-type]
+        service._started = True
+        service._events["BTCUSDT"] = PriceEvent(
+            symbol="BTCUSDT",
+            price="90000",
+            market_event_timestamp=NOW - timedelta(seconds=5),
+            received_timestamp=NOW,
+            source="binance_spot_websocket",
+            event_id="stale-stream-trade",
+        )
+        service._stream_healthy.add("BTCUSDT")
+
+        result = await service.get_current_price("BTCUSDT", clock_healthy=True, now=NOW)
+        assert rest.calls == 1
+        assert result.price == Decimal("95123.45")
+        assert result.source == "binance_spot_rest"
+        await service.close()
+
+    asyncio.run(run())
