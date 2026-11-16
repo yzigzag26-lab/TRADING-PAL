@@ -1,5 +1,7 @@
 """Fail-closed validation for current market-price consumption."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import datetime
