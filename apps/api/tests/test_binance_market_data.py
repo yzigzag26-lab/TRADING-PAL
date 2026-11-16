@@ -58,7 +58,7 @@ def test_stale_rest_trade_is_rejected_by_service() -> None:
         async def latest_trade(self, symbol: str) -> PriceEvent:
             return PriceEvent(
                 symbol=symbol,
-                price="95000",
+                price=Decimal("95000"),
                 market_event_timestamp=NOW - timedelta(seconds=4),
                 received_timestamp=NOW,
                 source="binance_spot_rest",
@@ -95,7 +95,7 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
             self.calls += 1
             return PriceEvent(
                 symbol=symbol,
-                price="95123.45",
+                price=Decimal("95123.45"),
                 market_event_timestamp=NOW - timedelta(milliseconds=500),
                 received_timestamp=NOW,
                 source="binance_spot_rest",
@@ -107,7 +107,7 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
             if False:
                 yield PriceEvent(
                     symbol=symbol,
-                    price="1",
+                    price=Decimal("1"),
                     market_event_timestamp=NOW,
                     received_timestamp=NOW,
                     source="binance_spot_websocket",
@@ -123,7 +123,7 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
         service._started = True
         service._events["BTCUSDT"] = PriceEvent(
             symbol="BTCUSDT",
-            price="90000",
+            price=Decimal("90000"),
             market_event_timestamp=NOW - timedelta(seconds=5),
             received_timestamp=NOW,
             source="binance_spot_websocket",
