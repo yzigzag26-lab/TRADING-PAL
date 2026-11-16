@@ -17,6 +17,28 @@ JWT signing secrets, private Binance credentials, or AI-provider keys in browser
 bundles, logs, documentation, prompts, or CI output. Templates contain
 placeholders only.
 
+## Private Baymax configuration schema
+
+The `baymax` schema is private and is not exposed through the Supabase Data API.
+The `app_settings` and `risk_settings` singleton tables have explicit table
+ACLs and RLS policies:
+
+- `baymax_app` receives SELECT, INSERT, and UPDATE policies only.
+- The Render runtime login `baymax_runtime` inherits `baymax_app`, so it is
+  covered by those policies and its existing table grants.
+- No application DELETE policy exists; the runtime role has no DELETE grant.
+- Supabase `anon`, `authenticated`, and `service_role` retain no schema/table
+  access through this migration.
+- The migration deliberately does not use FORCE ROW LEVEL SECURITY. The
+  dedicated migration login owns the configuration tables and must be able to
+  perform controlled schema migrations. PostgreSQL table owners bypass RLS
+  unless FORCE is enabled; protect the migration credential as a privileged
+  operator secret and never place it in Render or Vercel runtime settings.
+
+RLS is defense in depth alongside schema isolation and explicit grants; it does
+not replace backend authentication or authorization. Review migration
+`20261116_0004` and its CI tests before applying it to the live database.
+
 ## Single-owner password authentication
 
 Baymax has one password field and one owner; it does not use usernames, email addresses, registration, or OTP. The backend verifies the supplied password against an Argon2id hash stored in Render as `BAYMAX_PASSWORD_HASH`. The signing secret is stored separately as `BAYMAX_SESSION_SECRET`. Neither value belongs in Git, Vercel browser variables, logs, or chat.
