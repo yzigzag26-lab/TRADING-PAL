@@ -11,6 +11,7 @@ nav = [
     "development/LOCAL_DEVELOPMENT.md",
     "development/TESTING.md",
     "development/ENVIRONMENT_VARIABLES.md",
+    "development/SECURE_MIGRATIONS.md",
   ] },
   { "Operations" = [
     "operations/DEPLOYMENT.md",
