@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from app.market_data.models import PriceEvent, ValidatedPrice
 
@@ -52,7 +52,8 @@ def validate_price_event(
     validation_time = validation_time.astimezone(UTC)
 
     delta = validation_time - event.market_event_timestamp
-    age_microseconds = delta // timedelta(microseconds=1)
+    age_microseconds = delta.days * 86_400_000_000 + delta.seconds * 1_000_000
+    age_microseconds += delta.microseconds
     if age_microseconds < 0:
         raise MarketDataUnavailable("Market event timestamp is in the future")
     active_policy = policy or FreshnessPolicy()
