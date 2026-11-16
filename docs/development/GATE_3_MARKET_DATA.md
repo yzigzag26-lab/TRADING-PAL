@@ -271,7 +271,7 @@ Any criterion not implemented or not tested must remain open. Skipped tests must
 Re-check these official pages at implementation time; they may change:
 - [Spot REST API — general information, request security, data sources and rate limits](https://developers.binance.com/en/docs/products/spot/rest-api)
 - [Spot WebSocket Streams — connection rules, limits, subscriptions and local order-book synchronization](https://developers.binance.com/en/docs/products/spot/web-socket-streams)
-- [Spot market-data-only FAQ](https://developers.binance.com/en/docs/products/spot/market-data-only)
+- [Spot market-data-only FAQ](https://github.com/binance/binance-spot-api-docs/blob/master/faqs/market_data_only.md)
 
 ---
 
