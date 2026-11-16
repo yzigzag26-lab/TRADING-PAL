@@ -292,7 +292,7 @@ The initial implementation is being added under `apps/api/app/market_data/`:
 
 The request/analysis orchestration boundary now accepts an explicit intent (`educational`, `programming`, `current_market`, or `historical_market`). It calls `BinanceMarketDataService.get_current_price(symbol, clock_healthy=...)` only for `current_market`. Educational and programming requests never call the service. Historical analysis remains a separate path and is not served by this current-price method. The AI intent classifier is not yet implemented; callers must supply a trusted structured classification.
 
-The service is an internal backend interface in this slice; it is not yet wired to a user-facing market endpoint or the future AI intent/orchestration layer. Do not describe Gate 3 as fully integrated or complete until that wiring and all acceptance evidence exist.
+FastAPI now owns the service through lifespan startup/shutdown, and the owner-only `POST /api/v1/analysis/prepare` endpoint routes explicitly classified requests through `BaymaxRequestOrchestrator`. Educational/programming requests do not fetch market data; historical requests are explicitly marked not implemented; current-market requests require a symbol, a healthy clock provider, and a fresh validated Binance price. This prepares inputs only—it does not generate AI analysis or trading advice.
 
 ### Runtime configuration and owner action
 
@@ -302,4 +302,4 @@ The owner does not need to create a Binance key, change Binance security setting
 
 ### Remaining Gate 3 work
 
-This slice does not yet provide full lifecycle ownership in FastAPI lifespan, persistent audit/snapshot records, candle history and gap recovery, order-book synchronization, comprehensive WebSocket lifecycle/sequence tests, or the live Binance smoke test. Those criteria remain open and must be evidenced before Gate 3 acceptance.
+Remaining Gate 3 work includes a production-grade clock-synchronization health provider (the default runtime provider deliberately reports unhealthy, so current-market requests fail closed until one is configured), persistent audit/snapshot records, candle history and gap recovery, order-book synchronization if required, comprehensive WebSocket lifecycle/sequence tests, and the live Binance smoke test. The new analysis preparation endpoint is not an AI response generator; the AI intent classifier and analysis engine must be integrated in a later slice.
