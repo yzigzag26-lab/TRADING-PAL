@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime
+from typing import Protocol
 
 from app.market_data.binance_rest import BinanceSpotRestClient
 from app.market_data.binance_stream import BinanceSpotTradeStream
 from app.market_data.freshness import MarketDataUnavailable, validate_price_event
 from app.market_data.models import PriceEvent, ValidatedPrice
+
+
+class LatestTradeClient(Protocol):
+    """Minimal injectable interface for a timestamped latest-trade source."""
+
+    async def latest_trade(self, symbol: str) -> PriceEvent: ...
 
 
 class BinanceMarketDataService:
@@ -22,10 +29,10 @@ class BinanceMarketDataService:
     def __init__(
         self,
         *,
-        rest_client: BinanceSpotRestClient | None = None,
+        rest_client: LatestTradeClient | None = None,
         stream: BinanceSpotTradeStream | None = None,
     ) -> None:
-        self._rest = rest_client or BinanceSpotRestClient()
+        self._rest: LatestTradeClient = rest_client or BinanceSpotRestClient()
         self._stream = stream or BinanceSpotTradeStream()
         self._events: dict[str, PriceEvent] = {}
         self._tasks: dict[str, asyncio.Task[None]] = {}
@@ -34,13 +41,14 @@ class BinanceMarketDataService:
         self._started = False
 
     async def start(self) -> None:
-        """Open the REST client; WebSocket subscriptions remain demand-driven."""
+        """Open the owned REST client; subscriptions remain demand-driven."""
         if not self._started:
-            await self._rest.__aenter__()
+            if self._owns_rest:
+                await self._rest.__aenter__()  # type: ignore[attr-defined]
             self._started = True
 
     async def close(self) -> None:
-        """Cancel streams and release the REST connection pool."""
+        """Cancel streams and release the owned REST connection pool."""
         tasks = tuple(self._tasks.values())
         for task in tasks:
             task.cancel()
@@ -49,7 +57,7 @@ class BinanceMarketDataService:
         self._tasks.clear()
         self._stream_healthy.clear()
         if self._owns_rest and self._started:
-            await self._rest.__aexit__()
+            await self._rest.__aexit__(None, None, None)  # type: ignore[attr-defined]
         self._started = False
 
     async def start_symbol_stream(self, symbol: str) -> None:
