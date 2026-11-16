@@ -20,15 +20,16 @@ placeholders only.
 ## Private Baymax configuration schema
 
 The `baymax` schema is private and is not exposed through the Supabase Data API.
-The `app_settings` and `risk_settings` singleton tables have explicit table
-ACLs and RLS policies:
+The `app_settings` and `risk_settings` singleton tables currently have explicit
+table ACLs. Proposed migration `20261116_0004` adds the following RLS policies
+when it is separately approved and applied:
 
 - `baymax_app` receives SELECT, INSERT, and UPDATE policies only.
 - The Render runtime login `baymax_runtime` inherits `baymax_app`, so it is
   covered by those policies and its existing table grants.
-- No application DELETE policy exists; the runtime role has no DELETE grant.
+- No application DELETE policy is added; the runtime role has no DELETE grant.
 - Supabase `anon`, `authenticated`, and `service_role` retain no schema/table
-  access through this migration.
+  access; this migration does not change their grants.
 - The migration deliberately does not use FORCE ROW LEVEL SECURITY. The
   dedicated migration login owns the configuration tables and must be able to
   perform controlled schema migrations. PostgreSQL table owners bypass RLS
@@ -36,8 +37,9 @@ ACLs and RLS policies:
   operator secret and never place it in Render or Vercel runtime settings.
 
 RLS is defense in depth alongside schema isolation and explicit grants; it does
-not replace backend authentication or authorization. Review migration
-`20261116_0004` and its CI tests before applying it to the live database.
+not replace backend authentication or authorization. The proposed policies are
+not active on the live database until the owner separately approves applying
+migration `20261116_0004`.
 
 ## Single-owner password authentication
 
