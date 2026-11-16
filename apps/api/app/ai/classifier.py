@@ -59,7 +59,7 @@ CLASSIFICATION_SCHEMA: dict[str, object] = {
             "properties": {
                 "intent": {
                     "type": "string",
-                    "enum": ["educational", "programming", "current_market", "historical_market"],
+                    "enum": [\n                    "educational",\n                    "programming",\n                    "current_market",\n                    "historical_market",\n                ],
                 },
                 "symbol": {"type": ["string", "null"]},
                 "confidence": {"type": "number"},
@@ -111,7 +111,7 @@ class BaymaxIntentClassifier:
             )
             result = IntentClassification.model_validate_json(raw)
         except (GroqUnavailable, ValidationError, ValueError) as exc:
-            raise IntentClassificationError("Baymax could not classify this request safely") from exc
+            raise IntentClassificationError(\n                "Baymax could not classify this request safely"\n            ) from exc
 
         if result.confidence < self._minimum_confidence:
             return result.model_copy(update={"needs_clarification": True})
