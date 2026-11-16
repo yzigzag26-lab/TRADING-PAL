@@ -1,6 +1,6 @@
 # Gate 2 — Configuration schema
 
-**Status:** Implemented and verified on the live database; RLS hardening is proposed in PR review and has not been applied.
+**Status:** Implemented and verified on the live database; RLS hardening remains a separately reviewed security item and must not be assumed applied unless live database evidence confirms it.
 
 ## Purpose
 
@@ -48,7 +48,7 @@ alembic upgrade head
 
 Do not put `MIGRATION_DATABASE_URL` in Vercel or in the runtime frontend.
 Use a trusted privileged migration connection and keep its value in a secure
-local operator environment. The Render runtime should receive only a dedicated
+operator environment. The Render runtime should receive only a dedicated
 login role that inherits `baymax_app`, not the migration credential.
 
 The downgrade intentionally preserves the singleton settings rows. Do not
@@ -63,12 +63,13 @@ table grants remain unchanged.
 
 The migration intentionally does not FORCE RLS: the dedicated migration
 login owns the tables and PostgreSQL table owners bypass RLS by default.
-The migration credential remains a privileged operator secret. The proposed
-migration has a non-destructive downgrade that removes only its policies and
-returns the two tables to their previous RLS-disabled state.
+The migration credential remains a privileged operator secret. The proposal
+has a non-destructive downgrade that removes only its policies and returns the
+two tables to their previous RLS-disabled state.
 
-This proposal is not active on the live Supabase database until the owner
-reviews and separately approves applying the migration.
+The migration is present in the repository. Whether it has been applied to
+the live database must be confirmed from migration history and live policy
+inspection; do not infer deployment from file presence.
 
 ## Verification
 
@@ -81,17 +82,16 @@ The backend CI suite checks:
 - Timezone-aware timestamps.
 - Required check constraints and JSONB object types.
 - The RLS migration's table targets, policy roles/actions, lack of DELETE
-  policy, non-FORCE behavior, and non-destructive downgrade.
+  policy, non-FORCE behaviour, and non-destructive downgrade.
 
-The migration still requires a real PostgreSQL application and post-migration
-inspection before Gate 2 can be accepted.
+Acceptance requires migration application evidence and post-migration
+inspection of the live database, not only passing static tests.
 
-## Security note — current Gate 1 tables
+## Security note — Gate 1 tables
 
-Supabase's advisor currently reports RLS disabled on
+Supabase's advisor previously reported RLS disabled on
 `baymax.audit_logs` and `baymax.alembic_version`. A direct privilege
-inspection confirmed that `anon`, `authenticated`, and `service_role`
-have neither schema USAGE nor table privileges, so those roles cannot access
-these private-schema tables through the Data API at present. This is not a
-reason to ignore defense in depth: RLS remains a hardening item that requires
-an explicit policy decision before applying remediation to the live database.
+inspection at that time confirmed that `anon`, `authenticated`, and
+`service_role` had neither schema USAGE nor table privileges. Re-run the
+privilege and policy inspection before treating this as current evidence.
+This is not a reason to ignore defense in depth.
