@@ -1,6 +1,6 @@
 # Gate 2 — Configuration schema
 
-**Status:** Implemented on a feature branch; not yet merged or applied to the live database.
+**Status:** Implemented and verified on the live database; RLS hardening is proposed in PR review and has not been applied.
 
 ## Purpose
 
@@ -30,8 +30,8 @@ and UPDATE. It does not grant DELETE or any access to Supabase's
   must not manufacture a value or treat a missing limit as permission.
 
 Risk amounts carry an explicit unit: `percent` or `quote_currency`. Percent
-values must be greater than zero and at most 100. Quote-currency values must
-be positive and require an explicit currency code. Position limits must be at
+values must be greater than zero and at most 100. Quote-currency values must be
+positive and require an explicit currency code. Position limits must be at
 least one; leverage must be at least one. These are data-integrity bounds, not
 recommended personal risk settings.
 
@@ -54,6 +54,22 @@ login role that inherits `baymax_app`, not the migration credential.
 The downgrade intentionally preserves the singleton settings rows. Do not
 delete owner configuration as an incidental rollback operation.
 
+## RLS hardening proposal
+
+Migration `20261116_0004` enables RLS on both configuration tables and adds
+SELECT, INSERT, and UPDATE policies for `baymax_app`. The runtime login
+`baymax_runtime` inherits that role. No DELETE policy is added, and existing
+table grants remain unchanged.
+
+The migration intentionally does not FORCE RLS: the dedicated migration
+login owns the tables and PostgreSQL table owners bypass RLS by default.
+The migration credential remains a privileged operator secret. The proposed
+migration has a non-destructive downgrade that removes only its policies and
+returns the two tables to their previous RLS-disabled state.
+
+This proposal is not active on the live Supabase database until the owner
+reviews and separately approves applying the migration.
+
 ## Verification
 
 The backend CI suite checks:
@@ -64,6 +80,8 @@ The backend CI suite checks:
 - Numeric precision and units.
 - Timezone-aware timestamps.
 - Required check constraints and JSONB object types.
+- The RLS migration's table targets, policy roles/actions, lack of DELETE
+  policy, non-FORCE behavior, and non-destructive downgrade.
 
 The migration still requires a real PostgreSQL application and post-migration
 inspection before Gate 2 can be accepted.
