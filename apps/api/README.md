@@ -6,10 +6,7 @@ request correlation, structured JSON logs, and a consistent error envelope.
 
 Authentication is implemented with the private single-owner session. Gate 1
 provisions the private PostgreSQL schema and migration infrastructure. Gate 2
-adds singleton application and risk configuration models. Gate 3 market-data
-requirements are documented in [the Gate 3 acceptance contract](docs/development/GATE_3_MARKET_DATA.md);
-market-data ingestion is not implemented yet. Intelligence, evaluation,
-learning and memory remain later gates.
+adds singleton application and risk configuration models. Gate 3 market-data requirements are documented in [the Gate 3 acceptance contract](docs/development/GATE_3_MARKET_DATA.md). Current-price ingestion and the production NTP clock-health monitor are implemented, but Gate 3 remains incomplete pending historical candles, persistence, lifecycle/recovery tests, and live exchange/clock verification. Intelligence is implemented; evaluation, learning, and persistent conversation memory remain outstanding.
 
 ## Local development
 
@@ -112,10 +109,7 @@ Provider failures return a generic service-unavailable response and never
 expose the API key or raw provider error. Groq can be replaced later by
 implementing the same small completion-client contract.
 
-**Important current limitations:** the runtime clock-health provider still
-fails closed by default, so current-market requests are blocked until a
-verified clock monitor is configured. Historical market retrieval is not yet
-implemented. The AI layer does not execute trades or have exchange tools.
+**Important current limitations:** production uses a background NTP clock-health monitor and remains fail-closed if at least two sources cannot agree within the configured offset and delay thresholds. Render must permit outbound DNS and UDP/123; a live deployment smoke test is still required before current-market analysis is considered operational. Historical market retrieval is not yet implemented. The AI layer does not execute trades or have exchange tools.
 
 ## Tests and quality
 
