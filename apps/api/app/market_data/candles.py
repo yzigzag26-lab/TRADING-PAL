@@ -42,6 +42,21 @@ def interval_next_open(open_time: datetime, interval: str) -> datetime:
     return open_time + timedelta(seconds=amount)
 
 
+def is_interval_boundary(value: datetime, interval: str) -> bool:
+    """Return whether a UTC timestamp is aligned to a Binance interval open."""
+    if interval not in INTERVALS or value.tzinfo is None or value.utcoffset() is None:
+        return False
+    value = value.astimezone(UTC)
+    if interval.endswith("M"):
+        return value.day == 1 and value.hour == value.minute == value.second == value.microsecond == 0
+    if interval == "1w":
+        return value.weekday() == 0 and value.hour == value.minute == value.second == value.microsecond == 0
+    units = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
+    seconds = int(interval[:-1]) * units[interval[-1]]
+    epoch_seconds = int(value.timestamp())
+    return value.microsecond == 0 and epoch_seconds % seconds == 0
+
+
 def interval_close_time(open_time: datetime, interval: str) -> datetime:
     """Return Binance's inclusive close timestamp (one millisecond before next open)."""
     from datetime import timedelta
@@ -56,6 +71,8 @@ def expected_open_times(start: datetime, end: datetime, interval: str) -> list[d
         raise ValueError("Historical range start must not be after end")
     current = start.astimezone(UTC)
     final = end.astimezone(UTC)
+    if not is_interval_boundary(current, interval) or not is_interval_boundary(final, interval):
+        raise ValueError("Historical range boundaries must align to the requested interval")
     values: list[datetime] = []
     while current <= final:
         values.append(current)
@@ -158,3 +175,23 @@ class HistoricalCandleSeries(BaseModel):
     complete: bool
     recovery_attempts: int = Field(ge=0)
     source: Literal["binance_spot_rest"] = "binance_spot_rest"
+
+    @model_validator(mode="after")
+    def validate_series_integrity(self) -> HistoricalCandleSeries:
+        if self.requested_start.tzinfo is None or self.requested_end.tzinfo is None:
+            raise ValueError("Historical series range must be timezone-aware")
+        if self.requested_start > self.requested_end:
+            raise ValueError("Historical series start must not be after end")
+        opens = [candle.open_time for candle in self.candles]
+        if opens != sorted(set(opens)):
+            raise ValueError("Historical candles must be unique and chronological")
+        if any(
+            candle.symbol != self.symbol or candle.interval != self.interval
+            for candle in self.candles
+        ):
+            raise ValueError("Historical series contains a mismatched candle")
+        if self.complete != (len(self.missing_open_times) == 0):
+            raise ValueError("Historical completeness flag does not match missing intervals")
+        if tuple(sorted(set(self.missing_open_times))) != self.missing_open_times:
+            raise ValueError("Missing candle timestamps must be unique and chronological")
+        return self
