@@ -290,7 +290,7 @@ The initial implementation is being added under `apps/api/app/market_data/`:
 
 ### On-demand integration contract
 
-The later request/analysis orchestrator must classify whether the user's request actually requires current market information. It should call `BinanceMarketDataService.get_current_price(symbol, clock_healthy=...)` only for those requests. General educational, conceptual, and programming questions must not call the service. Historical analysis should use separately labelled historical data, not this current-price method.
+The request/analysis orchestration boundary now accepts an explicit intent (`educational`, `programming`, `current_market`, or `historical_market`). It calls `BinanceMarketDataService.get_current_price(symbol, clock_healthy=...)` only for `current_market`. Educational and programming requests never call the service. Historical analysis remains a separate path and is not served by this current-price method. The AI intent classifier is not yet implemented; callers must supply a trusted structured classification.
 
 The service is an internal backend interface in this slice; it is not yet wired to a user-facing market endpoint or the future AI intent/orchestration layer. Do not describe Gate 3 as fully integrated or complete until that wiring and all acceptance evidence exist.
 
