@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
-from app.orchestration.requests import AnalysisInputUnavailable, AnalysisRequest, BaymaxRequestOrchestrator
+from app.orchestration.requests import (\n    AnalysisInputUnavailable,\n    AnalysisRequest,\n    BaymaxRequestOrchestrator,\n)
 
 
 @dataclass(frozen=True, slots=True)
