@@ -161,8 +161,11 @@ class ClockHealthMonitor:
             await asyncio.gather(self._task, return_exceptions=True)
             self._task = None
         self._snapshot = ClockHealthSnapshot(
-            False, self._snapshot.checked_at, self._snapshot.offset_seconds,
-            self._snapshot.healthy_sources, "monitor_stopped"
+            False,
+            self._snapshot.checked_at,
+            self._snapshot.offset_seconds,
+            self._snapshot.healthy_sources,
+            "monitor_stopped",
         )
         self._last_success_monotonic = None
 
@@ -187,9 +190,14 @@ class ClockHealthMonitor:
             return self._snapshot
 
         offsets = sorted(sample.offset_seconds for sample in samples)
-        median_offset = offsets[len(offsets) // 2] if len(offsets) % 2 else (
-            offsets[len(offsets) // 2 - 1] + offsets[len(offsets) // 2]
-        ) / 2
+        median_offset = (
+            offsets[len(offsets) // 2]
+            if len(offsets) % 2
+            else (
+                offsets[len(offsets) // 2 - 1] + offsets[len(offsets) // 2]
+            )
+            / 2
+        )
         spread = max(offsets) - min(offsets)
         healthy = (
             abs(median_offset) <= MAX_CLOCK_OFFSET_SECONDS
