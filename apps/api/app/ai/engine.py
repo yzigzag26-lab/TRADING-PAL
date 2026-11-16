@@ -4,16 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.ai.classifier import (
-    BaymaxIntentClassifier,
-    IntentClassificationError,
-)
+from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
-from app.orchestration.requests import (
-    AnalysisInputUnavailable,
-    AnalysisRequest,
-    BaymaxRequestOrchestrator,
-)
+from app.orchestration.requests import AnalysisInputUnavailable, AnalysisRequest, BaymaxRequestOrchestrator
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +17,7 @@ class BaymaxAIResult:
     intent: str
     symbol: str | None
     market_data_status: str
+    needs_clarification: bool = False
 
 
 class BaymaxAIEngine:
@@ -44,7 +38,17 @@ class BaymaxAIEngine:
         """Classify first, prepare only necessary inputs, then generate the answer."""
         classification = await self._classifier.classify(message)
         if classification.needs_clarification:
-            raise IntentClassificationError("Baymax needs clarification before proceeding")
+            return BaymaxAIResult(
+                answer=(
+                    "I need one clarification before I continue. Which cryptocurrency or "
+                    "trading pair are you referring to, and are you asking about its current "
+                    "market state or its historical performance?"
+                ),
+                intent=classification.intent,
+                symbol=classification.symbol,
+                market_data_status="not_requested",
+                needs_clarification=True,
+            )
 
         request = AnalysisRequest(
             message=message,
