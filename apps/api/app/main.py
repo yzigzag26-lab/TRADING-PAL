@@ -11,8 +11,6 @@ from time import perf_counter
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
-
-from app.ai.groq import GroqChatClient
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -20,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.ai.groq import GroqChatClient
 from app.api.v1.router import api_router
 from app.auth.security import (
     LoginRateLimiter,
