@@ -21,6 +21,19 @@ secrets, Supabase service-role credentials, or future AI-provider keys in
 browser bundles, logs, documentation, prompts, or CI output. Templates contain
 placeholders only.
 
+## Database privileges and RLS
+
+Baymax application objects belong in the private PostgreSQL `baymax` schema,
+not the public schema. Runtime access uses the dedicated `baymax_runtime`
+login and its `baymax_app` privilege group; schema migration uses the separate
+privileged `baymax_migration` identity. Never reuse the database owner
+credential for runtime requests or expose either database URL to the browser.
+
+Gate 2's RLS migration is present in the repository. Treat its live status as
+unverified until migration history and actual policies are inspected on the
+database. RLS is defense in depth alongside private-schema isolation and
+explicit grants; it does not replace the backend's single-owner session checks.
+
 ## Single-owner password authentication
 
 Baymax has one password field and one owner; it does not use usernames, email
