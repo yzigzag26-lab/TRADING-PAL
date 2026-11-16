@@ -7,8 +7,8 @@ from typing import Protocol
 
 from app.market_data.binance_historical_rest import MAX_KLINE_LIMIT, BinanceHistoricalRestClient
 from app.market_data.candles import (
-    INTERVALS,
     BinanceInterval,
+    INTERVALS,
     HistoricalCandle,
     HistoricalCandleSeries,
     expected_open_times,
