@@ -8,8 +8,8 @@ from typing import Any
 import httpx
 
 from app.market_data.candles import (
-    HistoricalCandle,
     INTERVALS,
+    HistoricalCandle,
     interval_close_time,
     parse_utc_milliseconds,
 )
@@ -132,6 +132,6 @@ class BinanceHistoricalRestClient:
         except (TypeError, ValueError, OverflowError) as exc:
             raise MarketDataUnavailable("Binance returned an invalid OHLCV candle") from exc
 
-        if any(left.open_time >= right.open_time for left, right in zip(candles, candles[1:])):
+        if any(left.open_time >= right.open_time for left, right in zip(candles, candles[1:], strict=False)):
             raise MarketDataUnavailable("Binance returned duplicate or out-of-order candles")
         return candles
