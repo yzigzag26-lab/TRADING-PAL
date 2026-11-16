@@ -101,9 +101,7 @@ class BinanceHistoricalCandleService:
             recovery_count += 1
             ranges = self._missing_ranges(missing, interval)
             for gap_start, gap_end in ranges:
-                await self._fetch_range(
-                    normalized, interval, gap_start, gap_end, candles, now
-                )
+                await self._fetch_range(normalized, interval, gap_start, gap_end, candles, now)
             missing = self._missing(expected, candles)
 
         ordered = tuple(candles[key] for key in sorted(candles) if key in set(expected))
