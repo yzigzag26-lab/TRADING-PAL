@@ -43,7 +43,9 @@ def create_app(
     settings: Settings | None = None,
     *,
     market_data_service_factory: Callable[[], BinanceMarketDataService] | None = None,
-    historical_market_data_service_factory: Callable[[], BinanceHistoricalCandleService] | None = None,
+    historical_market_data_service_factory: (
+        Callable[[], BinanceHistoricalCandleService] | None
+    ) = None,
     clock_health_provider: Callable[[], bool] | None = None,
     clock_health_monitor_factory: Callable[[], ClockHealthMonitor] | None = None,
 ) -> FastAPI:
