@@ -24,6 +24,8 @@ class Settings:
     owner_password_hash: str | None = None
     session_secret: str | None = None
     database_url: str | None = None
+    groq_api_key: str | None = None
+    groq_model: str = "openai/gpt-oss-20b"
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -70,4 +72,6 @@ class Settings:
             owner_password_hash=os.getenv("BAYMAX_PASSWORD_HASH"),
             session_secret=os.getenv("BAYMAX_SESSION_SECRET"),
             database_url=database_url,
+            groq_api_key=os.getenv("GROQ_API_KEY", "").strip() or None,
+            groq_model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip(),
         )

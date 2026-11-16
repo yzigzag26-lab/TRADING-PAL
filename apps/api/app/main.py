@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.ai.groq import GroqChatClient
 from app.api.v1.router import api_router
 from app.auth.security import (
     LoginRateLimiter,
@@ -72,6 +73,12 @@ def create_app(
             app_logger.info("database.runtime_connection_verified")
         market_data_service = (market_data_service_factory or BinanceMarketDataService)()
         application.state.market_data_service = market_data_service
+        groq_client = GroqChatClient(
+            api_key=active_settings.groq_api_key,
+            model=active_settings.groq_model,
+        )
+        application.state.groq_client = groq_client
+        await groq_client.start()
         # No clock synchronization monitor is configured yet. Fail closed until
         # a verified provider is injected by the runtime integration.
         application.state.clock_health_provider = clock_health_provider or (lambda: False)
@@ -81,6 +88,7 @@ def create_app(
             yield
         finally:
             await market_data_service.close()
+            await groq_client.close()
             app_logger.info("market_data.service_stopped")
             if engine is not None:
                 engine.dispose()

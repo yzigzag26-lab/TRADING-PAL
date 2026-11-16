@@ -21,10 +21,10 @@ variables. Never put a secret in a browser-exposed variable.
 | `CORS_ALLOWED_ORIGINS` | Yes in production | Comma-separated exact browser origins; no wildcard |
 | `BAYMAX_PASSWORD_HASH` | Required to enable login | Argon2id hash generated locally with `python scripts/create_password_hash.py`; never the plaintext password |
 | `BAYMAX_SESSION_SECRET` | Required to enable login | Random secret used to sign the owner session cookie |
-| `DATABASE_URL` | Required in deployed backend | Supabase PostgreSQL connection authenticated as `baymax_runtime` |
+| `DATABASE_URL` | Required in deployed backend | Supabase PostgreSQL connection authenticated as `baymax_runtime` |\n| `GROQ_API_KEY` | Required for AI responses | Private Groq API credential; configure on Render only |\n| `GROQ_MODEL` | No | Groq model identifier; defaults to `openai/gpt-oss-20b` |
 | `MIGRATION_DATABASE_URL` | Operator/CI only | Privileged migration connection; never a Render or Vercel runtime variable |
 
-## Later-stage variables — not used by the current API
+## Future-stage variables — not used by the current API
 
 | Variable | Purpose |
 |---|---|
@@ -43,7 +43,7 @@ required for public Spot market data.**
 ## Secret-handling rules
 
 - Never expose database passwords, session-signing secrets, service-role
-  credentials, or future AI-provider credentials in browser variables.
+  credentials, or AI-provider credentials in browser variables.
 - Keep privileged migration credentials out of Render runtime and Vercel.
 - Never paste credentials into source code, issues, pull requests, chat, or CI
   logs.

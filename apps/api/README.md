@@ -56,7 +56,7 @@ The Render-local source copy is under `apps/api/docs` and is required because th
 | GET | /docs | Public | Swagger UI for the generated OpenAPI contract |
 | GET | /openapi.json | Public | Generated OpenAPI document |
 | GET | /api/v1/health | Public | Process liveness |
-| POST | /api/v1/auth/login | Public; password and trusted Origin required | Verify the single owner password and set the session cookie |
+| POST | /api/v1/analysis/prepare | Owner session required | Prepare explicitly classified inputs; does not generate an answer |\n| POST | /api/v1/analysis/respond | Owner session required | Classify a natural-language message, prepare required inputs, and generate a Baymax response |\n| POST | /api/v1/auth/login | Public; password and trusted Origin required | Verify the single owner password and set the session cookie |
 | GET | /api/v1/auth/session | Public | Return only whether the request has a valid owner session |
 | POST | /api/v1/auth/logout | Public; trusted Origin required | Clear the browser's owner session cookie |
 
@@ -74,6 +74,48 @@ currently exposed. Before any private operation is introduced, protect both
 documentation routes behind the owner authentication boundary or disable them
 in production. Do not publish private schemas or enable unauthenticated Try it
 out for private operations. ReDoc remains disabled.
+
+
+## Baymax AI intelligence (Groq)
+
+Baymax uses Groq Chat Completions through the OpenAI-compatible endpoint. The
+provider adapter is isolated in `app/ai/groq.py`; classification, response
+generation, and orchestration are separate modules:
+
+- `app/ai/classifier.py` maps the message to one of four explicit intents using
+  a strict structured-output schema: educational, programming, current_market,
+  or historical_market. Low-confidence or incomplete classifications request
+  clarification and do not trigger market-data retrieval.
+- `app/orchestration/requests.py` remains the authority for on-demand market
+  retrieval. Only current_market reaches the Binance service.
+- `app/ai/generator.py` receives the original message and prepared inputs. It
+  must not invent missing prices, candles, indicators, volume, or trends.
+- `app/ai/engine.py` connects those components in that order.
+- `POST /api/v1/analysis/respond` is owner-session protected and returns the
+  generated answer, selected intent, symbol, market-data status, and whether
+  clarification is required.
+
+Configure these variables on the **Render backend only**:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `GROQ_API_KEY` | Yes for AI responses | Private Groq API key |
+| `GROQ_MODEL` | No | Defaults to `openai/gpt-oss-20b` |
+
+Do not add the key to Vercel, frontend code, source control, or chat. The API
+continues to start without a Groq key, but `/analysis/respond` returns 503
+until one is configured. No paid plan or usage level is assumed; check the
+current Groq account limits and pricing before relying on production usage.
+
+The AI provider has a bounded request timeout and no automatic retry loop.
+Provider failures return a generic service-unavailable response and never
+expose the API key or raw provider error. Groq can be replaced later by
+implementing the same small completion-client contract.
+
+**Important current limitations:** the runtime clock-health provider still
+fails closed by default, so current-market requests are blocked until a
+verified clock monitor is configured. Historical market retrieval is not yet
+implemented. The AI layer does not execute trades or have exchange tools.
 
 ## Tests and quality
 
