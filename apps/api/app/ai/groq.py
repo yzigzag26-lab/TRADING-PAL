@@ -4,6 +4,8 @@ The provider boundary is deliberately small so another model provider can be
 introduced without changing Baymax classification or analysis logic.
 """
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import httpx
