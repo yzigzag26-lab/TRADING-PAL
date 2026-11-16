@@ -94,7 +94,7 @@ def query_ntp_server(
         raise ValueError("NTP server timestamps are invalid")
 
     offset = ((t2 - t1) + (t3 - t4)) / 2
-    corrected_round_trip = (t4 - t1) - (t3 - t2)
+    corrected_round_trip = round_trip - (t3 - t2)
     if corrected_round_trip < 0 or corrected_round_trip > MAX_NTP_ROUND_TRIP_SECONDS:
         raise ValueError("NTP round-trip delay is outside the accepted range")
     return NtpSample(server, offset, corrected_round_trip)
