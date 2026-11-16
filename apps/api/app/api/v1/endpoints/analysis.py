@@ -164,11 +164,14 @@ async def fetch_historical_market_data(
     """Fetch a bounded, validated Binance Spot OHLCV series for the owner."""
     _require_owner(request)
     try:
-        return await request.app.state.historical_market_data_service.fetch(
+        return cast(
+            HistoricalCandleSeries,
+            await request.app.state.historical_market_data_service.fetch(
             payload.symbol,
             payload.interval,
             start_time=payload.start_time,
-            end_time=payload.end_time,
+                end_time=payload.end_time,
+            ),
         )
     except MarketDataUnavailable as exc:
         raise HTTPException(
