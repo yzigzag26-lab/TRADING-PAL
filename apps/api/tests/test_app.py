@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
-from app.core.clock_health import ClockHealthSnapshot
+from app.core.clock_health import ClockHealthMonitor, ClockHealthSnapshot
 from app.core.config import Settings
 from app.main import create_app
 
@@ -193,7 +194,7 @@ def test_production_lifespan_uses_and_closes_injected_clock_monitor() -> None:
     )
     application = create_app(
         settings,
-        clock_health_monitor_factory=lambda: monitor,  # type: ignore[arg-type]
+        clock_health_monitor_factory=lambda: cast(ClockHealthMonitor, monitor),
     )
 
     with TestClient(application):
