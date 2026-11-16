@@ -100,6 +100,7 @@ class BinanceMarketDataService:
             raise ValueError("symbol must contain only letters and digits")
         if not self._started:
             await self.start()
+        await self.start_symbol_stream(normalized)
 
         event = self._events.get(normalized)
         if event is not None:
