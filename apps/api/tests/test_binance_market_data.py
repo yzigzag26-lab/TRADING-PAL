@@ -1,6 +1,7 @@
 """Mocked tests for Binance Spot REST recovery and on-demand consumption."""
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -8,6 +9,7 @@ from decimal import Decimal
 import httpx
 import pytest
 
+import app.market_data.binance_stream as binance_stream_module
 from app.market_data.binance_rest import BinanceSpotRestClient
 from app.market_data.binance_stream import BinanceSpotTradeStream, PLANNED_RECONNECT_SECONDS
 from app.market_data.freshness import MarketDataUnavailable
@@ -294,3 +296,67 @@ def test_stream_planned_rotation_is_before_binance_24_hour_limit() -> None:
     assert PLANNED_RECONNECT_SECONDS == 23 * 60 * 60 + 50 * 60
     with pytest.raises(ValueError, match="must be positive"):
         BinanceSpotTradeStream(connection_lifetime_seconds=0)
+
+
+
+def test_stream_rotates_connection_and_reports_state_transitions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection_count = 0
+
+    class FakeWebSocket:
+        def __init__(self, connection_number: int) -> None:
+            self.connection_number = connection_number
+            self.recv_count = 0
+
+        async def recv(self) -> str:
+            self.recv_count += 1
+            if self.recv_count > 1:
+                await asyncio.Event().wait()
+            timestamp = int(NOW.timestamp() * 1000) + self.connection_number
+            return json.dumps(
+                {
+                    "s": "BTCUSDT",
+                    "E": timestamp,
+                    "T": timestamp,
+                    "p": "95000.12",
+                    "t": self.connection_number,
+                }
+            )
+
+    class FakeConnection:
+        def __init__(self, connection_number: int) -> None:
+            self.websocket = FakeWebSocket(connection_number)
+
+        async def __aenter__(self) -> FakeWebSocket:
+            return self.websocket
+
+        async def __aexit__(self, *_: object) -> None:
+            return None
+
+    def fake_connect(_: str, **__: object) -> FakeConnection:
+        nonlocal connection_count
+        connection_count += 1
+        return FakeConnection(connection_count)
+
+    monkeypatch.setattr(binance_stream_module, "connect", fake_connect)
+
+    async def run() -> None:
+        states: list[bool] = []
+
+        async def on_state(connected: bool) -> None:
+            states.append(connected)
+
+        stream = BinanceSpotTradeStream(connection_lifetime_seconds=0.01)
+        iterator = stream.listen("BTCUSDT", on_connection_state=on_state)
+        try:
+            first = await anext(iterator)
+            second = await asyncio.wait_for(anext(iterator), timeout=2)
+            assert first.event_id == "1"
+            assert second.event_id == "2"
+            assert connection_count >= 2
+            assert states[:3] == [True, False, True]
+        finally:
+            await iterator.aclose()
+
+    asyncio.run(run())
