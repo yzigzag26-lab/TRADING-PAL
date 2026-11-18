@@ -21,14 +21,13 @@ def test_market_data_service_exposes_read_only_stream_status() -> None:
         event_id="123456",
     )
 
+    event_timestamp = service._events["BTCUSDT"].market_event_timestamp.isoformat()
     assert service.stream_status("BTCUSDT") == {
         "connected": True,
         "healthy": True,
         "event_source": "binance_spot_websocket",
         "event_id": "123456",
-        "market_event_timestamp": (
-            service._events["BTCUSDT"].market_event_timestamp.isoformat()
-        ),
+        "market_event_timestamp": event_timestamp,
     }
     assert service.stream_status("ETHUSDT") == {
         "connected": False,
@@ -41,7 +40,6 @@ def test_market_data_service_exposes_read_only_stream_status() -> None:
 
 def test_forced_rotation_diagnostic_is_registered_on_versioned_api() -> None:
     assert any(
-        getattr(route, "path", None)
-        == "/api/v1/diagnostics/gate-3/websocket-rotation"
+        getattr(route, "path", None) == "/api/v1/diagnostics/gate-3/websocket-rotation"
         for route in api_router.routes
     )
