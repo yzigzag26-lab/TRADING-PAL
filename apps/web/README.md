@@ -28,14 +28,16 @@ The frontend calls same-origin `/api/*` paths. Next.js rewrites forward those
 requests to the Render backend. The browser stores the backend-issued,
 host-only `__Host-baymax_session` cookie on the frontend domain; the proxy
 forwards it to Render, where the backend validates it. The Swagger UI and
-OpenAPI schema are also available through `/docs` and `/openapi.json` on the
-frontend domain so the browser sends the same owner session with diagnostic
-requests. Direct requests to the Render host do not receive the frontend
+OpenAPI schema are also available publicly through `/docs` and `/openapi.json`
+on the frontend domain. Protected diagnostic operations still require the
+owner session; the same-origin proxy forwards the frontend-domain cookie to
+Render. Direct requests to the Render host do not receive the frontend
 domain's host-only cookie.
 
 Authentication remains a backend responsibility. The frontend does not
 validate owner credentials or decide whether Gate 3 diagnostics are authorized.
-The diagnostic endpoint remains owner-session protected on Render.
+Both Gate 3 diagnostic endpoints remain owner-session protected on Render,
+even though Swagger documentation itself is public.
 
 The browser does not connect directly to PostgreSQL or use Supabase Auth. Do
 not add database credentials, session secrets, or provider API keys to
