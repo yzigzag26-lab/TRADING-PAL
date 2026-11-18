@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -238,6 +239,7 @@ class HistoricalCandleSeries(BaseModel):
     complete: bool
     recovery_attempts: int = Field(ge=0)
     source: Literal["binance_spot_rest"] = "binance_spot_rest"
+    snapshot_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_series_integrity(self) -> HistoricalCandleSeries:
