@@ -63,6 +63,7 @@ class ValidatedPrice(BaseModel):
     symbol: str
     price: Decimal
     market_event_timestamp: datetime
+    exchange_event_timestamp: datetime | None = None
     received_timestamp: datetime
     validated_timestamp: datetime
     age_ms_at_validation: int = Field(ge=0)

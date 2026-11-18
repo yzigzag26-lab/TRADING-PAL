@@ -302,8 +302,7 @@ The owner does not need to create a Binance key, change Binance security setting
 
 ### Remaining Gate 3 work
 
-Remaining Gate 3 work includes a production-grade clock-synchronization health provider (the default runtime provider deliberately reports unhealthy, so current-market requests fail closed until one is configured), persistent audit/snapshot records, candle history and gap recovery, order-book synchronization if required, comprehensive WebSocket lifecycle/sequence tests, and the live Binance smoke test. The AI classifier and analysis generator are now implemented, but Gate 3 remains incomplete until the clock-health provider, persistent provenance, historical/candle ingestion, stream recovery tests, and remaining acceptance evidence are delivered.
-
+The production NTP clock monitor and bounded historical OHLCV retrieval are implemented. The Gate 3 reliability slice adds append-only market-data provenance and WebSocket lifecycle recovery. Gate 3 remains incomplete until the provenance migration is applied through the approved production workflow, Render confirms NTP reachability and Binance Spot connectivity, and a live smoke test verifies current-price freshness, reconnect recovery, and persisted snapshot references.
 
 ## 15. Groq-backed AI intelligence integration
 
@@ -318,7 +317,7 @@ The AI layer is implemented as a separate capability from the market-data servic
 
 The initial Groq model default is `openai/gpt-oss-20b`, selected because Groq documents strict Structured Outputs support for it. The model can be changed through `GROQ_MODEL` without changing the classifier or generator. Configure `GROQ_API_KEY` and optionally `GROQ_MODEL` on the Render backend only. Do not put the key in Vercel, browser code, or source control. The API can start without a key, but AI responses remain unavailable until one is configured.
 
-The AI layer is analysis-only and has no exchange tools or order execution. It does not make the default clock provider healthy: current-market requests remain blocked until a production-grade clock-health provider is installed. Historical retrieval is still not implemented, and the generator must state that limitation rather than fabricate past market data.
+The AI layer is analysis-only and has no exchange tools or order execution. Production current-market requests remain blocked if NTP clock health is unhealthy or if validated market data cannot be persisted. Historical OHLCV retrieval is available through the owner-only `/api/v1/analysis/history` endpoint; natural-language historical analysis and frontend chat integration remain a separate integration gate.
 
 
 ## 16. Production clock-health monitor implementation
@@ -374,9 +373,6 @@ The historical retrieval slice now includes:
 - The response includes the actual candles, `complete`, exact
   `missing_open_times`, and `recovery_attempts`. If gaps remain, the response
   remains incomplete and contains no fabricated/interpolated candles.
-- Request bounds are enforced during timestamp enumeration: the API rejects
-  ranges above 10,000 expected candles before building a full timestamp list,
-  preventing oversized 1-second ranges from causing unbounded memory allocation.
 
 The endpoint is historical-data retrieval, not a current-price endpoint. It
 does not relax the 3,000 ms current-price freshness rule. Forming candles are
@@ -385,20 +381,68 @@ OHLCV. A successful HTTP response does not imply continuity: consumers must
 check `complete` and `missing_open_times`.
 
 The service is on-demand and bounded to 10,000 requested candle intervals per
-call. It does not poll Binance continuously or store every historical candle
-permanently. Historical analysis through the natural-language `/respond`
-pipeline and frontend chat integration remain separate integration work; the
-structured owner-only history endpoint is available for those next phases.
+call. The Gate 3 provenance implementation persists each returned historical
+series as an append-only snapshot, including its exact candles, completeness
+state, missing timestamps, requested range, and recovery-attempt count.
+Historical analysis through the natural-language `/respond` pipeline and
+frontend chat integration remain separate integration work.
 
 ### Phase 2 remaining evidence
 
-- Deterministic OHLCV and interval-boundary tests.
-- REST payload/rate-limit tests.
-- Gap detection and successful/unsuccessful recovery tests.
-- Owner-authenticated endpoint tests.
-- Full backend CI and strict docs build.
-- Optional live Binance read-only smoke test after deployment approval.
+The implementation and deterministic tests are complete. Remaining evidence
+is operational:
 
-Gate 3 remains incomplete until all mandatory acceptance criteria, including
-production clock verification, persistent provenance, WebSocket lifecycle
-recovery, and live Binance evidence, are satisfied.
+- Apply migration `20261118_0005` through the manually approved production
+  migration workflow.
+- Verify outbound DNS and UDP/123 from the Render production runtime.
+- Verify Binance Spot REST and WebSocket connectivity from Render.
+- Verify a production snapshot insert and read using the owner-only API.
+- Verify disconnect, planned reconnect, sequence-gap recovery, and fresh-price
+  acceptance in the deployed service.
+
+Gate 3 remains incomplete until these production checks pass and the evidence
+is recorded. A green unit-test suite or a successful HTTP connection alone
+does not establish production market-data reliability.
+
+
+## 18. Persistent provenance and WebSocket lifecycle recovery
+
+The Gate 3 reliability implementation adds the following controls:
+
+### Persistent provenance
+
+- The append-only `baymax.market_data_snapshots` table stores validated
+  current-price snapshots and historical OHLCV series.
+- Current-price records preserve exchange, market, symbol, source, Binance
+  trade/event timestamps, receive time, validation time, age at validation,
+  connection state, request ID, exact decimal price, and trade ID.
+- Historical records preserve the requested range, interval, exact candle
+  payload, completeness state, missing open times, and recovery-attempt count.
+- `POST /api/v1/analysis/prepare` and `POST /api/v1/analysis/respond` return
+  `market_snapshot_id` for the exact validated current-price snapshot.
+  `POST /api/v1/analysis/history` returns the persisted `snapshot_id`.
+- Production current-market analysis fails closed if the repository is absent
+  or a snapshot write fails. Historical requests also fail closed when their
+  result cannot be persisted.
+- Row-level security is enabled. The runtime `baymax_app` role receives only
+  SELECT and INSERT privileges; it receives no UPDATE or DELETE grants.
+  The migration downgrade is blocked to prevent removal of retained evidence.
+
+### WebSocket lifecycle and recovery
+
+- Binance trade-stream connections rotate after 23 hours and 50 minutes,
+  before the exchange's 24-hour connection lifetime limit.
+- Connection callbacks distinguish connected from healthy. A stream is not
+  considered healthy until a new event has been accepted.
+- Disconnects invalidate the cached stream event and mark the stream
+  unhealthy. Reconnection uses bounded exponential backoff with jitter.
+- Duplicate and out-of-order trade IDs are ignored. A forward trade-ID gap
+  triggers REST latest-trade reconciliation before the stream is trusted
+  again.
+- Current-price validation remains consume-time and retains the approved
+  3,000 ms freshness limit. A REST recovery does not relax that boundary.
+
+This implementation does not add order execution, private Binance endpoints,
+or exchange credentials. It does not claim that the production migration or
+live Render verification has happened; those remain explicit deployment
+acceptance steps.

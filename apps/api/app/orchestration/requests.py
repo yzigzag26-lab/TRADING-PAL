@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.market_data.freshness import MarketDataUnavailable
 from app.market_data.models import ValidatedPrice
+from app.market_data.provenance import PriceSnapshotRecorder
 from app.market_data.service import BinanceMarketDataService
 
 RequestIntent = Literal["educational", "programming", "current_market", "historical_market"]
@@ -54,6 +57,7 @@ class PreparedAnalysisInput(BaseModel):
     market_data_required: bool
     market_data_status: Literal["not_required", "ready", "historical_not_implemented"]
     current_price: ValidatedPrice | None = None
+    market_snapshot_id: UUID | None = None
 
 
 class AnalysisInputUnavailable(Exception):
@@ -74,12 +78,21 @@ class BaymaxRequestOrchestrator:
         market_data: BinanceMarketDataService,
         *,
         clock_health_provider: Callable[[], bool],
+        provenance_repository: PriceSnapshotRecorder | None = None,
+        require_provenance: bool = False,
     ) -> None:
         self._market_data = market_data
         self._clock_health_provider = clock_health_provider
+        self._provenance_repository = provenance_repository
+        self._require_provenance = require_provenance
 
-    async def prepare(self, request: AnalysisRequest) -> PreparedAnalysisInput:
-        """Resolve the request's required inputs without inventing missing data."""
+    async def prepare(
+        self,
+        request: AnalysisRequest,
+        *,
+        request_id: UUID | None = None,
+    ) -> PreparedAnalysisInput:
+        """Resolve required inputs and persist the exact validated market snapshot."""
         if request.intent in {"educational", "programming"}:
             return PreparedAnalysisInput(
                 intent=request.intent,
@@ -96,6 +109,10 @@ class BaymaxRequestOrchestrator:
 
         if request.symbol is None:
             raise AnalysisInputUnavailable("A symbol is required for current-market analysis")
+        if self._require_provenance and self._provenance_repository is None:
+            raise AnalysisInputUnavailable(
+                "Persistent market-data provenance is not configured; analysis is blocked."
+            )
 
         try:
             price = await self._market_data.get_current_price(
@@ -107,9 +124,27 @@ class BaymaxRequestOrchestrator:
                 "Verified current market data is unavailable; analysis is blocked"
             ) from exc
 
+        snapshot_id: UUID | None = None
+        if self._provenance_repository is not None:
+            try:
+                snapshot_id = await asyncio.to_thread(
+                    self._provenance_repository.record_price,
+                    price,
+                    request_id=request_id,
+                )
+            except Exception as exc:
+                raise AnalysisInputUnavailable(
+                    "Validated market data could not be persisted for audit."
+                ) from exc
+        elif self._require_provenance:
+            raise AnalysisInputUnavailable(
+                "Persistent market-data provenance is not configured; analysis is blocked."
+            )
+
         return PreparedAnalysisInput(
             intent=request.intent,
             market_data_required=True,
             market_data_status="ready",
             current_price=price,
+            market_snapshot_id=snapshot_id,
         )

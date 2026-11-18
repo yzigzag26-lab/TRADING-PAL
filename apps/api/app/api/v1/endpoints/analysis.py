@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import cast
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -82,6 +84,7 @@ class AnalysisConversationResponse(BaseModel):
     symbol: str | None
     market_data_status: str
     needs_clarification: bool
+    market_snapshot_id: UUID | None = None
 
 
 def _require_owner(request: Request) -> Settings:
@@ -107,9 +110,14 @@ async def prepare_analysis(
     orchestrator = BaymaxRequestOrchestrator(
         request.app.state.market_data_service,
         clock_health_provider=request.app.state.clock_health_provider,
+        provenance_repository=request.app.state.market_data_provenance_repository,
+        require_provenance=request.app.state.require_market_data_provenance,
     )
     try:
-        return await orchestrator.prepare(payload)
+        return await orchestrator.prepare(
+            payload,
+            request_id=UUID(request.state.request_id),
+        )
     except AnalysisInputUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -137,10 +145,15 @@ async def respond_to_message(
         orchestrator=BaymaxRequestOrchestrator(
             request.app.state.market_data_service,
             clock_health_provider=request.app.state.clock_health_provider,
+            provenance_repository=request.app.state.market_data_provenance_repository,
+            require_provenance=request.app.state.require_market_data_provenance,
         ),
     )
     try:
-        result = await engine.respond(payload.message)
+        result = await engine.respond(
+            payload.message,
+            request_id=UUID(request.state.request_id),
+        )
     except AnalysisInputUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -158,6 +171,7 @@ async def respond_to_message(
         symbol=result.symbol,
         market_data_status=result.market_data_status,
         needs_clarification=result.needs_clarification,
+        market_snapshot_id=result.market_snapshot_id,
     )
 
 
@@ -168,8 +182,14 @@ async def fetch_historical_market_data(
 ) -> HistoricalCandleSeries:
     """Fetch a bounded, validated Binance Spot OHLCV series for the owner."""
     _require_owner(request)
+    repository = request.app.state.market_data_provenance_repository
+    if repository is None and request.app.state.require_market_data_provenance:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistent historical provenance is not configured.",
+        )
     try:
-        return cast(
+        series = cast(
             HistoricalCandleSeries,
             await request.app.state.historical_market_data_service.fetch(
                 payload.symbol,
@@ -178,6 +198,19 @@ async def fetch_historical_market_data(
                 end_time=payload.end_time,
             ),
         )
+        if repository is not None:
+            try:
+                snapshot_id = await asyncio.to_thread(
+                    repository.record_historical_series,
+                    series,
+                    request_id=UUID(request.state.request_id),
+                )
+            except Exception as exc:
+                raise MarketDataUnavailable(
+                    "Historical market data could not be persisted for audit."
+                ) from exc
+            series = series.model_copy(update={"snapshot_id": snapshot_id})
+        return series
     except MarketDataUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -68,6 +68,7 @@ def validate_price_event(
         symbol=event.symbol,
         price=event.price,
         market_event_timestamp=event.market_event_timestamp,
+        exchange_event_timestamp=event.exchange_event_timestamp,
         received_timestamp=event.received_timestamp,
         validated_timestamp=validation_time,
         age_ms_at_validation=age_microseconds // 1_000,

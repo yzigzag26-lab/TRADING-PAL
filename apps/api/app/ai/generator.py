@@ -40,6 +40,9 @@ class BaymaxAnalysisGenerator:
             "intent": prepared.intent,
             "market_data_required": prepared.market_data_required,
             "market_data_status": prepared.market_data_status,
+            "market_snapshot_id": (
+                str(prepared.market_snapshot_id) if prepared.market_snapshot_id else None
+            ),
         }
         if prepared.current_price is not None:
             price = prepared.current_price

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
@@ -22,6 +23,7 @@ class BaymaxAIResult:
     symbol: str | None
     market_data_status: str
     needs_clarification: bool = False
+    market_snapshot_id: UUID | None = None
 
 
 class BaymaxAIEngine:
@@ -38,7 +40,12 @@ class BaymaxAIEngine:
         self._generator = generator
         self._orchestrator = orchestrator
 
-    async def respond(self, message: str) -> BaymaxAIResult:
+    async def respond(
+        self,
+        message: str,
+        *,
+        request_id: UUID | None = None,
+    ) -> BaymaxAIResult:
         """Classify first, prepare only necessary inputs, then generate the answer."""
         classification = await self._classifier.classify(message)
         if classification.needs_clarification:
@@ -59,13 +66,14 @@ class BaymaxAIEngine:
             intent=classification.intent,
             symbol=classification.symbol,
         )
-        prepared = await self._orchestrator.prepare(request)
+        prepared = await self._orchestrator.prepare(request, request_id=request_id)
         answer = await self._generator.generate(request, prepared)
         return BaymaxAIResult(
             answer=answer,
             intent=classification.intent,
             symbol=classification.symbol,
             market_data_status=prepared.market_data_status,
+            market_snapshot_id=prepared.market_snapshot_id,
         )
 
 

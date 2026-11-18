@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
+from app.auth.security import SESSION_COOKIE_NAME, create_session_token
 from app.core.clock_health import ClockHealthMonitor, ClockHealthSnapshot
 from app.core.config import Settings
 from app.main import create_app
@@ -203,3 +204,27 @@ def test_production_lifespan_uses_and_closes_injected_clock_monitor() -> None:
         assert application.state.clock_health_provider() is True
 
     assert monitor.closed is True
+
+
+def test_production_api_docs_and_openapi_require_owner_session() -> None:
+    settings = Settings(
+        app_env="production",
+        log_level="INFO",
+        cors_allowed_origins=("https://baymax-nu.vercel.app",),
+        session_secret="test-session-secret",
+    )
+    application = create_app(settings, clock_health_provider=lambda: False)
+    token = create_session_token(cast(str, settings.session_secret))
+
+    with TestClient(application) as client:
+        assert client.get("/docs").status_code == 401
+        assert client.get("/openapi.json").status_code == 401
+
+        headers = {"Cookie": f"{SESSION_COOKIE_NAME}={token}"}
+        swagger = client.get("/docs", headers=headers)
+        schema = client.get("/openapi.json", headers=headers)
+
+    assert swagger.status_code == 200
+    assert "swagger-ui" in swagger.text.lower()
+    assert schema.status_code == 200
+    assert "/api/v1/analysis/history" in schema.json()["paths"]
