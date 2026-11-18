@@ -128,11 +128,7 @@ class BinanceMarketDataService:
                     ):
                         continue
 
-                if (
-                    current_id is not None
-                    and previous_id is not None
-                    and current_id <= previous_id
-                ):
+                if current_id is not None and previous_id is not None and current_id <= previous_id:
                     continue
 
                 if (

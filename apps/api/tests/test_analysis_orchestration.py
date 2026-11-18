@@ -198,7 +198,6 @@ def test_historical_market_data_endpoint_requires_owner_session() -> None:
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-
 def test_current_market_analysis_persists_and_returns_snapshot_reference() -> None:
     class FakeRecorder:
         def __init__(self) -> None:

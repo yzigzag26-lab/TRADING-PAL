@@ -151,7 +151,6 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
     asyncio.run(run())
 
 
-
 def _trade_event(trade_id: int, *, price: str = "95000") -> PriceEvent:
     return PriceEvent(
         symbol="BTCUSDT",
@@ -295,7 +294,6 @@ def test_stream_planned_rotation_is_before_binance_24_hour_limit() -> None:
     assert PLANNED_RECONNECT_SECONDS == 23 * 60 * 60 + 50 * 60
     with pytest.raises(ValueError, match="must be positive"):
         BinanceSpotTradeStream(connection_lifetime_seconds=0)
-
 
 
 def test_stream_rotates_connection_and_reports_state_transitions(

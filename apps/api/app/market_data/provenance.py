@@ -44,9 +44,7 @@ class MarketDataProvenanceRepository:
             validated_timestamp=price.validated_timestamp,
             age_ms_at_validation=price.age_ms_at_validation,
             connection_state=(
-                "WEBSOCKET_HEALTHY"
-                if price.source == "binance_spot_websocket"
-                else "REST_RECOVERY"
+                "WEBSOCKET_HEALTHY" if price.source == "binance_spot_websocket" else "REST_RECOVERY"
             ),
             validation_state="VALIDATED",
             request_id=request_id,
