@@ -165,7 +165,9 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
             "connection_transitions": [
                 {
                     "connected": connected,
-                    "elapsed_since_start_ms": round((timestamp - lifecycle_started_at) * 1000),
+                    "elapsed_since_start_ms": round(
+                        (timestamp - lifecycle_started_at) * 1000
+                    ),
                 }
                 for connected, timestamp in observed_stream.transitions
             ],
@@ -225,7 +227,8 @@ async def verify_websocket_rotation(
             "resubscription": {
                 "status": "passed" if result["resubscription_observed"] else "failed",
                 "connection_count": sum(
-                    transition["connected"] for transition in result["connection_transitions"]
+                    transition["connected"]
+                    for transition in result["connection_transitions"]
                 ),
                 "first_connection_lifetime_seconds": result["rotation_elapsed_seconds"],
             },
