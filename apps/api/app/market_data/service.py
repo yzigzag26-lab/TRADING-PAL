@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import datetime
 from typing import Protocol
 
@@ -25,8 +26,8 @@ class TradeStream(Protocol):
         self,
         symbol: str,
         *,
-        on_connection_state: object,
-    ) -> object: ...
+        on_connection_state: Callable[[bool], Awaitable[None]],
+    ) -> AsyncIterator[PriceEvent]: ...
 
 
 class BinanceMarketDataService:
@@ -41,7 +42,7 @@ class BinanceMarketDataService:
         self,
         *,
         rest_client: LatestTradeClient | None = None,
-        stream: BinanceSpotTradeStream | None = None,
+        stream: TradeStream | None = None,
     ) -> None:
         self._rest: LatestTradeClient = rest_client or BinanceSpotRestClient()
         self._stream = stream or BinanceSpotTradeStream()
