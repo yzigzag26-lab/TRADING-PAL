@@ -29,6 +29,7 @@ from app.core.clock_health import ClockHealthMonitor
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.db.session import create_database_engine, verify_database_connection
+from app.market_data.provenance import MarketDataProvenanceRepository
 from app.market_data.historical_service import BinanceHistoricalCandleService
 from app.market_data.service import BinanceMarketDataService
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
@@ -76,7 +77,15 @@ def create_app(
                 class_=Session,
                 expire_on_commit=False,
             )
+            application.state.market_data_provenance_repository = (
+                MarketDataProvenanceRepository(application.state.db_session_factory)
+            )
             app_logger.info("database.runtime_connection_verified")
+        if not hasattr(application.state, "market_data_provenance_repository"):
+            application.state.market_data_provenance_repository = None
+        application.state.require_market_data_provenance = (
+            active_settings.app_env == "production"
+        )
         market_data_service = (market_data_service_factory or BinanceMarketDataService)()
         historical_market_data_service = (
             historical_market_data_service_factory or BinanceHistoricalCandleService
@@ -131,6 +140,8 @@ def create_app(
     )
     application.state.settings = active_settings
     application.state.login_limiter = LoginRateLimiter()
+    application.state.market_data_provenance_repository = None
+    application.state.require_market_data_provenance = active_settings.app_env == "production"
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(active_settings.cors_allowed_origins),
