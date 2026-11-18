@@ -374,6 +374,9 @@ The historical retrieval slice now includes:
 - The response includes the actual candles, `complete`, exact
   `missing_open_times`, and `recovery_attempts`. If gaps remain, the response
   remains incomplete and contains no fabricated/interpolated candles.
+- Request bounds are enforced during timestamp enumeration: the API rejects
+  ranges above 10,000 expected candles before building a full timestamp list,
+  preventing oversized 1-second ranges from causing unbounded memory allocation.
 
 The endpoint is historical-data retrieval, not a current-price endpoint. It
 does not relax the 3,000 ms current-price freshness rule. Forming candles are
