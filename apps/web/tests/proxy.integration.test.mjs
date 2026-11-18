@@ -168,8 +168,13 @@ test("frontend-domain Swagger keeps the owner session on the Render proxy reques
   assert.equal((await diagnostic.json()).status, "passed");
 
   const diagnosticRequest = backendRequests.find(
-    (entry) => entry.method === "POST" && entry.url === "/api/v1/diagnostics/gate-3",
+    (entry) =>
+      entry.method === "POST" &&
+      entry.url === "/api/v1/diagnostics/gate-3" &&
+      entry.cookie === ownerCookie,
   );
-  assert.ok(diagnosticRequest, "diagnostic request must reach the Render-compatible upstream");
-  assert.equal(diagnosticRequest.cookie, ownerCookie);
+  assert.ok(
+    diagnosticRequest,
+    "authenticated diagnostic request must reach the Render-compatible upstream with the owner cookie",
+  );
 });
