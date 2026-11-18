@@ -10,6 +10,7 @@ from app.api.v1.endpoints.diagnostics import (
     _event_age_ms,
     _snapshot_insert_read_rollback,
 )
+from app.db.models.market_data_snapshot import MarketDataSnapshot
 from app.market_data.models import PriceEvent
 
 
@@ -57,7 +58,7 @@ class _FakeResult:
 
 class _FakeSession:
     def __init__(self) -> None:
-        self.row = None
+        self.row: MarketDataSnapshot | None = None
         self.transaction = _FakeTransaction()
         self.closed = False
 
@@ -71,6 +72,7 @@ class _FakeSession:
         return self.transaction
 
     def add(self, row: object) -> None:
+        assert isinstance(row, MarketDataSnapshot)
         self.row = row
 
     def flush(self) -> None:
