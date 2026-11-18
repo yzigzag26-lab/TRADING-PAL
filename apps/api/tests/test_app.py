@@ -260,7 +260,6 @@ def test_durable_snapshot_verification_still_requires_owner_session() -> None:
     assert response.status_code == 401
 
 
-
 def test_websocket_rotation_diagnostic_still_requires_owner_session() -> None:
     settings = Settings(
         app_env="production",
