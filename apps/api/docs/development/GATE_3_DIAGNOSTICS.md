@@ -197,7 +197,7 @@ non-durable check and must not be confused with this commit evidence.
 ### Next production check
 
 G3-05 is the next production acceptance item: verify deployed-service
- disconnect handling, planned reconnect/resubscription, and restored fresh
+disconnect handling, planned reconnect/resubscription, and restored fresh
 price acceptance. The two-connection smoke check above does not close the full
 23-hour-50-minute planned-rotation/lifecycle requirement. Gate 3 remains open
 until all mandatory criteria in the acceptance contract have evidence.
