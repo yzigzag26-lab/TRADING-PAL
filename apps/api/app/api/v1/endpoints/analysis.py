@@ -183,7 +183,7 @@ async def fetch_historical_market_data(
     """Fetch a bounded, validated Binance Spot OHLCV series for the owner."""
     _require_owner(request)
     try:
-        return cast(
+        series = cast(
             HistoricalCandleSeries,
             await request.app.state.historical_market_data_service.fetch(
                 payload.symbol,
@@ -192,6 +192,17 @@ async def fetch_historical_market_data(
                 end_time=payload.end_time,
             ),
         )
+        repository = request.app.state.market_data_provenance_repository
+        if repository is None and request.app.state.require_market_data_provenance:
+            raise MarketDataUnavailable("Persistent historical provenance is not configured")
+        if repository is not None:
+            snapshot_id = await asyncio.to_thread(
+                repository.record_historical_series,
+                series,
+                request_id=UUID(request.state.request_id),
+            )
+            series = series.model_copy(update={"snapshot_id": snapshot_id})
+        return series
     except MarketDataUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
