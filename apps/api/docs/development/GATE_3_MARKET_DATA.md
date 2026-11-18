@@ -510,7 +510,7 @@ same acceptance test.
 ### Acceptance status and next item
 
 - **G3-01:** production REST and WebSocket connectivity smoke evidence recorded;
-  deterministic integration/configuration evidence remains part of CI.
+  deterministic transport/configuration tests also exist.
 - **G3-04:** production NTP consensus passed; deterministic fail-closed clock
   tests remain required evidence.
 - **G3-11:** persistent provenance implementation and durable production
