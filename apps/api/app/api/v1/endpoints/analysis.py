@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from uuid import UUID
 from typing import cast
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
