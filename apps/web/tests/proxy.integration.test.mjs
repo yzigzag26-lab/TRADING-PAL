@@ -143,6 +143,12 @@ test("frontend-domain Swagger keeps the owner session on the Render proxy reques
   assert.equal(schema.status, 200);
   assert.ok((await schema.json()).paths["/api/v1/diagnostics/gate-3"]);
 
+  const unauthenticatedDiagnostic = await fetch(
+    `${frontendOrigin}/api/v1/diagnostics/gate-3`,
+    { method: "POST" },
+  );
+  assert.equal(unauthenticatedDiagnostic.status, 401);
+
   const login = await fetch(`${frontendOrigin}/api/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: frontendOrigin },
