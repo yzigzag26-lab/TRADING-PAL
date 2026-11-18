@@ -9,7 +9,6 @@ from decimal import Decimal
 import httpx
 import pytest
 
-import app.market_data.binance_stream as binance_stream_module
 from app.market_data.binance_rest import BinanceSpotRestClient
 from app.market_data.binance_stream import BinanceSpotTradeStream, PLANNED_RECONNECT_SECONDS
 from app.market_data.freshness import MarketDataUnavailable
@@ -339,7 +338,7 @@ def test_stream_rotates_connection_and_reports_state_transitions(
         connection_count += 1
         return FakeConnection(connection_count)
 
-    monkeypatch.setattr(binance_stream_module, "connect", fake_connect)
+    monkeypatch.setattr("app.market_data.binance_stream.connect", fake_connect)
 
     async def run() -> None:
         states: list[bool] = []

@@ -71,7 +71,7 @@ class BinanceSpotTradeStream:
                                     websocket.recv(),
                                     timeout=remaining,
                                 )
-                            except asyncio.TimeoutError:
+                            except TimeoutError:
                                 break
                             if message is None:
                                 break

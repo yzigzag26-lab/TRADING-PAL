@@ -1,11 +1,15 @@
 """Tests for persistent market-data provenance payload construction."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import cast
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session, sessionmaker
+
+from app.db.models.market_data_snapshot import MarketDataSnapshot
 
 from app.market_data.candles import HistoricalCandle, HistoricalCandleSeries, interval_close_time
 from app.market_data.freshness import validate_price_event
@@ -17,7 +21,7 @@ NOW = datetime(2026, 11, 18, 12, 0, tzinfo=UTC)
 
 class FakeSession:
     def __init__(self) -> None:
-        self.row: object | None = None
+        self.row: MarketDataSnapshot | None = None
 
     def __enter__(self) -> FakeSession:
         return self
@@ -26,11 +30,12 @@ class FakeSession:
         return None
 
     def add(self, row: object) -> None:
+        assert isinstance(row, MarketDataSnapshot)
         self.row = row
 
     def commit(self) -> None:
         if self.row is not None:
-            setattr(self.row, "id", uuid4())
+            self.row.id = uuid4()
 
     def refresh(self, row: object) -> None:
         assert row is self.row
@@ -69,13 +74,13 @@ def test_price_provenance_persists_source_timestamps_and_exact_decimal() -> None
 
     assert isinstance(snapshot_id, UUID)
     assert row is not None
-    assert getattr(row, "data_type") == "trade_price"
-    assert getattr(row, "market_event_timestamp") == event.market_event_timestamp
-    assert getattr(row, "exchange_event_timestamp") == event.exchange_event_timestamp
-    assert getattr(row, "age_ms_at_validation") == 300
-    assert getattr(row, "request_id") == request_id
-    assert getattr(row, "payload") == {"price": "95000.12345678", "event_id": "12345"}
-    assert getattr(row, "connection_state") == "WEBSOCKET_HEALTHY"
+    assert row.data_type == "trade_price"
+    assert row.market_event_timestamp == event.market_event_timestamp
+    assert row.exchange_event_timestamp == event.exchange_event_timestamp
+    assert row.age_ms_at_validation == 300
+    assert row.request_id == request_id
+    assert row.payload == {"price": "95000.12345678", "event_id": "12345"}
+    assert row.connection_state == "WEBSOCKET_HEALTHY"
 
 
 def test_historical_provenance_persists_incomplete_series_without_filling_gaps() -> None:
@@ -116,9 +121,8 @@ def test_historical_provenance_persists_incomplete_series_without_filling_gaps()
 
     assert isinstance(snapshot_id, UUID)
     assert row is not None
-    assert getattr(row, "data_type") == "historical_ohlcv"
-    assert getattr(row, "is_complete") is False
-    assert getattr(row, "validation_state") == "INCOMPLETE"
-    payload = cast(dict[str, object], getattr(row, "payload"))
-    assert payload["missing_open_times"] == [missing.isoformat().replace("+00:00", "Z")]
-    assert len(cast(list[object], payload["candles"])) == 1
+    assert row.data_type == "historical_ohlcv"
+    assert row.is_complete is False
+    assert row.validation_state == "INCOMPLETE"
+    assert row.payload["missing_open_times"] == [missing.isoformat().replace("+00:00", "Z")]
+    assert len(row.payload["candles"]) == 1
