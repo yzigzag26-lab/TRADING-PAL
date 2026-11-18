@@ -8,9 +8,10 @@ does not create a permanent row in the append-only production table.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any, Awaitable, Callable, Literal, cast
+from typing import Any, Literal, cast
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
