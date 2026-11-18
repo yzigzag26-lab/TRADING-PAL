@@ -89,5 +89,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Retain provenance history; never drop persisted market-data evidence."""
-    # The table and records are intentionally retained on downgrade.
-    pass
+    raise RuntimeError(
+        "Market-data provenance is append-only; this migration cannot be downgraded."
+    )
