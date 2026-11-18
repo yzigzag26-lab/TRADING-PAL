@@ -14,7 +14,19 @@ release actions.
 
 ## Browser-to-backend routing
 
-The Next.js frontend proxies `/api/*` to the Render FastAPI service. This keeps the browser on the Vercel origin while Render issues a host-only `__Host-` session cookie, avoiding dependence on third-party cookies. The `/guide` and `/guide/*` routes are reserved to proxy the private Zensical site from Render after its protected static mount is deployed. Do not link directly to the Render guide host as the normal user entry point.
+The Next.js frontend proxies `/api/*`, `/docs`, `/docs/*`, and
+`/openapi.json` to the Render FastAPI service. This keeps browser requests on
+the Vercel origin. The backend issues and validates the host-only
+`__Host-baymax_session` cookie; the frontend proxy forwards that cookie with
+API and Swagger diagnostic requests. Swagger and its schema are therefore
+reachable at the frontend domain's `/docs` and `/openapi.json` paths, while
+`POST /api/v1/diagnostics/gate-3` remains protected by backend owner-session
+validation. Direct Render-host Swagger access does not share the frontend
+host-only cookie.
+
+The `/guide` and `/guide/*` routes are reserved to proxy the private Zensical
+site from Render after its protected static mount is deployed. Do not link
+directly to the Render guide host as the normal user entry point.
 
 ## Render configuration
 

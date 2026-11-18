@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
-const backendOrigin = "https://baymax-api-6b49.onrender.com";
+// Server-only override lets the proxy integration test use a local Render
+// contract stub. Production continues to use the approved Render API origin.
+const backendOrigin =
+  process.env.BAYMAX_API_ORIGIN ?? "https://baymax-api-6b49.onrender.com";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -10,6 +13,8 @@ const nextConfig: NextConfig = {
       { source: "/api/:path*", destination: `${backendOrigin}/api/:path*` },
       { source: "/guide", destination: `${backendOrigin}/guide/` },
       { source: "/guide/:path*", destination: `${backendOrigin}/guide/:path*` },
+      { source: "/docs", destination: `${backendOrigin}/docs` },
+      { source: "/docs/:path*", destination: `${backendOrigin}/docs/:path*` },
       { source: "/openapi.json", destination: `${backendOrigin}/openapi.json` },
     ];
   },

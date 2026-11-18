@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   frontend:
-    name: Install, lint, typecheck and build
+    name: Install, lint, typecheck, build and integration
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -45,3 +45,6 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Proxy integration test (Render-compatible stub)
+        run: npm run test:proxy-integration
