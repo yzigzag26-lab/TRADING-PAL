@@ -220,8 +220,7 @@ async def verify_websocket_rotation(
             "resubscription": {
                 "status": "passed" if result["resubscription_observed"] else "failed",
                 "connection_count": sum(
-                    transition["connected"]
-                    for transition in result["connection_transitions"]
+                    transition["connected"] for transition in result["connection_transitions"]
                 ),
                 "first_connection_lifetime_seconds": result["rotation_elapsed_seconds"],
             },
