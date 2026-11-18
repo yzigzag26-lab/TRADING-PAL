@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
+from uuid import UUID
 from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -82,6 +84,7 @@ class AnalysisConversationResponse(BaseModel):
     symbol: str | None
     market_data_status: str
     needs_clarification: bool
+    market_snapshot_id: UUID | None = None
 
 
 def _require_owner(request: Request) -> Settings:
@@ -107,9 +110,14 @@ async def prepare_analysis(
     orchestrator = BaymaxRequestOrchestrator(
         request.app.state.market_data_service,
         clock_health_provider=request.app.state.clock_health_provider,
+        provenance_repository=request.app.state.market_data_provenance_repository,
+        require_provenance=request.app.state.require_market_data_provenance,
     )
     try:
-        return await orchestrator.prepare(payload)
+        return await orchestrator.prepare(
+            payload,
+            request_id=UUID(request.state.request_id),
+        )
     except AnalysisInputUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -137,10 +145,15 @@ async def respond_to_message(
         orchestrator=BaymaxRequestOrchestrator(
             request.app.state.market_data_service,
             clock_health_provider=request.app.state.clock_health_provider,
+            provenance_repository=request.app.state.market_data_provenance_repository,
+            require_provenance=request.app.state.require_market_data_provenance,
         ),
     )
     try:
-        result = await engine.respond(payload.message)
+        result = await engine.respond(
+            payload.message,
+            request_id=UUID(request.state.request_id),
+        )
     except AnalysisInputUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -158,6 +171,7 @@ async def respond_to_message(
         symbol=result.symbol,
         market_data_status=result.market_data_status,
         needs_clarification=result.needs_clarification,
+        market_snapshot_id=result.market_snapshot_id,
     )
 
 
