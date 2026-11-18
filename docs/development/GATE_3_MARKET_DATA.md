@@ -1,7 +1,7 @@
 # Gate 3 — Binance Spot market data freshness and reliability
 
 **Specification:** Baymax Market Data Freshness & Reliability v1.0  
-**Status:** Owner-approved acceptance contract; first transport/retrieval implementation slice is in review and Gate 3 remains incomplete.  
+**Status:** Owner-approved acceptance contract; Gate 3 implementation is merged and production acceptance is in progress. Production evidence is recorded in Section 19; Gate 3 remains incomplete.  
 **Applies to:** Gate 3 of the private, single-owner Baymax system.  
 **Exchange:** Binance Spot only.  
 **Access:** Public market data, read-only.  
@@ -280,7 +280,7 @@ Re-check these official pages at implementation time; they may change:
 
 ## 14. First implementation slice — current status
 
-The initial implementation is being added under `apps/api/app/market_data/`:
+The implemented market-data service lives under `apps/api/app/market_data/`:
 
 - `models.py`: immutable, decimal-safe Binance Spot price-event models.
 - `freshness.py`: locked 3,000 ms fail-closed validation. Source-health and clock-health inputs are explicit; age is calculated using integer microseconds.
@@ -389,20 +389,19 @@ frontend chat integration remain separate integration work.
 
 ### Phase 2 remaining evidence
 
-The implementation and deterministic tests are complete. Remaining evidence
-is operational:
+The implementation and deterministic test suite are complete for the current
+market-data, historical retrieval, clock-health, provenance, and WebSocket
+recovery slices. Production migration `20261118_0005` has been applied and
+verified. Production NTP consensus, Binance Spot REST connectivity, basic
+WebSocket reconnection, and a durable current-price snapshot commit/readback
+have passed; see Section 19.
 
-- Apply migration `20261118_0005` through the manually approved production
-  migration workflow.
-- Verify outbound DNS and UDP/123 from the Render production runtime.
-- Verify Binance Spot REST and WebSocket connectivity from Render.
-- Verify a production snapshot insert and read using the owner-only API.
-- Verify disconnect, planned reconnect, sequence-gap recovery, and fresh-price
-  acceptance in the deployed service.
-
-Gate 3 remains incomplete until these production checks pass and the evidence
-is recorded. A green unit-test suite or a successful HTTP connection alone
-does not establish production market-data reliability.
+Remaining operational evidence includes full deployed-service disconnect and
+planned reconnect/resubscription behaviour, sequence-gap recovery, and
+restored fresh-price acceptance. Gate 3 remains incomplete until these checks
+and every other mandatory criterion in Section 11 have reproducible evidence.
+A green unit-test suite or a successful HTTP connection alone does not
+establish production market-data reliability.
 
 
 ## 18. Persistent provenance and WebSocket lifecycle recovery
@@ -443,6 +442,88 @@ The Gate 3 reliability implementation adds the following controls:
   3,000 ms freshness limit. A REST recovery does not relax that boundary.
 
 This implementation does not add order execution, private Binance endpoints,
-or exchange credentials. It does not claim that the production migration or
-live Render verification has happened; those remain explicit deployment
-acceptance steps.
+or exchange credentials. The production migration and initial live Render
+checks have been completed; the remaining lifecycle recovery evidence is
+tracked in Section 19.
+
+## 19. Production acceptance evidence — 2026-11-18
+
+This section records the production checks completed after the implementation
+and deployment of the Gate 3 reliability slice. It supplements the deterministic
+acceptance tests; it does not waive any criterion in Section 11.
+
+### Production infrastructure diagnostic
+
+At `2026-11-18T12:16:58.086502Z`, the owner-authenticated
+`POST /api/v1/diagnostics/gate-3` returned HTTP 200 with
+`status: "passed"`. All four checks passed:
+
+- NTP clock consensus: 3 healthy sources; measured offset approximately
+  1.05 ms.
+- Binance Spot REST: BTCUSDT latest-trade event accepted; event age 2,103 ms.
+- WebSocket reconnect smoke check: two independent connections established,
+  each supplied a trade ID, and the second connection succeeded after the
+  first was closed.
+- Snapshot INSERT/SELECT/ROLLBACK: passed as a transaction-only check; this
+  diagnostic intentionally did not commit a durable row.
+
+This verifies production NTP reachability, REST payload handling, and basic
+WebSocket reconnection. It does not prove the planned 23-hour-50-minute
+rotation or full production recovery after disconnect/sequence-gap events.
+
+### Durable snapshot commit and independent database verification
+
+At `2026-11-18T12:42:25.098361Z`, the owner explicitly invoked
+`POST /api/v1/diagnostics/gate-3/durable-snapshot` once with
+`confirm_durable_write: true`. The endpoint returned
+`status: "passed"`, `durable_commit_verified: true`, and
+`separate_transaction_readback: true`.
+
+| Field | Verified value |
+|---|---|
+| Snapshot ID | `8398dd5e-5b3d-4986-8a32-b872d427d298` |
+| Request ID | `1784dd1f-3389-4b6b-a552-fc0db5028b7a` |
+| Exchange / market | `BINANCE / SPOT` |
+| Symbol / data type | `BTCUSDT / trade_price` |
+| Source | `binance_spot_rest` |
+| Price | `63993.08000000` |
+| Trade ID | `6876603329` |
+| Market / exchange event time | `2026-11-18T12:42:24.573Z` |
+| Received time | `2026-11-18T12:42:24.881205Z` |
+| Validated time | `2026-11-18T12:42:24.882206Z` |
+| Age at validation | `309 ms` |
+| Database created_at | `2026-11-18T12:42:25.098361Z` |
+| Stored connection state | `REST_RECOVERY` |
+| Stored validation state | `VALIDATED` |
+
+A separate read-only Supabase query selected the row by both snapshot ID and
+request ID from `baymax.market_data_snapshots`. The identifiers, source,
+payload price/trade ID, timestamps, age, connection state, validation state,
+and creation time matched the API response. No database write was performed
+by this independent verification query.
+
+The `REST_RECOVERY` state is correct: this accepted snapshot came from Binance
+REST recovery, not from a healthy WebSocket event. This is one permanent
+append-only audit row. Do not rerun the durable endpoint merely to repeat the
+same acceptance test.
+
+### Acceptance status and next item
+
+- **G3-01:** production REST and WebSocket connectivity smoke evidence recorded;
+  deterministic integration/configuration evidence remains part of CI.
+- **G3-04:** production NTP consensus passed; deterministic fail-closed clock
+  tests remain required evidence.
+- **G3-11:** persistent provenance implementation and durable production
+  commit/readback are verified for this current-price snapshot. Analysis
+  snapshot-reference behaviour remains covered by service/API tests.
+- **G3-15:** live Binance REST/WS payload smoke evidence recorded. This is
+  supplemental to, not a replacement for, deterministic tests.
+- **G3-05 is the next production acceptance item:** capture evidence for
+  disconnect detection, planned reconnect/resubscription, and restored fresh
+  price acceptance in the deployed service. The diagnostic's second-connection
+  check is not sufficient to close the full lifecycle criterion.
+- **Gate 3 remains incomplete** until every mandatory applicable criterion in
+  Section 11 has its required evidence.
+
+The diagnostic response did not include a Render deployment ID; do not infer
+or invent one from this record.
