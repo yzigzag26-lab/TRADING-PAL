@@ -119,5 +119,6 @@ def test_historical_provenance_persists_incomplete_series_without_filling_gaps()
     assert getattr(row, "data_type") == "historical_ohlcv"
     assert getattr(row, "is_complete") is False
     assert getattr(row, "validation_state") == "INCOMPLETE"
-    assert getattr(row, "payload")["missing_open_times"] == [missing.isoformat().replace("+00:00", "Z")]
-    assert len(getattr(row, "payload")["candles"]) == 1
+    payload = cast(dict[str, object], getattr(row, "payload"))
+    assert payload["missing_open_times"] == [missing.isoformat().replace("+00:00", "Z")]
+    assert len(cast(list[object], payload["candles"])) == 1
