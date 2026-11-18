@@ -206,7 +206,6 @@ def test_production_lifespan_uses_and_closes_injected_clock_monitor() -> None:
     assert monitor.closed is True
 
 
-
 def test_production_api_docs_and_openapi_require_owner_session() -> None:
     settings = Settings(
         app_env="production",
