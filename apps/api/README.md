@@ -50,10 +50,13 @@ The Render-local source copy is under `apps/api/docs` and is required because th
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | /docs | Public | Swagger UI for the generated OpenAPI contract |
-| GET | /openapi.json | Public | Generated OpenAPI document |
+| GET | /docs | Owner session in production; public in development/test | Swagger UI for the generated OpenAPI contract |
+| GET | /openapi.json | Owner session in production; public in development/test | Generated OpenAPI document |
 | GET | /api/v1/health | Public | Process liveness |
-| POST | /api/v1/analysis/prepare | Owner session required | Prepare explicitly classified inputs; does not generate an answer |\n| POST | /api/v1/analysis/respond | Owner session required | Classify a natural-language message, prepare required inputs, and generate a Baymax response |\n| POST | /api/v1/auth/login | Public; password and trusted Origin required | Verify the single owner password and set the session cookie |
+| POST | /api/v1/analysis/prepare | Owner session required | Prepare explicitly classified inputs; does not generate an answer |
+| POST | /api/v1/analysis/respond | Owner session required | Classify a natural-language message, prepare required inputs, and generate a Baymax response |
+| POST | /api/v1/analysis/history | Owner session required | Retrieve bounded Binance Spot historical OHLCV and persist its provenance |
+| POST | /api/v1/auth/login | Public; password and trusted Origin required | Verify the single owner password and set the session cookie |
 | GET | /api/v1/auth/session | Public | Return only whether the request has a valid owner session |
 | POST | /api/v1/auth/logout | Public; trusted Origin required | Clear the browser's owner session cookie |
 
@@ -62,15 +65,7 @@ https://baymax-api-6b49.onrender.com/docs for the deployed backend.
 Select GET /api/v1/health, choose Try it out, then Execute to send a real
 request to the backend and inspect its status, headers, and response body.
 
-Swagger UI is an API explorer, not an authentication or authorization system.
-The documentation and OpenAPI schema are currently public because the exposed
-API contains only public liveness and the single-owner authentication lifecycle:
-password login (with trusted-Origin validation and rate limiting), a session
-status boolean, and logout. No private market, account, or trading operation is
-currently exposed. Before any private operation is introduced, protect both
-documentation routes behind the owner authentication boundary or disable them
-in production. Do not publish private schemas or enable unauthenticated Try it
-out for private operations. ReDoc remains disabled.
+Swagger UI is an API explorer, not an authentication or authorization system. Development and test environments keep the docs public for local engineering. In production, both `/docs` and `/openapi.json` require the signed `__Host-baymax_session` owner cookie because private analysis and historical-market endpoints are present. Unauthenticated requests receive 401. Do not weaken this boundary or expose private schemas publicly. ReDoc remains disabled.
 
 
 ## Baymax AI intelligence (Groq)
@@ -109,7 +104,7 @@ Provider failures return a generic service-unavailable response and never
 expose the API key or raw provider error. Groq can be replaced later by
 implementing the same small completion-client contract.
 
-**Important current limitations:** production uses a background NTP clock-health monitor and remains fail-closed if at least two sources cannot agree within the configured offset and delay thresholds. Render must permit outbound DNS and UDP/123; a live deployment smoke test is still required before current-market analysis is considered operational. Historical market retrieval is not yet implemented. The AI layer does not execute trades or have exchange tools.
+**Important current limitations:** production uses a background NTP clock-health monitor and remains fail-closed if at least two sources cannot agree within the configured offset and delay thresholds. Render must permit outbound DNS and UDP/123; live deployment verification is still required. Persistent market-data provenance and WebSocket lifecycle recovery are implemented in the Gate 3 reliability branch; the new provenance migration must be applied before production current-market analysis can write audit snapshots. Historical OHLCV retrieval is available through the owner-only endpoint, but natural-language historical analysis and frontend chat integration remain follow-up work. The AI layer does not execute trades or have exchange tools.
 
 ## Tests and quality
 
