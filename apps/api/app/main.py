@@ -162,6 +162,8 @@ def create_app(
     async def protected_swagger_ui(request: Request) -> Response:
         require_documentation_owner(request)
         return get_swagger_ui_html(openapi_url="/openapi.json", title="Baymax API")
+
+
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(active_settings.cors_allowed_origins),
