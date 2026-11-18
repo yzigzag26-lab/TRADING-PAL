@@ -20,11 +20,13 @@ Baymax is a private, single-owner, mobile-first cryptocurrency trading-intellige
 The repository contains a runnable FastAPI backend with private single-owner
 password/session authentication, a public liveness endpoint, strict CORS,
 request correlation, structured logs, standardized errors, and the Gate 1/2
-database/configuration foundation. The private Zensical site is served under
-`/guide/` using the existing owner session.
+database foundation. The private Zensical site is served under `/guide/` using
+the existing owner session. Supabase PostgreSQL is connected to the production
+API for append-only market-data provenance.
 
-**Gate 3 is documented but not implemented.** Its acceptance contract requires
-fresh, validated Binance Spot market data, a maximum 3-second price-event age,
-and strict refusal of trading decisions when required data is stale or
-unverified. AI analysis, evaluation, learning and curated memory remain later
-gates.
+**Gate 3 is implemented and undergoing acceptance testing, not complete.**
+Production NTP consensus, Binance REST/basic WebSocket smoke checks, and one
+durable BTCUSDT snapshot commit with independent Supabase readback have passed.
+Full deployed-service WebSocket lifecycle recovery and the remaining
+acceptance-contract evidence are still open. AI evaluation, learning and
+curated memory remain later gates.
