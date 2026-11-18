@@ -10,10 +10,7 @@ import httpx
 import pytest
 
 from app.market_data.binance_rest import BinanceSpotRestClient
-from app.market_data.binance_stream import (
-    BinanceSpotTradeStream,
-    PLANNED_RECONNECT_SECONDS,
-)
+from app.market_data.binance_stream import PLANNED_RECONNECT_SECONDS, BinanceSpotTradeStream
 from app.market_data.freshness import MarketDataUnavailable
 from app.market_data.models import PriceEvent
 from app.market_data.service import BinanceMarketDataService
