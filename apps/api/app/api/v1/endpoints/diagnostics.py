@@ -10,11 +10,10 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any, Literal, cast
-from uuid import UUID
+from typing import Any, Awaitable, Callable, Literal, cast
 
-from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -42,7 +41,7 @@ class DiagnosticCheck(BaseModel):
     status: Literal["passed", "failed"]
     duration_ms: int
     message: str
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class Gate3DiagnosticResponse(BaseModel):
@@ -139,7 +138,10 @@ async def _read_one_websocket_event(symbol: str) -> PriceEvent:
         await iterator.aclose()
 
 
-async def _timed_check(name: str, operation: Any) -> DiagnosticCheck:
+async def _timed_check(
+    name: str,
+    operation: Callable[[], Awaitable[dict[str, Any]]],
+) -> DiagnosticCheck:
     started = perf_counter()
     try:
         metadata = await operation()
@@ -167,7 +169,10 @@ async def _timed_check(name: str, operation: Any) -> DiagnosticCheck:
         "The snapshot probe is rolled back and never commits a production row."
     ),
 )
-async def run_gate_3_diagnostics(request: Request) -> Gate3DiagnosticResponse:
+async def run_gate_3_diagnostics(
+    request: Request,
+    response: Response,
+) -> Gate3DiagnosticResponse:
     """Run bounded diagnostics inside the deployed API process."""
     _require_owner(request)
     symbol = DIAGNOSTIC_SYMBOL
@@ -241,6 +246,9 @@ async def run_gate_3_diagnostics(request: Request) -> Gate3DiagnosticResponse:
     }
     overall_status: Literal["passed", "failed"] = (
         "passed" if all(check.status == "passed" for check in checks.values()) else "failed"
+    )
+    response.status_code = (
+        status.HTTP_200_OK if overall_status == "passed" else status.HTTP_503_SERVICE_UNAVAILABLE
     )
     return Gate3DiagnosticResponse(
         status=overall_status,
