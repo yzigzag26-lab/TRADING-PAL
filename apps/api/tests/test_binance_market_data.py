@@ -187,7 +187,7 @@ def test_stream_ignores_duplicate_and_out_of_order_trade_ids() -> None:
     async def run() -> None:
         service = BinanceMarketDataService(
             rest_client=FakeRest(),
-            stream=SequenceStream(),  # type: ignore[arg-type]
+            stream=SequenceStream(),
         )
         await service.start_symbol_stream("BTCUSDT")
         for _ in range(20):
@@ -236,7 +236,7 @@ def test_stream_trade_id_gap_requires_rest_reconciliation() -> None:
         rest = FakeRest()
         service = BinanceMarketDataService(
             rest_client=rest,
-            stream=GapStream(),  # type: ignore[arg-type]
+            stream=GapStream(),
         )
         await service.start_symbol_stream("BTCUSDT")
         for _ in range(20):
@@ -273,7 +273,7 @@ def test_disconnect_marks_stream_unhealthy_and_clears_cached_event() -> None:
     async def run() -> None:
         service = BinanceMarketDataService(
             rest_client=FakeRest(),
-            stream=DisconnectStream(),  # type: ignore[arg-type]
+            stream=DisconnectStream(),
         )
         await service.start_symbol_stream("BTCUSDT")
         for _ in range(20):
