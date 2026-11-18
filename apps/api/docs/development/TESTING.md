@@ -12,13 +12,12 @@ From apps/api with Python 3.12 and the development extra installed:
     mypy app tests
     pytest
 
-The current foundation tests cover the liveness contract, generated OpenAPI,
-Swagger UI availability and its OpenAPI document link, disabled ReDoc,
-CORS allow-list behaviour, request correlation, safe error envelopes,
-single-owner authentication, and configuration/migration constraints.
-
-These tests do not claim to test market-data or trading behaviour that has
-not yet been implemented.
+The backend test suite includes deterministic market-data coverage in
+addition to the API foundation: price freshness, REST recovery, cache
+revalidation, WebSocket lifecycle and trade-ID handling, clock-health failure
+modes, historical candle integrity, and provenance persistence. These tests
+are not a substitute for the production evidence required by the Gate 3
+acceptance contract. Gate 3 has no trading or order-execution capability.
 
 ## Gate 3 — mandatory acceptance testing
 
