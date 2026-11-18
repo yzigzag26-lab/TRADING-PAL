@@ -6,7 +6,7 @@ request correlation, structured JSON logs, and a consistent error envelope.
 
 Authentication is implemented with the private single-owner session. Gate 1
 provisions the private PostgreSQL schema and migration infrastructure. Gate 2
-adds singleton application and risk configuration models. Gate 3 market-data requirements are documented in [the Gate 3 acceptance contract](docs/development/GATE_3_MARKET_DATA.md). Current-price ingestion and the production NTP clock-health monitor are implemented, but Gate 3 remains incomplete pending persistent provenance, broader lifecycle/recovery tests, and live exchange/clock verification. Historical OHLCV retrieval and gap recovery are now implemented behind an owner-only endpoint. Intelligence is implemented; evaluation, learning, and persistent conversation memory remain outstanding.
+adds singleton application and risk configuration models. Gate 3 market-data requirements are documented in [the Gate 3 acceptance contract](docs/development/GATE_3_MARKET_DATA.md). Current-price ingestion, production NTP monitoring, historical OHLCV retrieval, append-only provenance, and WebSocket lifecycle recovery are implemented. Production NTP/REST/basic WebSocket smoke checks and one durable BTCUSDT snapshot commit with independent Supabase readback have passed. Gate 3 remains incomplete pending full deployed-service WebSocket lifecycle/recovery evidence and the remaining acceptance criteria. Intelligence is implemented; evaluation, learning, and persistent conversation memory remain outstanding.
 
 ## Local development
 
@@ -50,8 +50,10 @@ The Render-local source copy is under `apps/api/docs` and is required because th
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | /docs | Owner session in production; public in development/test | Swagger UI for the generated OpenAPI contract |
-| GET | /openapi.json | Owner session in production; public in development/test | Generated OpenAPI document |
+| GET | /docs | Public | Swagger UI for the generated OpenAPI contract |
+| GET | /openapi.json | Public | Generated OpenAPI document |
+| POST | /api/v1/diagnostics/gate-3 | Owner session required | Production NTP, Binance REST/WebSocket, and rollback-diagnostic checks |
+| POST | /api/v1/diagnostics/gate-3/durable-snapshot | Owner session + explicit write confirmation | One-time durable snapshot commit and independent readback verification |
 | GET | /api/v1/health | Public | Process liveness |
 | POST | /api/v1/analysis/prepare | Owner session required | Prepare explicitly classified inputs; does not generate an answer |
 | POST | /api/v1/analysis/respond | Owner session required | Classify a natural-language message, prepare required inputs, and generate a Baymax response |
@@ -65,7 +67,7 @@ https://baymax-api-6b49.onrender.com/docs for the deployed backend.
 Select GET /api/v1/health, choose Try it out, then Execute to send a real
 request to the backend and inspect its status, headers, and response body.
 
-Swagger UI is an API explorer, not an authentication or authorization system. Development and test environments keep the docs public for local engineering. In production, both `/docs` and `/openapi.json` require the signed `__Host-baymax_session` owner cookie because private analysis and historical-market endpoints are present. Unauthenticated requests receive 401. Do not weaken this boundary or expose private schemas publicly. ReDoc remains disabled.
+Swagger UI is an API explorer, not an authentication or authorization system. `/docs` and `/openapi.json` are public in production so the API reference can be opened without signing in. Protected operations—including analysis, historical-market retrieval, and both Gate 3 diagnostic endpoints—still enforce backend owner-session authentication. Unauthenticated diagnostic requests receive 401. Public documentation does not grant permission to execute protected operations. ReDoc remains disabled.
 
 
 ## Baymax AI intelligence (Groq)
@@ -104,7 +106,7 @@ Provider failures return a generic service-unavailable response and never
 expose the API key or raw provider error. Groq can be replaced later by
 implementing the same small completion-client contract.
 
-**Important current limitations:** production uses a background NTP clock-health monitor and remains fail-closed if at least two sources cannot agree within the configured offset and delay thresholds. Render must permit outbound DNS and UDP/123; live deployment verification is still required. Persistent market-data provenance and WebSocket lifecycle recovery are implemented in the Gate 3 reliability branch; the new provenance migration must be applied before production current-market analysis can write audit snapshots. Historical OHLCV retrieval is available through the owner-only endpoint, but natural-language historical analysis and frontend chat integration remain follow-up work. The AI layer does not execute trades or have exchange tools.
+**Important current limitations:** production uses a background NTP clock-health monitor and remains fail-closed if at least two sources cannot agree within the configured offset and delay thresholds. Production NTP consensus has passed. The provenance migration `20261118_0005` is applied, and one production BTCUSDT snapshot was committed and independently read back from Supabase; see the Gate 3 evidence log. Full deployed-service WebSocket lifecycle recovery remains open. Historical OHLCV retrieval is available through the owner-only endpoint, but natural-language historical analysis and frontend chat integration remain follow-up work. The AI layer does not execute trades or have exchange tools.
 
 ## Tests and quality
 
