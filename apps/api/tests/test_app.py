@@ -7,7 +7,6 @@ import pytest
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
-from app.auth.security import SESSION_COOKIE_NAME, create_session_token
 from app.core.clock_health import ClockHealthMonitor, ClockHealthSnapshot
 from app.core.config import Settings
 from app.main import create_app
