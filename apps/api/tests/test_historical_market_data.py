@@ -8,6 +8,7 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
+from app.api.v1.endpoints.analysis import HistoricalAnalysisRequest
 from app.market_data.binance_historical_rest import BinanceHistoricalRestClient
 from app.market_data.candles import (
     HistoricalCandle,
@@ -257,3 +258,21 @@ def test_historical_service_enforces_range_size_limit() -> None:
             )
 
     asyncio.run(run())
+
+
+
+def test_expected_open_times_stops_at_configured_limit_for_large_ranges() -> None:
+    start = datetime(2020, 1, 1, tzinfo=UTC)
+    end = datetime(2026, 1, 1, tzinfo=UTC)
+    with pytest.raises(ValueError, match="exceeds maximum"):
+        expected_open_times(start, end, "1s", max_count=100)
+
+
+def test_historical_request_rejects_large_ranges_before_full_enumeration() -> None:
+    with pytest.raises(ValidationError, match="exceeds maximum"):
+        HistoricalAnalysisRequest(
+            symbol="BTCUSDT",
+            interval="1s",
+            start_time=datetime(2020, 1, 1, tzinfo=UTC),
+            end_time=datetime(2026, 1, 1, tzinfo=UTC),
+        )

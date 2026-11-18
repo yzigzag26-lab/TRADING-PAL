@@ -102,18 +102,28 @@ def interval_close_time(open_time: datetime, interval: str) -> datetime:
     return interval_next_open(open_time, interval) - timedelta(milliseconds=1)
 
 
-def expected_open_times(start: datetime, end: datetime, interval: str) -> list[datetime]:
-    """Enumerate candle open times in the half-open [start, end] query boundary."""
+def expected_open_times(
+    start: datetime,
+    end: datetime,
+    interval: str,
+    *,
+    max_count: int | None = None,
+) -> list[datetime]:
+    """Enumerate aligned candle opens, stopping before exceeding an optional bound."""
     if start.tzinfo is None or end.tzinfo is None:
         raise ValueError("Historical range timestamps must be timezone-aware")
     if start > end:
         raise ValueError("Historical range start must not be after end")
+    if max_count is not None and max_count < 1:
+        raise ValueError("Maximum candle count must be at least one")
     current = start.astimezone(UTC)
     final = end.astimezone(UTC)
     if not is_interval_boundary(current, interval) or not is_interval_boundary(final, interval):
         raise ValueError("Historical range boundaries must align to the requested interval")
     values: list[datetime] = []
     while current <= final:
+        if max_count is not None and len(values) >= max_count:
+            raise ValueError(f"Historical range exceeds maximum of {max_count} candles")
         values.append(current)
         following = interval_next_open(current, interval)
         if following <= current:

@@ -82,13 +82,14 @@ class BinanceHistoricalCandleService:
         end = end_time.astimezone(UTC)
         if start > end:
             raise ValueError("Historical range start must not be after end")
-        expected = expected_open_times(start, end, interval)
+        expected = expected_open_times(
+            start,
+            end,
+            interval,
+            max_count=self._max_candles,
+        )
         if not expected:
             raise ValueError("Historical range contains no candle boundaries")
-        if len(expected) > self._max_candles:
-            raise ValueError(
-                f"Requested range exceeds the configured {self._max_candles}-candle limit"
-            )
         if not self._started:
             await self.start()
 

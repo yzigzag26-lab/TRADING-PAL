@@ -53,9 +53,14 @@ class HistoricalAnalysisRequest(BaseModel):
             raise ValueError("Historical range timestamps must include a timezone")
         if self.start_time > self.end_time:
             raise ValueError("Historical range start must not be after end")
-        opens = expected_open_times(self.start_time, self.end_time, self.interval)
-        if not opens or len(opens) > 10_000:
-            raise ValueError("Historical range must contain between 1 and 10000 candles")
+        opens = expected_open_times(
+            self.start_time,
+            self.end_time,
+            self.interval,
+            max_count=10_000,
+        )
+        if not opens:
+            raise ValueError("Historical range must contain at least one candle")
         return self
 
 
