@@ -260,7 +260,6 @@ def test_historical_service_enforces_range_size_limit() -> None:
     asyncio.run(run())
 
 
-
 def test_expected_open_times_stops_at_configured_limit_for_large_ranges() -> None:
     start = datetime(2020, 1, 1, tzinfo=UTC)
     end = datetime(2026, 1, 1, tzinfo=UTC)
