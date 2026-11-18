@@ -155,9 +155,7 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
         if validated.event_id is None or validated.event_id == initial_event_id:
             raise RuntimeError("Post-reconnect validation did not advance the trade ID")
 
-        connection_count = sum(
-            connected for connected, _ in observed_stream.transitions
-        )
+        connection_count = sum(connected for connected, _ in observed_stream.transitions)
         return {
             "initial_connection_trade_id": initial_event_id,
             "connection_transitions": [
