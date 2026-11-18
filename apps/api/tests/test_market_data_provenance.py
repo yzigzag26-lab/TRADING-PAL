@@ -10,8 +10,11 @@ from uuid import UUID, uuid4
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models.market_data_snapshot import MarketDataSnapshot
-
-from app.market_data.candles import HistoricalCandle, HistoricalCandleSeries, interval_close_time
+from app.market_data.candles import (
+    HistoricalCandle,
+    HistoricalCandleSeries,
+    interval_close_time,
+)
 from app.market_data.freshness import validate_price_event
 from app.market_data.models import PriceEvent
 from app.market_data.provenance import MarketDataProvenanceRepository
