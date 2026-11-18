@@ -90,4 +90,4 @@ are in [Gate 3 — Binance Spot market data](../development/GATE_3_MARKET_DATA.m
   approval.
 - Test failure paths and negative authorization cases before release.
 
-Detailed controls must be implemented and evidenced with the backend work.
+The current production boundaries are implemented in the FastAPI application and documented in the Gate 3 contract and production diagnostics runbook. Continue to attach reproducible tests and operational evidence to each acceptance criterion; do not treat implementation presence alone as acceptance.
