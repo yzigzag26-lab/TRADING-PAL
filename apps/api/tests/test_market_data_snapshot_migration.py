@@ -21,3 +21,4 @@ def test_provenance_migration_does_not_grant_mutation_or_drop_history() -> None:
     assert "GRANT UPDATE" not in source
     assert "GRANT DELETE" not in source
     assert "DROP TABLE" not in source
+    assert "cannot be downgraded" in source
