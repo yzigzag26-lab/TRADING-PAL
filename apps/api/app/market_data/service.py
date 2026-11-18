@@ -18,6 +18,17 @@ class LatestTradeClient(Protocol):
     async def latest_trade(self, symbol: str) -> PriceEvent: ...
 
 
+class TradeStream(Protocol):
+    """Injectable live stream contract with explicit connection-state callbacks."""
+
+    def listen(
+        self,
+        symbol: str,
+        *,
+        on_connection_state: object,
+    ) -> object: ...
+
+
 class BinanceMarketDataService:
     """Single-process market-data service for the private Baymax deployment.
 
@@ -36,7 +47,9 @@ class BinanceMarketDataService:
         self._stream = stream or BinanceSpotTradeStream()
         self._events: dict[str, PriceEvent] = {}
         self._tasks: dict[str, asyncio.Task[None]] = {}
+        self._stream_connected: set[str] = set()
         self._stream_healthy: set[str] = set()
+        self._last_trade_ids: dict[str, int] = {}
         self._owns_rest = rest_client is None
         self._started = False
 
@@ -55,7 +68,10 @@ class BinanceMarketDataService:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         self._tasks.clear()
+        self._events.clear()
+        self._stream_connected.clear()
         self._stream_healthy.clear()
+        self._last_trade_ids.clear()
         if self._owns_rest and self._started:
             await self._rest.__aexit__(None, None, None)  # type: ignore[attr-defined]
         self._started = False
@@ -70,18 +86,87 @@ class BinanceMarketDataService:
         existing = self._tasks.get(normalized)
         if existing is None or existing.done():
             self._tasks[normalized] = asyncio.create_task(
-                self._consume_stream(normalized), name=f"binance-spot-{normalized.lower()}"
+                self._consume_stream(normalized),
+                name=f"binance-spot-{normalized.lower()}",
             )
 
+    @staticmethod
+    def _numeric_trade_id(event: PriceEvent) -> int | None:
+        if event.event_id is None or not event.event_id.isdigit():
+            return None
+        return int(event.event_id)
+
     async def _consume_stream(self, symbol: str) -> None:
+        async def connection_state(connected: bool) -> None:
+            if connected:
+                self._stream_connected.add(symbol)
+                # A connection is not healthy until a fresh event is accepted.
+                self._stream_healthy.discard(symbol)
+            else:
+                self._stream_connected.discard(symbol)
+                self._stream_healthy.discard(symbol)
+                self._events.pop(symbol, None)
+
         try:
-            async for event in self._stream.listen(symbol):
+            async for event in self._stream.listen(
+                symbol,
+                on_connection_state=connection_state,
+            ):
+                previous = self._events.get(symbol)
+                previous_id = self._last_trade_ids.get(symbol)
+                current_id = self._numeric_trade_id(event)
+
+                if previous is not None:
+                    if event.market_event_timestamp < previous.market_event_timestamp:
+                        continue
+                    if (
+                        event.market_event_timestamp == previous.market_event_timestamp
+                        and current_id is not None
+                        and previous_id is not None
+                        and current_id <= previous_id
+                    ):
+                        continue
+
+                if (
+                    current_id is not None
+                    and previous_id is not None
+                    and current_id <= previous_id
+                ):
+                    continue
+
+                if (
+                    current_id is not None
+                    and previous_id is not None
+                    and current_id > previous_id + 1
+                ):
+                    # Trade IDs are sequence evidence. Do not accept a stream
+                    # event across a gap until REST reconciles the latest trade.
+                    self._stream_healthy.discard(symbol)
+                    self._events.pop(symbol, None)
+                    try:
+                        recovered = await self._rest.latest_trade(symbol)
+                    except MarketDataUnavailable:
+                        continue
+                    recovered_id = self._numeric_trade_id(recovered)
+                    if recovered_id is None or recovered_id < current_id:
+                        continue
+                    self._events[symbol] = recovered
+                    self._last_trade_ids[symbol] = recovered_id
+                    if symbol in self._stream_connected:
+                        self._stream_healthy.add(symbol)
+                    continue
+
                 self._events[symbol] = event
-                self._stream_healthy.add(symbol)
+                if current_id is not None:
+                    self._last_trade_ids[symbol] = current_id
+                if symbol in self._stream_connected:
+                    self._stream_healthy.add(symbol)
         except asyncio.CancelledError:
             raise
         finally:
+            self._stream_connected.discard(symbol)
             self._stream_healthy.discard(symbol)
+            self._events.pop(symbol, None)
 
     async def get_current_price(
         self,
@@ -92,8 +177,8 @@ class BinanceMarketDataService:
     ) -> ValidatedPrice:
         """Return a price only if it is fresh at this exact consumption boundary.
 
-        A stale WebSocket cache triggers one timestamped REST latest-trade
-        recovery attempt. The REST result is independently freshness-checked.
+        A stale or disconnected WebSocket cache triggers one timestamped REST
+        latest-trade recovery attempt. The REST result is independently checked.
         """
         normalized = symbol.strip().upper()
         if not normalized.isalnum():
@@ -116,6 +201,9 @@ class BinanceMarketDataService:
 
         recovered = await self._rest.latest_trade(normalized)
         self._events[normalized] = recovered
+        recovered_id = self._numeric_trade_id(recovered)
+        if recovered_id is not None:
+            self._last_trade_ids[normalized] = recovered_id
         return validate_price_event(
             recovered,
             now=now,
