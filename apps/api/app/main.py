@@ -127,9 +127,8 @@ def create_app(
         title="Baymax API",
         summary="Versioned API for the Baymax trading intelligence workspace.",
         description=(
-            "Phase 1 foundation. Public liveness and single-owner authentication "
-            "endpoints are implemented. Private application operations remain "
-            "unavailable until their approved implementation gates."
+            "Private single-owner API for verified Binance Spot market-data preparation, "
+            "historical OHLCV retrieval, and analysis. Trading execution is not exposed."
         ),
         version="0.1.0",
         docs_url=None,
