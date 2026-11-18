@@ -40,6 +40,6 @@ def test_market_data_service_exposes_read_only_stream_status() -> None:
 
 def test_forced_rotation_diagnostic_is_registered_on_versioned_api() -> None:
     assert any(
-        getattr(route, "path", None) == "/api/v1/diagnostics/gate-3/websocket-rotation"
+        getattr(route, "path", None) == "/diagnostics/gate-3/websocket-rotation"
         for route in api_router.routes
     )
