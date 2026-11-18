@@ -173,3 +173,15 @@ recovery and data-quality behavior.
 Record the deployment commit, deployment ID, diagnostic `checked_at`,
 HTTP status, top-level status, and each check's status in the project evidence
 log. Never record cookies, credentials, or other secrets.
+
+## Security and operating limits
+
+- Keep owner-session authentication on `POST /api/v1/diagnostics/gate-3`.
+- Keep production session secrets server-side and never add them to Swagger
+  examples, frontend bundles, repository files, or chat messages.
+- Public Swagger documents the available API operations; it does not make
+  protected operations public.
+- The diagnostic is bounded by explicit REST and WebSocket timeouts.
+- It performs no migration and no durable database write.
+- It does not place orders or access Binance account, balance, wallet,
+  transfer, margin, or futures endpoints.
