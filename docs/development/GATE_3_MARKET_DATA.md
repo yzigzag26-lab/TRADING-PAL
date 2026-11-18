@@ -527,3 +527,32 @@ same acceptance test.
 
 The diagnostic response did not include a Render deployment ID; do not infer
 or invent one from this record.
+
+
+## 20. Forced production WebSocket rotation diagnostic
+
+The owner-only `POST /api/v1/diagnostics/gate-3/websocket-rotation`
+provides a production acceptance exercise for G3-05 without waiting for the
+normal 23-hour-50-minute lifetime. It creates an isolated instance of the real
+`BinanceMarketDataService`, backed by the real Binance public REST and
+WebSocket clients, and configures only that diagnostic instance with a
+five-second connection lifetime.
+
+The diagnostic must observe an initial accepted WebSocket trade, planned
+connection close, disconnect state, a second subscription, and a different
+fresh WebSocket trade accepted after reconnection. It then calls the service's
+normal `get_current_price()` boundary and requires the post-reconnect result
+to pass the existing 3,000 ms freshness check with the production NTP health
+assertion.
+
+The test is isolated from the application-owned service and does not modify
+its 23-hour-50-minute setting. It performs no database write and uses no
+Binance credentials, private endpoints, or trading operations. The runbook and
+owner-authenticated execution steps are in
+[GATE_3_DIAGNOSTICS.md](GATE_3_DIAGNOSTICS.md).
+
+A successful deployed response is required before marking G3-05 as production
+verified. The forced five-second exercise verifies the same rotation code
+path, but does not claim a single connection was maintained for 23 hours and
+50 minutes. Until an actual production response is recorded, G3-05 and Gate 3
+remain open.
