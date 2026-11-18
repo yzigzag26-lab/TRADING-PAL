@@ -123,14 +123,10 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
             description="replacement WebSocket subscription",
         )
         first_connected_at = next(
-            timestamp
-            for connected, timestamp in observed_stream.transitions
-            if connected
+            timestamp for connected, timestamp in observed_stream.transitions if connected
         )
         first_disconnected_at = next(
-            timestamp
-            for connected, timestamp in observed_stream.transitions
-            if not connected
+            timestamp for connected, timestamp in observed_stream.transitions if not connected
         )
         rotation_elapsed_seconds = first_disconnected_at - first_connected_at
         if rotation_elapsed_seconds < ROTATION_TEST_LIFETIME_SECONDS - 0.1:
@@ -142,8 +138,7 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
                 and service.stream_status(ROTATION_TEST_SYMBOL)["healthy"] is True
                 and service.stream_status(ROTATION_TEST_SYMBOL)["event_source"]
                 == "binance_spot_websocket"
-                and service.stream_status(ROTATION_TEST_SYMBOL)["event_id"]
-                != initial_event_id
+                and service.stream_status(ROTATION_TEST_SYMBOL)["event_id"] != initial_event_id
             ),
             timeout_seconds=12.0,
             description="fresh WebSocket trade accepted after reconnection",
@@ -160,24 +155,24 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
         if validated.event_id is None or validated.event_id == initial_event_id:
             raise RuntimeError("Post-reconnect validation did not advance the trade ID")
 
+        connection_count = sum(
+            connected for connected, _ in observed_stream.transitions
+        )
         return {
             "initial_connection_trade_id": initial_event_id,
             "connection_transitions": [
                 {
                     "connected": connected,
-                    "elapsed_since_start_ms": round(
-                        (timestamp - lifecycle_started_at) * 1000
-                    ),
+                    "elapsed_since_start_ms": round((timestamp - lifecycle_started_at) * 1000),
                 }
                 for connected, timestamp in observed_stream.transitions
             ],
+            "connection_count": connection_count,
             "rotation_elapsed_seconds": round(rotation_elapsed_seconds, 3),
             "disconnect_observed": any(
                 not connected for connected, _ in observed_stream.transitions
             ),
-            "resubscription_observed": sum(
-                connected for connected, _ in observed_stream.transitions
-            ) >= 2,
+            "resubscription_observed": connection_count >= 2,
             "post_reconnect_trade_id": validated.event_id,
             "post_reconnect_source": validated.source,
             "post_reconnect_age_ms": validated.age_ms_at_validation,
