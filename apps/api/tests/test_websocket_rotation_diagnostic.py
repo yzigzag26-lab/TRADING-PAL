@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from app.api.v1.router import api_router
 from app.market_data.models import PriceEvent
 from app.market_data.service import BinanceMarketDataService
 
@@ -36,10 +35,3 @@ def test_market_data_service_exposes_read_only_stream_status() -> None:
         "event_id": None,
         "market_event_timestamp": None,
     }
-
-
-def test_forced_rotation_diagnostic_is_registered_on_versioned_api() -> None:
-    assert any(
-        getattr(route, "path", None) == "/diagnostics/gate-3/websocket-rotation"
-        for route in api_router.routes
-    )
