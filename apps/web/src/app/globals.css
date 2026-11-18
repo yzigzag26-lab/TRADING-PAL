@@ -21,3 +21,6 @@
 
 /* Baymax artwork floats only on the initial admin password screen. */
 .login-hero-logo{display:block;width:min(100%,220px);height:150px;object-fit:contain;margin:0 auto 22px;animation:baymax-float 3.6s ease-in-out infinite;will-change:transform}@keyframes baymax-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-11px)}}@media(prefers-reduced-motion:reduce){.login-hero-logo{animation:none}}
+
+/* Unified Baymax identity: the supplied artwork replaces the old icon and tagline everywhere. */
+.brand-logo{display:block;width:35px;height:35px;object-fit:contain;flex:none}.brand{gap:11px}.brand-name{color:#111}.login-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:38px}.login-brand .brand-name{color:#111;letter-spacing:.12em}.login-brand-logo{display:block;width:44px;height:44px;object-fit:contain}.login-hero-logo{display:block;width:44px;height:44px;object-fit:contain;margin:0;animation:baymax-float 3.6s ease-in-out infinite;will-change:transform}
