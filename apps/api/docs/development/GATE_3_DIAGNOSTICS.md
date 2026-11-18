@@ -22,20 +22,23 @@ publicly.
 
 1. Confirm the latest backend deployment containing the Gate 3 diagnostic
    endpoint is **Live** in the approved Render workspace.
-2. Open the deployed API's Swagger page:
-   `https://baymax-api-6b49.onrender.com/docs`.
-3. Confirm Swagger loads the API schema. The schema is also available at
-   `https://baymax-api-6b49.onrender.com/openapi.json`.
-4. Sign in to Baymax through the owner frontend and ensure the browser has the
-   valid owner session for the API host. The signed session cookie is
-   HttpOnly; do not attempt to copy it into source code or expose it.
-5. In Swagger, expand **POST /api/v1/diagnostics/gate-3**, select **Try it out**,
+2. Open Swagger through the owner frontend:
+   `https://baymax-nu.vercel.app/docs`.
+   The OpenAPI schema is available at
+   `https://baymax-nu.vercel.app/openapi.json`. These frontend-domain routes
+   proxy to Render, preserving the browser's frontend-domain owner session.
+3. Sign in to Baymax through the owner frontend and ensure the browser has a
+   valid owner session. The backend issues the signed, HttpOnly session cookie;
+   do not attempt to copy it into source code or expose it.
+4. In Swagger, expand **POST /api/v1/diagnostics/gate-3**, select **Try it out**,
    leave the request body empty, and select **Execute**.
 
-The browser sends same-origin cookies automatically when a valid owner session
-exists for the API host. If the response is `401`, the session is missing,
-expired, or invalid. Sign in again through the owner flow; do not disable the
-endpoint's authentication.
+The browser sends its frontend-domain cookie to the same-origin Next.js proxy.
+The proxy forwards the cookie to Render, and the backend independently
+validates the owner session before executing diagnostics. Opening Swagger
+directly on the Render hostname will not carry the frontend-domain cookie.
+If the response is `401`, sign in again through the owner flow; do not disable
+the endpoint's authentication.
 
 ## Alternative: PowerShell request
 
@@ -170,15 +173,3 @@ recovery and data-quality behavior.
 Record the deployment commit, deployment ID, diagnostic `checked_at`,
 HTTP status, top-level status, and each check's status in the project evidence
 log. Never record cookies, credentials, or other secrets.
-
-## Security and operating limits
-
-- Keep owner-session authentication on `POST /api/v1/diagnostics/gate-3`.
-- Keep production session secrets server-side and never add them to Swagger
-  examples, frontend bundles, repository files, or chat messages.
-- Public Swagger documents the available API operations; it does not make
-  protected operations public.
-- The diagnostic is bounded by explicit REST and WebSocket timeouts.
-- It performs no migration and no durable database write.
-- It does not place orders or access Binance account, balance, wallet,
-  transfer, margin, or futures endpoints.
