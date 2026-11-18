@@ -141,25 +141,14 @@ def create_app(
     application.state.market_data_provenance_repository = None
     application.state.require_market_data_provenance = active_settings.app_env == "production"
 
-    def require_documentation_owner(request: Request) -> None:
-        """Protect private API schemas and Swagger UI in production."""
-        if active_settings.app_env == "production" and not verify_session_token(
-            request.cookies.get(SESSION_COOKIE_NAME),
-            active_settings.session_secret,
-        ):
-            raise HTTPException(
-                status_code=401,
-                detail="Authentication is required to access API documentation.",
-            )
-
     @application.get("/openapi.json", include_in_schema=False)
-    async def protected_openapi(request: Request) -> JSONResponse:
-        require_documentation_owner(request)
+    async def public_openapi() -> JSONResponse:
+        """Expose the API schema so Swagger documentation can load publicly."""
         return JSONResponse(application.openapi())
 
     @application.get("/docs", include_in_schema=False)
-    async def protected_swagger_ui(request: Request) -> Response:
-        require_documentation_owner(request)
+    async def public_swagger_ui() -> Response:
+        """Serve public Swagger UI; protected API operations retain their own auth."""
         return get_swagger_ui_html(openapi_url="/openapi.json", title="Baymax API")
 
     application.add_middleware(

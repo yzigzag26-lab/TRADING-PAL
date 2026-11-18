@@ -1,58 +1,184 @@
-# Gate 3 — Production market-data diagnostics
+# Gate 3 Production Diagnostics
 
-## Purpose
+## Purpose and access boundary
 
-The production diagnostic runs inside the deployed Baymax API process. It is
-owner-session protected and is separate from the public liveness endpoint.
-It does not expose environment variables, exchange credentials, connection
-strings, or raw exception messages.
+This procedure runs bounded production checks inside the deployed Baymax API
+process. It is the operational smoke test for Gate 3 infrastructure; it is not
+the public liveness check.
 
-## Run
+- Swagger UI at `/docs` and the OpenAPI schema at `/openapi.json` are public
+  so the API reference can be opened without signing in.
+- The production diagnostic operation
+  `POST /api/v1/diagnostics/gate-3` remains owner-session protected.
+- Public Swagger access does **not** grant permission to execute the diagnostic.
+  An unauthenticated request must receive HTTP `401`.
+- The Zensical guide remains behind the existing private-guide authentication
+  middleware. This change makes Swagger documentation public only.
 
-After the backend change has been deployed, sign in to the Baymax owner
-frontend so the browser has the existing owner session cookie. Then send:
+Do not share an owner session cookie, session token, or diagnostic response
+publicly.
+
+## Before running the test
+
+1. Confirm the latest backend deployment containing the Gate 3 diagnostic
+   endpoint is **Live** in the approved Render workspace.
+2. Open the deployed API's Swagger page:
+   `https://baymax-api-6b49.onrender.com/docs`.
+3. Confirm Swagger loads the API schema. The schema is also available at
+   `https://baymax-api-6b49.onrender.com/openapi.json`.
+4. Sign in to Baymax through the owner frontend and ensure the browser has the
+   valid owner session for the API host. The signed session cookie is
+   HttpOnly; do not attempt to copy it into source code or expose it.
+5. In Swagger, expand **POST /api/v1/diagnostics/gate-3**, select **Try it out**,
+   leave the request body empty, and select **Execute**.
+
+The browser sends same-origin cookies automatically when a valid owner session
+exists for the API host. If the response is `401`, the session is missing,
+expired, or invalid. Sign in again through the owner flow; do not disable the
+endpoint's authentication.
+
+## Alternative: PowerShell request
+
+Use this only in a browser/session environment where you can securely obtain
+and use the already-issued owner session cookie. Do not paste a session token
+into chat, commit it, or save it in a script. Swagger's **Try it out** flow is
+the recommended method because the browser can attach the existing HttpOnly
+cookie automatically.
+
+The request has no JSON body:
 
 ```http
 POST /api/v1/diagnostics/gate-3
 ```
 
-No request body is required. The endpoint returns one result for each check.
-It returns HTTP 200 when all checks pass and HTTP 503 when one or more checks
-fail. The public `/api/v1/health` endpoint remains a lightweight liveness
-check and does not run these diagnostics.
+## What the diagnostic checks
 
-## Checks
+The endpoint executes the following checks from the deployed Render process:
 
-- **NTP clock:** forces a fresh consensus check using the configured independent
-  NTP sources and reports source count and measured offset.
-- **Binance Spot REST:** requests the latest public BTCUSDT trade from the
-  deployed Render process and validates its timestamp and positive price.
-- **WebSocket reconnect:** opens a public BTCUSDT trade stream, receives and
-  validates a fresh event, closes that stream, then opens a second independent
-  stream and receives another fresh event. This verifies that the deployed
-  process can reconnect after a closed subscription. Automated unit tests
-  separately cover the stream adapter's retry and recovery behavior after
-  transport failures.
-- **Snapshot INSERT/SELECT:** uses the runtime database session to insert a
-  marked diagnostic row, reads it back inside the same transaction, and then
-  always rolls the transaction back.
+| Check | What it verifies |
+|---|---|
+| `ntp_clock` | A fresh consensus check against the configured independent NTP sources. The result includes healthy source count and measured clock offset. |
+| `binance_spot_rest` | A public Binance Spot BTCUSDT latest-trade request, including positive price and event freshness validation. |
+| `binance_spot_websocket` | Opens a BTCUSDT trade stream, receives a fresh event, closes it, then opens a second independent stream and receives another fresh event. This verifies a new subscription after closing the first. Automated tests separately cover transport-failure retry/recovery. |
+| `snapshot_insert_select` | Uses the runtime database role to insert a marked row and read it back within one transaction. The transaction is always rolled back. |
 
-## Snapshot safety boundary
+The endpoint uses public Binance market-data endpoints only. It does not use
+Binance API credentials, private account endpoints, or trading operations.
 
-The snapshot table is append-only and the runtime role is not granted DELETE.
-The diagnostic therefore does **not** commit a production test row. It proves
-that the runtime can execute INSERT and SELECT within one transaction, but it
-does not prove durable commit visibility across transactions. The response
-states this explicitly with `durable_commit_verified: false`. Durable commit
-verification requires a separately approved cleanup or staging strategy and
-must not be inferred from this endpoint.
+## Interpret the HTTP response
+
+### All checks pass
+
+HTTP `200` with top-level `status: "passed"` means every check in this
+diagnostic run passed its bounded live test. Review each item in `checks`,
+including its `status`, `duration_ms`, `message`, and available
+`metadata`.
+
+This is strong production smoke-test evidence for the tested components at
+the recorded `checked_at` time. It does not, by itself, close every Gate 3
+acceptance criterion.
+
+### One or more checks fail
+
+HTTP `503` with top-level `status: "failed"` means at least one required
+check failed. Inspect the individual `checks` entries and their safe
+failure messages. A failed check reports the exception type, not raw
+exception details or secrets.
+
+Treat the affected production capability as unavailable until investigated
+and a fresh diagnostic run passes. Do not bypass clock health, relax the
+3,000 ms market-event freshness limit, or substitute fabricated market data.
+
+### Authentication fails
+
+HTTP `401` means the request did not carry a valid owner session. This is
+expected for unauthenticated callers and confirms the diagnostic operation
+remains protected. OpenAPI visibility does not change this boundary.
+
+### Snapshot write semantics
+
+The snapshot check returns metadata equivalent to:
+
+- `insert_read_verified: true`
+- `transaction_rolled_back: true`
+- `durable_commit_verified: false`
+
+This distinction is intentional. The check proves that the runtime database
+role can perform INSERT and SELECT within the same transaction. It does **not**
+prove that a committed row is visible in a later transaction. The test row is
+rolled back, so the diagnostic does not leave a permanent production record.
+Durable commit verification needs a separately approved strategy and must not
+be inferred from this result.
+
+## Result interpretation example
+
+A successful response has this general shape (values below are illustrative,
+not evidence from a real production run):
+
+```json
+{
+  "status": "passed",
+  "checked_at": "2026-11-18T10:00:00Z",
+  "symbol": "BTCUSDT",
+  "checks": {
+    "ntp_clock": {
+      "status": "passed",
+      "duration_ms": 120,
+      "message": "NTP clock check passed.",
+      "metadata": {
+        "healthy": true,
+        "healthy_sources": 3,
+        "offset_seconds": 0.012
+      }
+    },
+    "binance_spot_rest": {
+      "status": "passed",
+      "duration_ms": 240,
+      "message": "Binance Spot REST check passed."
+    },
+    "binance_spot_websocket": {
+      "status": "passed",
+      "duration_ms": 700,
+      "message": "Binance Spot WebSocket check passed."
+    },
+    "snapshot_insert_select": {
+      "status": "passed",
+      "duration_ms": 90,
+      "message": "Snapshot INSERT/SELECT check passed.",
+      "metadata": {
+        "insert_read_verified": true,
+        "transaction_rolled_back": true,
+        "durable_commit_verified": false
+      }
+    }
+  },
+  "snapshot_write_mode": "transaction_rolled_back"
+}
+```
+
+Do not compare illustrative durations or timestamps with production expectations;
+use the actual response from the current run.
+
+## Gate 3 completion status
+
+A successful diagnostic is one required piece of Gate 3 operational evidence.
+It does not automatically mark Gate 3 complete. The wider Gate 3 acceptance
+contract in [Gate 3 Market Data](GATE_3_MARKET_DATA.md) still applies, including
+deterministic tests, code review, deployed runtime checks, and evidence for
+recovery and data-quality behavior.
+
+Record the deployment commit, deployment ID, diagnostic `checked_at`,
+HTTP status, top-level status, and each check's status in the project evidence
+log. Never record cookies, credentials, or other secrets.
 
 ## Security and operating limits
 
-- The endpoint requires the existing signed owner session.
-- The diagnostic uses only public Binance Spot endpoints; no API key is used.
-- No order, account, balance, or trading endpoint is called.
-- REST and WebSocket operations have explicit timeouts.
-- Database writes are rolled back; no migration or schema change is performed.
-- Do not expose this endpoint through unauthenticated monitoring or publish its
-  response publicly.
+- Keep owner-session authentication on `POST /api/v1/diagnostics/gate-3`.
+- Keep production session secrets server-side and never add them to Swagger
+  examples, frontend bundles, repository files, or chat messages.
+- Public Swagger documents the available API operations; it does not make
+  protected operations public.
+- The diagnostic is bounded by explicit REST and WebSocket timeouts.
+- It performs no migration and no durable database write.
+- It does not place orders or access Binance account, balance, wallet,
+  transfer, margin, or futures endpoints.
