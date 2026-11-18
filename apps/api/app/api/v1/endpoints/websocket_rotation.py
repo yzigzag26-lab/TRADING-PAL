@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
-from time import perf_counter
+from time import monotonic, perf_counter
 from typing import Any, Literal, cast
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -43,7 +43,7 @@ class _ObservedRotationStream:
         self._stream = BinanceSpotTradeStream(
             connection_lifetime_seconds=ROTATION_TEST_LIFETIME_SECONDS
         )
-        self.transitions: list[bool] = []
+        self.transitions: list[tuple[bool, float]] = []
 
     async def listen(
         self,
@@ -52,7 +52,7 @@ class _ObservedRotationStream:
         on_connection_state: Callable[[bool], Awaitable[None]],
     ) -> AsyncIterator[PriceEvent]:
         async def observe(connected: bool) -> None:
-            self.transitions.append(connected)
+            self.transitions.append((connected, monotonic()))
             await on_connection_state(connected)
 
         async for event in self._stream.listen(symbol, on_connection_state=observe):
@@ -91,6 +91,7 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
     observed_stream = _ObservedRotationStream()
     service = BinanceMarketDataService(stream=observed_stream)
     started_at = perf_counter()
+    lifecycle_started_at = monotonic()
     initial_event_id: str | None = None
 
     try:
@@ -112,15 +113,29 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
             raise RuntimeError("Initial WebSocket trade did not contain a trade ID")
 
         await _wait_until(
-            lambda: False in observed_stream.transitions,
+            lambda: any(not connected for connected, _ in observed_stream.transitions),
             timeout_seconds=12.0,
             description="forced connection close",
         )
         await _wait_until(
-            lambda: observed_stream.transitions.count(True) >= 2,
+            lambda: sum(connected for connected, _ in observed_stream.transitions) >= 2,
             timeout_seconds=12.0,
             description="replacement WebSocket subscription",
         )
+        first_connected_at = next(
+            timestamp
+            for connected, timestamp in observed_stream.transitions
+            if connected
+        )
+        first_disconnected_at = next(
+            timestamp
+            for connected, timestamp in observed_stream.transitions
+            if not connected
+        )
+        rotation_elapsed_seconds = first_disconnected_at - first_connected_at
+        if rotation_elapsed_seconds < ROTATION_TEST_LIFETIME_SECONDS - 0.1:
+            raise RuntimeError("WebSocket closed before the forced rotation deadline")
+
         await _wait_until(
             lambda: (
                 service.stream_status(ROTATION_TEST_SYMBOL)["connected"]
@@ -147,9 +162,20 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
 
         return {
             "initial_connection_trade_id": initial_event_id,
-            "connection_transitions": observed_stream.transitions,
-            "disconnect_observed": False in observed_stream.transitions,
-            "resubscription_observed": observed_stream.transitions.count(True) >= 2,
+            "connection_transitions": [
+                {
+                    "connected": connected,
+                    "elapsed_since_start_ms": round((timestamp - lifecycle_started_at) * 1000),
+                }
+                for connected, timestamp in observed_stream.transitions
+            ],
+            "rotation_elapsed_seconds": round(rotation_elapsed_seconds, 3),
+            "disconnect_observed": any(
+                not connected for connected, _ in observed_stream.transitions
+            ),
+            "resubscription_observed": sum(
+                connected for connected, _ in observed_stream.transitions
+            ) >= 2,
             "post_reconnect_trade_id": validated.event_id,
             "post_reconnect_source": validated.source,
             "post_reconnect_age_ms": validated.age_ms_at_validation,
@@ -198,7 +224,10 @@ async def verify_websocket_rotation(
             },
             "resubscription": {
                 "status": "passed" if result["resubscription_observed"] else "failed",
-                "connection_count": result["connection_transitions"].count(True),
+                "connection_count": sum(
+                    transition["connected"] for transition in result["connection_transitions"]
+                ),
+                "first_connection_lifetime_seconds": result["rotation_elapsed_seconds"],
             },
             "fresh_post_reconnect_trade": {
                 "status": "passed",
