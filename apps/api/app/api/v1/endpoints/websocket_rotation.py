@@ -20,7 +20,7 @@ from app.market_data.service import BinanceMarketDataService
 router = APIRouter(prefix="/diagnostics/gate-3", tags=["Diagnostics"])
 
 ROTATION_TEST_LIFETIME_SECONDS = 5.0
-ROTATION_TEST_TIMEOUT_SECONDS = 40.0
+ROTATION_TEST_TIMEOUT_SECONDS = 45.0
 ROTATION_TEST_SYMBOL = "BTCUSDT"
 
 
@@ -103,7 +103,7 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
                 and service.stream_status(ROTATION_TEST_SYMBOL)["event_source"]
                 == "binance_spot_websocket"
             ),
-            timeout_seconds=12.0,
+            timeout_seconds=10.0,
             description="first healthy WebSocket trade",
         )
         initial_status = service.stream_status(ROTATION_TEST_SYMBOL)
