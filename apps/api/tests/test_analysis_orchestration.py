@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import cast
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -195,3 +196,65 @@ def test_historical_market_data_endpoint_requires_owner_session() -> None:
         )
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
+
+
+
+def test_current_market_analysis_persists_and_returns_snapshot_reference() -> None:
+    class FakeRecorder:
+        def __init__(self) -> None:
+            self.calls: list[tuple[ValidatedPrice, UUID | None]] = []
+            self.snapshot_id = uuid4()
+
+        def record_price(
+            self,
+            price: ValidatedPrice,
+            *,
+            request_id: UUID | None = None,
+        ) -> UUID:
+            self.calls.append((price, request_id))
+            return self.snapshot_id
+
+    async def run() -> None:
+        market_data = FakeMarketData()
+        recorder = FakeRecorder()
+        request_id = uuid4()
+        orchestrator = BaymaxRequestOrchestrator(
+            cast(BinanceMarketDataService, market_data),
+            clock_health_provider=lambda: True,
+            provenance_repository=recorder,
+            require_provenance=True,
+        )
+        result = await orchestrator.prepare(
+            AnalysisRequest(
+                message="What is BTCUSDT trading at now?",
+                intent="current_market",
+                symbol="BTCUSDT",
+            ),
+            request_id=request_id,
+        )
+        assert result.market_snapshot_id == recorder.snapshot_id
+        assert len(recorder.calls) == 1
+        assert recorder.calls[0][1] == request_id
+
+    asyncio.run(run())
+
+
+def test_production_current_market_analysis_fails_closed_without_provenance() -> None:
+    async def run() -> None:
+        market_data = FakeMarketData()
+        orchestrator = BaymaxRequestOrchestrator(
+            cast(BinanceMarketDataService, market_data),
+            clock_health_provider=lambda: True,
+            require_provenance=True,
+        )
+        with pytest.raises(AnalysisInputUnavailable, match="provenance"):
+            await orchestrator.prepare(
+                AnalysisRequest(
+                    message="Analyze BTCUSDT now",
+                    intent="current_market",
+                    symbol="BTCUSDT",
+                )
+            )
+        assert market_data.calls == []
+
+    asyncio.run(run())
