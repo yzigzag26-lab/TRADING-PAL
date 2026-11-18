@@ -207,7 +207,7 @@ def test_production_lifespan_uses_and_closes_injected_clock_monitor() -> None:
     assert monitor.closed is True
 
 
-def test_production_api_docs_and_openapi_require_owner_session() -> None:
+def test_production_swagger_and_openapi_are_public() -> None:
     settings = Settings(
         app_env="production",
         log_level="INFO",
@@ -215,17 +215,27 @@ def test_production_api_docs_and_openapi_require_owner_session() -> None:
         session_secret="test-session-secret",
     )
     application = create_app(settings, clock_health_provider=lambda: False)
-    token = create_session_token(cast(str, settings.session_secret))
 
     with TestClient(application) as client:
-        assert client.get("/docs").status_code == 401
-        assert client.get("/openapi.json").status_code == 401
-
-        headers = {"Cookie": f"{SESSION_COOKIE_NAME}={token}"}
-        swagger = client.get("/docs", headers=headers)
-        schema = client.get("/openapi.json", headers=headers)
+        swagger = client.get("/docs")
+        schema = client.get("/openapi.json")
 
     assert swagger.status_code == 200
     assert "swagger-ui" in swagger.text.lower()
     assert schema.status_code == 200
     assert "/api/v1/analysis/history" in schema.json()["paths"]
+
+
+def test_production_gate_3_diagnostics_still_require_owner_session() -> None:
+    settings = Settings(
+        app_env="production",
+        log_level="INFO",
+        cors_allowed_origins=("https://baymax-nu.vercel.app",),
+        session_secret="test-session-secret",
+    )
+    application = create_app(settings, clock_health_provider=lambda: False)
+
+    with TestClient(application) as client:
+        response = client.post("/api/v1/diagnostics/gate-3")
+
+    assert response.status_code == 401
