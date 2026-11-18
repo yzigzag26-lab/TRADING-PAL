@@ -132,7 +132,7 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
         rest = FakeRest()
         service = BinanceMarketDataService(
             rest_client=rest,
-            stream=IdleStream(),  # type: ignore[arg-type]
+            stream=IdleStream(),
         )
         service._started = True
         service._events["BTCUSDT"] = PriceEvent(

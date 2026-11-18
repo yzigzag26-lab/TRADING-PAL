@@ -6,7 +6,7 @@ import asyncio
 import json
 import random
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -40,7 +40,7 @@ class BinanceSpotTradeStream:
         symbol: str,
         *,
         on_connection_state: Callable[[bool], Awaitable[None]] | None = None,
-    ) -> AsyncIterator[PriceEvent]:
+    ) -> AsyncGenerator[PriceEvent, None]:
         """Yield trades and report each connection transition to the service."""
         normalized = symbol.strip().lower()
         if not normalized.isalnum() or not 1 <= len(normalized) <= 30:
