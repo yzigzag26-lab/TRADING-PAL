@@ -11,8 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.market_data.freshness import MarketDataUnavailable
 from app.market_data.models import ValidatedPrice
-from app.market_data.service import BinanceMarketDataService
 from app.market_data.provenance import PriceSnapshotRecorder
+from app.market_data.service import BinanceMarketDataService
 
 RequestIntent = Literal["educational", "programming", "current_market", "historical_market"]
 
@@ -109,6 +109,10 @@ class BaymaxRequestOrchestrator:
 
         if request.symbol is None:
             raise AnalysisInputUnavailable("A symbol is required for current-market analysis")
+        if self._require_provenance and self._provenance_repository is None:
+            raise AnalysisInputUnavailable(
+                "Persistent market-data provenance is not configured; analysis is blocked."
+            )
 
         try:
             price = await self._market_data.get_current_price(

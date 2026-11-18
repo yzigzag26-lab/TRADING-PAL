@@ -39,11 +39,15 @@ class MarketDataProvenanceRepository:
             data_type="trade_price",
             source=price.source,
             market_event_timestamp=price.market_event_timestamp,
-            exchange_event_timestamp=price.market_event_timestamp,
+            exchange_event_timestamp=price.exchange_event_timestamp,
             received_timestamp=price.received_timestamp,
             validated_timestamp=price.validated_timestamp,
             age_ms_at_validation=price.age_ms_at_validation,
-            connection_state="HEALTHY",
+            connection_state=(
+                "WEBSOCKET_HEALTHY"
+                if price.source == "binance_spot_websocket"
+                else "REST_RECOVERY"
+            ),
             validation_state="VALIDATED",
             request_id=request_id,
             payload={
