@@ -26,7 +26,9 @@ def test_market_data_service_exposes_read_only_stream_status() -> None:
         "healthy": True,
         "event_source": "binance_spot_websocket",
         "event_id": "123456",
-        "market_event_timestamp": service._events["BTCUSDT"].market_event_timestamp.isoformat(),
+        "market_event_timestamp": (
+            service._events["BTCUSDT"].market_event_timestamp.isoformat()
+        ),
     }
     assert service.stream_status("ETHUSDT") == {
         "connected": False,
