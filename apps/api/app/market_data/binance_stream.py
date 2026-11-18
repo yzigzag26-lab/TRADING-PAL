@@ -49,6 +49,7 @@ class BinanceSpotTradeStream:
         attempt = 0
 
         while True:
+            connection_started = time.monotonic()
             try:
                 async with connect(
                     url,
@@ -57,7 +58,6 @@ class BinanceSpotTradeStream:
                     close_timeout=10,
                     max_size=1_048_576,
                 ) as websocket:
-                    attempt = 0
                     if on_connection_state is not None:
                         await on_connection_state(True)
                     deadline = time.monotonic() + self._connection_lifetime_seconds
@@ -114,11 +114,18 @@ class BinanceSpotTradeStream:
                         if on_connection_state is not None:
                             await on_connection_state(False)
 
-                # A planned rotation is not an error; still avoid reconnect bursts.
-                await asyncio.sleep(random.uniform(0.25, 0.75))
+                # Planned rotation follows a stable connection and avoids reconnect bursts.
+                if time.monotonic() - connection_started >= 60:
+                    attempt = 0
+                else:
+                    attempt += 1
+                ceiling = min(30.0, 0.5 * (2 ** min(attempt, 6)))
+                await asyncio.sleep(random.uniform(0.0, ceiling))
             except asyncio.CancelledError:
                 raise
             except (ConnectionClosed, OSError, WebSocketException, MarketDataUnavailable):
+                if time.monotonic() - connection_started >= 60:
+                    attempt = 0
                 attempt += 1
                 ceiling = min(30.0, 0.5 * (2 ** min(attempt, 6)))
                 await asyncio.sleep(random.uniform(0.0, ceiling))
