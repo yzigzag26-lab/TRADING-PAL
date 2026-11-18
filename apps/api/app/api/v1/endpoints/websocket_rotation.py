@@ -10,7 +10,6 @@ from typing import Any, Literal, cast
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict
-from websockets.asyncio.client import connect
 
 from app.auth.security import SESSION_COOKIE_NAME, verify_session_token
 from app.core.config import Settings
@@ -135,10 +134,9 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
             description="fresh WebSocket trade accepted after reconnection",
         )
 
-        clock_provider = cast(Callable[[], bool], service_clock_provider_placeholder)
         validated = await service.get_current_price(
             ROTATION_TEST_SYMBOL,
-            clock_healthy=clock_provider(),
+            clock_healthy=clock_healthy,
         )
         if validated.source != "binance_spot_websocket":
             raise RuntimeError(
@@ -185,10 +183,6 @@ async def verify_websocket_rotation(
     clock_healthy = clock_provider()
 
     try:
-        # Keep the clock provider explicit while the isolated service exercises
-        # the same consume-time validation path as production analysis.
-        global service_clock_provider_placeholder
-        service_clock_provider_placeholder = lambda: clock_healthy
         result = await asyncio.wait_for(
             _run_rotation_test(clock_healthy),
             timeout=ROTATION_TEST_TIMEOUT_SECONDS,
