@@ -352,3 +352,53 @@ reported consensus before current-market analysis can be considered enabled.
 The 500 ms clock-offset and 1,000 ms NTP round-trip limits are conservative
 monitor implementation thresholds, not changes to the owner-approved
 3,000 ms market-price freshness limit. They must not be relaxed without review.
+
+
+## 17. Historical Binance Spot OHLCV implementation
+
+The historical retrieval slice now includes:
+
+- `candles.py`: immutable decimal-safe candle models for Binance Spot intervals
+  (`1s` through `1w`, plus calendar-month `1M`), with UTC alignment,
+  exact close-time, OHLC, volume, taker-volume, and trade-count validation.
+- `binance_historical_rest.py`: public `GET /api/v3/klines` adapter against
+  `https://data-api.binance.vision`, maximum 1,000 candles per request,
+  source timestamps preserved, no API key or signed endpoint.
+- `historical_service.py`: bounded range retrieval, 1,000-row pagination,
+  expected-open-time enumeration, missing-interval detection, and up to two
+  bounded recovery passes for missing ranges. Conflicting duplicate values,
+  out-of-range rows, and non-advancing pagination fail closed.
+- Owner-only `POST /api/v1/analysis/history`: accepts an explicit symbol,
+  Binance interval, and timezone-aware ISO-8601 start/end boundaries; rejects
+  unaligned or over-10,000-candle requests.
+- The response includes the actual candles, `complete`, exact
+  `missing_open_times`, and `recovery_attempts`. If gaps remain, the response
+  remains incomplete and contains no fabricated/interpolated candles.
+- Request bounds are enforced during timestamp enumeration: the API rejects
+  ranges above 10,000 expected candles before building a full timestamp list,
+  preventing oversized 1-second ranges from causing unbounded memory allocation.
+
+The endpoint is historical-data retrieval, not a current-price endpoint. It
+does not relax the 3,000 ms current-price freshness rule. Forming candles are
+explicitly marked `is_closed=false`; they must not be treated as finalized
+OHLCV. A successful HTTP response does not imply continuity: consumers must
+check `complete` and `missing_open_times`.
+
+The service is on-demand and bounded to 10,000 requested candle intervals per
+call. It does not poll Binance continuously or store every historical candle
+permanently. Historical analysis through the natural-language `/respond`
+pipeline and frontend chat integration remain separate integration work; the
+structured owner-only history endpoint is available for those next phases.
+
+### Phase 2 remaining evidence
+
+- Deterministic OHLCV and interval-boundary tests.
+- REST payload/rate-limit tests.
+- Gap detection and successful/unsuccessful recovery tests.
+- Owner-authenticated endpoint tests.
+- Full backend CI and strict docs build.
+- Optional live Binance read-only smoke test after deployment approval.
+
+Gate 3 remains incomplete until all mandatory acceptance criteria, including
+production clock verification, persistent provenance, WebSocket lifecycle
+recovery, and live Binance evidence, are satisfied.

@@ -175,3 +175,23 @@ def test_market_data_service_is_started_and_closed_by_fastapi_lifespan() -> None
         assert service.started is True
         assert client.get("/api/v1/health").status_code == 200
     assert service.closed is True
+
+
+def test_historical_market_data_endpoint_requires_owner_session() -> None:
+    settings = Settings(
+        app_env="test",
+        log_level="INFO",
+        cors_allowed_origins=("http://localhost:3000",),
+    )
+    with TestClient(create_app(settings)) as client:
+        response = client.post(
+            "/api/v1/analysis/history",
+            json={
+                "symbol": "BTCUSDT",
+                "interval": "1h",
+                "start_time": "2026-11-16T00:00:00Z",
+                "end_time": "2026-11-16T01:00:00Z",
+            },
+        )
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"

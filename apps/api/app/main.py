@@ -29,6 +29,7 @@ from app.core.clock_health import ClockHealthMonitor
 from app.core.config import Settings
 from app.core.logging import configure_logging, request_id_context
 from app.db.session import create_database_engine, verify_database_connection
+from app.market_data.historical_service import BinanceHistoricalCandleService
 from app.market_data.service import BinanceMarketDataService
 from app.schemas.errors import ErrorDetail, ErrorResponse, ValidationIssue
 
@@ -42,6 +43,9 @@ def create_app(
     settings: Settings | None = None,
     *,
     market_data_service_factory: Callable[[], BinanceMarketDataService] | None = None,
+    historical_market_data_service_factory: (
+        Callable[[], BinanceHistoricalCandleService] | None
+    ) = None,
     clock_health_provider: Callable[[], bool] | None = None,
     clock_health_monitor_factory: Callable[[], ClockHealthMonitor] | None = None,
 ) -> FastAPI:
@@ -74,6 +78,10 @@ def create_app(
             )
             app_logger.info("database.runtime_connection_verified")
         market_data_service = (market_data_service_factory or BinanceMarketDataService)()
+        historical_market_data_service = (
+            historical_market_data_service_factory or BinanceHistoricalCandleService
+        )()
+        application.state.historical_market_data_service = historical_market_data_service
         application.state.market_data_service = market_data_service
         clock_monitor: ClockHealthMonitor | None = None
         if clock_health_provider is None and active_settings.app_env == "production":
@@ -94,10 +102,12 @@ def create_app(
         await groq_client.start()
         try:
             await market_data_service.start()
+            await historical_market_data_service.start()
             app_logger.info("market_data.service_started")
             yield
         finally:
             await market_data_service.close()
+            await historical_market_data_service.close()
             if clock_monitor is not None:
                 await clock_monitor.close()
             await groq_client.close()
