@@ -100,7 +100,7 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
 
         await _wait_until(
             lambda: (
-                service.stream_status(ROTATION_TEST_SYMBOL)["healthy"]
+                service.stream_status(ROTATION_TEST_SYMBOL)["healthy"] is True
                 and service.stream_status(ROTATION_TEST_SYMBOL)["event_source"]
                 == "binance_spot_websocket"
             ),
@@ -138,8 +138,8 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
 
         await _wait_until(
             lambda: (
-                service.stream_status(ROTATION_TEST_SYMBOL)["connected"]
-                and service.stream_status(ROTATION_TEST_SYMBOL)["healthy"]
+                service.stream_status(ROTATION_TEST_SYMBOL)["connected"] is True
+                and service.stream_status(ROTATION_TEST_SYMBOL)["healthy"] is True
                 and service.stream_status(ROTATION_TEST_SYMBOL)["event_source"]
                 == "binance_spot_websocket"
                 and service.stream_status(ROTATION_TEST_SYMBOL)["event_id"]
