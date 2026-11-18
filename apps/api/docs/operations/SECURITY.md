@@ -55,19 +55,19 @@ rate-limit state to a shared store before scaling.
 
 ## API documentation exposure
 
-Swagger UI is currently available at `/docs`, and the generated OpenAPI
-document is available at `/openapi.json`. Both are public at this foundation
-stage. The documented operations are public liveness and the single-owner
-authentication lifecycle: login (password required and trusted-Origin checked),
-session-status (returns only an authentication boolean), and logout
-(trusted-Origin checked). No private market, account, or trading operations
-are currently exposed.
+Swagger UI is available publicly at `/docs`, and the generated OpenAPI
+document is available publicly at `/openapi.json`, including in production.
+This is an intentional documentation-only exposure. The production API also
+contains owner-session-protected analysis, historical-market, and Gate 3
+diagnostic operations. In particular, `POST /api/v1/diagnostics/gate-3` and
+`POST /api/v1/diagnostics/gate-3/durable-snapshot` independently validate the
+signed owner session; the durable endpoint additionally requires explicit
+confirmation before creating a permanent row.
 
-Swagger UI is a testing interface, not an access-control boundary. Before
-introducing any private API operation, either protect both documentation routes
-behind the owner authentication boundary or disable them in production. The
-same restriction applies to future private schemas, examples, and endpoint
-metadata. Never rely on CORS or an obscure URL to protect an API.
+Swagger UI is a testing interface, not an access-control boundary. Public
+visibility of an operation's schema does not authorize invocation. Keep
+backend authorization on every protected operation and test unauthenticated
+requests for HTTP 401. Never rely on CORS or an obscure URL to protect an API.
 
 ## Binance boundary
 
