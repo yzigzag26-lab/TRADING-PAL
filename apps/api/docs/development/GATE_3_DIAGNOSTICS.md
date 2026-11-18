@@ -217,7 +217,7 @@ Run it after the backend deployment containing this endpoint is **Live**:
    `https://baymax-nu.vercel.app/docs`.
 2. Expand **POST /api/v1/diagnostics/gate-3/websocket-rotation**.
 3. Select **Try it out**. No request body is required.
-4. Select **Execute** and allow up to 40 seconds for the bounded test.
+4. Select **Execute** and allow up to 45 seconds for the bounded test.
 
 The diagnostic verifies, in order:
 
