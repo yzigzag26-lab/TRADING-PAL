@@ -240,7 +240,7 @@ Gate 3 is complete only when every applicable criterion below has reproducible e
 | G3-02 | Live price events preserve source timestamps and are validated against the 3-second maximum | Deterministic unit tests at boundary values (<=3,000 ms accepted; >3,000 ms rejected) |
 | G3-03 | Every market-dependent current query obtains/revalidates a fresh snapshot | Service/API tests proving old cache is refreshed or rejected |
 | G3-04 | Missing/untrusted timestamps and unhealthy clock state fail closed | Negative tests |
-| G3-05 | WebSocket ping/pong, planned 24-hour reconnect, disconnect detection and resubscription work | Simulated connection lifecycle tests |
+| G3-05 | WebSocket ping/pong, planned 24-hour reconnect, disconnect detection and resubscription work | Deterministic lifecycle tests plus owner-authenticated forced 5-second production rotation diagnostic; deployed response still pending |
 | G3-06 | Duplicate/out-of-order events and sequence gaps are detected/handled safely | Deterministic event-sequence tests |
 | G3-07 | Candle OHLC, interval continuity and open/closed state are validated | Fixture-based candle and gap tests |
 | G3-08 | If local depth book is implemented, snapshot/update-ID synchronization and gap rebuild work | Depth snapshot/stream reconciliation tests |
@@ -527,3 +527,32 @@ same acceptance test.
 
 The diagnostic response did not include a Render deployment ID; do not infer
 or invent one from this record.
+
+
+## 20. Forced production WebSocket rotation diagnostic
+
+The owner-only `POST /api/v1/diagnostics/gate-3/websocket-rotation`
+provides a production acceptance exercise for G3-05 without waiting for the
+normal 23-hour-50-minute lifetime. It creates an isolated instance of the real
+`BinanceMarketDataService`, backed by the real Binance public REST and
+WebSocket clients, and configures only that diagnostic instance with a
+five-second connection lifetime.
+
+The diagnostic must observe an initial accepted WebSocket trade, planned
+connection close, disconnect state, a second subscription, and a different
+fresh WebSocket trade accepted after reconnection. It then calls the service's
+normal `get_current_price()` boundary and requires the post-reconnect result
+to pass the existing 3,000 ms freshness check with the production NTP health
+assertion.
+
+The test is isolated from the application-owned service and does not modify
+its 23-hour-50-minute setting. It performs no database write and uses no
+Binance credentials, private endpoints, or trading operations. The runbook and
+owner-authenticated execution steps are in
+[Gate 3 production diagnostics](GATE_3_DIAGNOSTICS.md).
+
+A successful deployed response is required before marking G3-05 as production
+verified. The forced five-second exercise verifies the same rotation code
+path, but does not claim a single connection was maintained for 23 hours and
+50 minutes. Until an actual production response is recorded, G3-05 and Gate 3
+remain open.

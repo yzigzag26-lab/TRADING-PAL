@@ -201,3 +201,50 @@ disconnect handling, planned reconnect/resubscription, and restored fresh
 price acceptance. The two-connection smoke check above does not close the full
 23-hour-50-minute planned-rotation/lifecycle requirement. Gate 3 remains open
 until all mandatory criteria in the acceptance contract have evidence.
+
+
+## Forced WebSocket rotation and service recovery diagnostic
+
+The owner-only endpoint `POST /api/v1/diagnostics/gate-3/websocket-rotation`
+exercises a separate instance of the real `BinanceMarketDataService` against
+Binance's public Spot REST and WebSocket services. It deliberately configures
+that diagnostic instance with a **5-second connection lifetime**, so the
+normal 23-hour-50-minute rotation does not need to elapse.
+
+Run it after the backend deployment containing this endpoint is **Live**:
+
+1. Sign in through the Baymax owner frontend and open
+   `https://baymax-nu.vercel.app/docs`.
+2. Expand **POST /api/v1/diagnostics/gate-3/websocket-rotation**.
+3. Select **Try it out**. No request body is required.
+4. Select **Execute** and allow up to 45 seconds for the bounded test.
+
+The diagnostic verifies, in order:
+
+- The service accepts an initial fresh BTCUSDT WebSocket trade.
+- The short-lived connection reaches its planned rotation deadline and closes.
+- The service observes the disconnect and invalidates its stream cache.
+- The stream adapter establishes a replacement WebSocket subscription.
+- A new trade is accepted from that replacement connection.
+- `get_current_price()` consumes and validates the post-reconnect event using
+  the production 3,000 ms freshness boundary and the live NTP health assertion.
+
+A successful HTTP `200` response with top-level `status: "passed"` is
+production evidence for this forced-rotation run. The response includes the
+initial and post-reconnect trade IDs, connection transition evidence, event
+source, event age, and validated price. HTTP `503` means a lifecycle stage,
+clock-health prerequisite, or freshness check failed; inspect the response
+before retrying.
+
+**Isolation and side effects:** the diagnostic creates and closes its own
+`BinanceMarketDataService`. It does not mutate the application-owned service,
+change the configured 23-hour-50-minute lifetime, write a database snapshot,
+or use Binance credentials/private endpoints/trading operations. It is
+owner-session protected. The endpoint must not be used as a load test; run one
+diagnostic at a time.
+
+This is a short-duration production exercise of the same planned-rotation code
+path, not a claim that the deployed connection has remained alive for 23 hours
+and 50 minutes. Deterministic lifecycle tests plus this production result are
+the combined evidence. G3-05 remains open until the owner runs the endpoint
+against the deployed backend and records its actual response and deployment.

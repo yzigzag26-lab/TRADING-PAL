@@ -58,6 +58,7 @@ def test_openapi_contains_only_the_implemented_versioned_endpoint() -> None:
         "/api/v1/auth/logout",
         "/api/v1/diagnostics/gate-3",
         "/api/v1/diagnostics/gate-3/durable-snapshot",
+        "/api/v1/diagnostics/gate-3/websocket-rotation",
     }
 
 
@@ -255,5 +256,20 @@ def test_durable_snapshot_verification_still_requires_owner_session() -> None:
             "/api/v1/diagnostics/gate-3/durable-snapshot",
             json={"confirm_durable_write": True},
         )
+
+    assert response.status_code == 401
+
+
+def test_websocket_rotation_diagnostic_still_requires_owner_session() -> None:
+    settings = Settings(
+        app_env="production",
+        log_level="INFO",
+        cors_allowed_origins=("https://baymax-nu.vercel.app",),
+        session_secret="test-session-secret",
+    )
+    application = create_app(settings, clock_health_provider=lambda: False)
+
+    with TestClient(application) as client:
+        response = client.post("/api/v1/diagnostics/gate-3/websocket-rotation")
 
     assert response.status_code == 401
