@@ -240,7 +240,7 @@ Gate 3 is complete only when every applicable criterion below has reproducible e
 | G3-02 | Live price events preserve source timestamps and are validated against the 3-second maximum | Deterministic unit tests at boundary values (<=3,000 ms accepted; >3,000 ms rejected) |
 | G3-03 | Every market-dependent current query obtains/revalidates a fresh snapshot | Service/API tests proving old cache is refreshed or rejected |
 | G3-04 | Missing/untrusted timestamps and unhealthy clock state fail closed | Negative tests |
-| G3-05 | WebSocket ping/pong, planned 24-hour reconnect, disconnect detection and resubscription work | Simulated connection lifecycle tests |
+| G3-05 | WebSocket ping/pong, planned 24-hour reconnect, disconnect detection and resubscription work | Deterministic lifecycle tests plus owner-authenticated forced 5-second production rotation diagnostic; deployed response still pending |
 | G3-06 | Duplicate/out-of-order events and sequence gaps are detected/handled safely | Deterministic event-sequence tests |
 | G3-07 | Candle OHLC, interval continuity and open/closed state are validated | Fixture-based candle and gap tests |
 | G3-08 | If local depth book is implemented, snapshot/update-ID synchronization and gap rebuild work | Depth snapshot/stream reconciliation tests |
