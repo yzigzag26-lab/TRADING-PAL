@@ -10,8 +10,9 @@ from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -131,15 +132,36 @@ def create_app(
             "unavailable until their approved implementation gates."
         ),
         version="0.1.0",
-        docs_url="/docs",
+        docs_url=None,
         redoc_url=None,
-        openapi_url="/openapi.json",
+        openapi_url=None,
         lifespan=lifespan,
     )
     application.state.settings = active_settings
     application.state.login_limiter = LoginRateLimiter()
     application.state.market_data_provenance_repository = None
     application.state.require_market_data_provenance = active_settings.app_env == "production"
+
+    def require_documentation_owner(request: Request) -> None:
+        """Protect private API schemas and Swagger UI in production."""
+        if active_settings.app_env == "production" and not verify_session_token(
+            request.cookies.get(SESSION_COOKIE_NAME),
+            active_settings.session_secret,
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication is required to access API documentation.",
+            )
+
+    @application.get("/openapi.json", include_in_schema=False)
+    async def protected_openapi(request: Request) -> JSONResponse:
+        require_documentation_owner(request)
+        return JSONResponse(application.openapi())
+
+    @application.get("/docs", include_in_schema=False)
+    async def protected_swagger_ui(request: Request) -> Response:
+        require_documentation_owner(request)
+        return get_swagger_ui_html(openapi_url="/openapi.json", title="Baymax API")
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(active_settings.cors_allowed_origins),
