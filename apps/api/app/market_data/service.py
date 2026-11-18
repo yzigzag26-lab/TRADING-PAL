@@ -91,6 +91,20 @@ class BinanceMarketDataService:
                 name=f"binance-spot-{normalized.lower()}",
             )
 
+    def stream_status(self, symbol: str) -> dict[str, str | bool | None]:
+        """Return read-only connection and accepted-event state for diagnostics."""
+        normalized = symbol.strip().upper()
+        event = self._events.get(normalized)
+        return {
+            "connected": normalized in self._stream_connected,
+            "healthy": normalized in self._stream_healthy,
+            "event_source": event.source if event is not None else None,
+            "event_id": event.event_id if event is not None else None,
+            "market_event_timestamp": (
+                event.market_event_timestamp.isoformat() if event is not None else None
+            ),
+        }
+
     @staticmethod
     def _numeric_trade_id(event: PriceEvent) -> int | None:
         if event.event_id is None or not event.event_id.isdigit():
