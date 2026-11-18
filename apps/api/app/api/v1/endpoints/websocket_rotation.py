@@ -152,7 +152,7 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
             "resubscription_observed": observed_stream.transitions.count(True) >= 2,
             "post_reconnect_trade_id": validated.event_id,
             "post_reconnect_source": validated.source,
-            "post_reconnect_age_ms": validated.age_ms,
+            "post_reconnect_age_ms": validated.age_ms_at_validation,
             "post_reconnect_price": str(validated.price),
             "consume_time_validation": "passed",
             "duration_ms": round((perf_counter() - started_at) * 1000),
