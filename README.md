@@ -48,18 +48,14 @@ invalidation. It does not execute trades.
 
 ### Gate 3 — market-data freshness and reliability
 
-**Gate 3 is in progress, not complete.** Historical retrieval is merged, but
-these acceptance items remain open:
-
-- Persistent market-data provenance and exact snapshot references from
-  analysis responses.
-- WebSocket lifecycle evidence: planned reconnect before the 24-hour
-  connection limit, disconnect health transitions, resubscription, duplicate
-  and out-of-order event handling, and recovery verification.
-- Live Binance Spot payload smoke test.
-- Production Render verification of NTP reachability and clock consensus.
-- Remaining acceptance evidence in
-  [the Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md).
+**Gate 3 is implemented and remains in production acceptance testing.** The
+append-only provenance store and exact snapshot references are implemented.
+Production evidence now confirms NTP consensus, Binance Spot REST and basic
+WebSocket reconnection, plus one committed BTCUSDT snapshot independently read
+back from Supabase. The durable persistence criterion is verified; full
+WebSocket lifecycle recovery remains the next production acceptance item.
+Other mandatory criteria remain open until their required deterministic and
+operational evidence is recorded. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md).
 
 A successful connection or a green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational

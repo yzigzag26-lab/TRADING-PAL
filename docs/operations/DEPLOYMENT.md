@@ -8,7 +8,7 @@ release actions.
 
 - Frontend: Vercel, project root `apps/web`.
 - Backend: Render, Python 3.12 + FastAPI, service root `apps/api`.
-- Database and identity: Supabase; not connected in the current backend stage.
+- Database and identity: Supabase PostgreSQL; the production API uses the configured runtime role for append-only market-data provenance.
 - Engineering documentation: local build and CI. A public docs host is not
   selected.
 
@@ -55,7 +55,11 @@ Do not add secrets to the manifest.
 8. Verify the HTTPS health endpoint and record the deployed commit.
 
 The current health check verifies process liveness only; it does not check
-Supabase or any other external dependency.
+Supabase or any other external dependency. Gate 3's owner-only production
+diagnostic separately checks NTP, Binance Spot REST/WebSocket connectivity,
+and transactional snapshot behaviour. The dedicated durable-snapshot
+diagnostic commits one explicitly confirmed snapshot and verifies it in a new
+database transaction. See [Gate 3 Production Diagnostics](../development/GATE_3_MARKET_DATA.md) and the API-local operational guide.
 
 ## Rollback
 

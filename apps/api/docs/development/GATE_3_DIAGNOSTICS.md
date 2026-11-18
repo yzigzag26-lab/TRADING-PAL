@@ -151,3 +151,53 @@ cookies, credentials, or other secrets.
   a general-purpose database write interface.
 - Neither endpoint places orders or accesses Binance account, balance, wallet,
   transfer, margin, or futures endpoints.
+
+
+## Recorded production evidence — 2026-11-18
+
+The owner completed the rollback diagnostic and the one-time durable snapshot
+verification in production.
+
+### Rollback diagnostic
+
+At `2026-11-18T12:16:58.086502Z`, the owner-authenticated
+`POST /api/v1/diagnostics/gate-3` returned HTTP 200 with `status: "passed"`.
+NTP consensus passed with 3 healthy sources and an approximately 1.05 ms
+reported offset. Binance Spot REST passed with a 2,103 ms trade-event age. The
+WebSocket check established two independent connections and received a trade
+ID on each, with the second connection established after the first was
+closed. The snapshot INSERT/SELECT/ROLLBACK check passed and, as designed, did
+not commit a row.
+
+### Durable snapshot
+
+At `2026-11-18T12:42:25.098361Z`, the explicit durable-write endpoint returned
+`status: "passed"`, `durable_commit_verified: true`, and
+`separate_transaction_readback: true`.
+
+- Snapshot ID: `8398dd5e-5b3d-4986-8a32-b872d427d298`
+- Request ID: `1784dd1f-3389-4b6b-a552-fc0db5028b7a`
+- Symbol: `BTCUSDT`; exchange/market: `BINANCE / SPOT`
+- Price: `63993.08000000`; trade ID: `6876603329`
+- Source: `binance_spot_rest`; connection state: `REST_RECOVERY`
+- Age at validation: `309 ms`; validation state: `VALIDATED`
+- Database creation time: `2026-11-18T12:42:25.098361Z`
+
+A separate read-only Supabase query selected the same row by snapshot ID and
+request ID. The identifiers, payload, source, timestamps, age, validation and
+connection states, and creation timestamp matched the API response. This
+independently confirms that the committed row remained present. The
+`REST_RECOVERY` state is expected because this snapshot came from REST, not a
+healthy WebSocket event.
+
+This operation created one permanent append-only audit row. Do not rerun it
+just to repeat the test. The earlier rollback diagnostic remains a separate
+non-durable check and must not be confused with this commit evidence.
+
+### Next production check
+
+G3-05 is the next production acceptance item: verify deployed-service
+disconnect handling, planned reconnect/resubscription, and restored fresh
+price acceptance. The two-connection smoke check above does not close the full
+23-hour-50-minute planned-rotation/lifecycle requirement. Gate 3 remains open
+until all mandatory criteria in the acceptance contract have evidence.
