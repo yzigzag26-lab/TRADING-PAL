@@ -56,7 +56,6 @@ def test_rest_rate_limit_fails_closed(status: int) -> None:
     asyncio.run(run())
 
 
-
 def test_latest_trade_retries_http_429_and_returns_validated_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
