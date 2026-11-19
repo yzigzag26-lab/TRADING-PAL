@@ -48,12 +48,13 @@ invalidation. It does not execute trades.
 
 ### Gate 3 — market-data freshness and reliability
 
-**Gate 3 is implemented and remains in production acceptance testing.** The
-append-only provenance store and exact snapshot references are implemented.
-Production evidence now confirms NTP consensus, Binance Spot REST and basic
-WebSocket reconnection, plus one committed BTCUSDT snapshot independently read
-back from Supabase. The durable persistence criterion is verified; full
-WebSocket lifecycle recovery remains the next production acceptance item.
+**Gate 3 remains incomplete; applicable criteria are being verified individually.**
+Production evidence records NTP/REST smoke checks, a durable BTCUSDT snapshot
+commit with independent Supabase readback, and the G3-05 forced five-second
+WebSocket rotation/recovery diagnostic. G3-06 trade-sequence integrity and
+G3-07 candle integrity have been merged with deterministic CI evidence.
+G3-08 is not applicable because the current implementation has no local depth
+book. **G3-09 rate-limit and transient-error handling is the next criterion.**
 Other mandatory criteria remain open until their required deterministic and
 operational evidence is recorded. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md).
 
@@ -77,7 +78,7 @@ execution or paid market-data provider is part of the approved Gate 3 scope.
 
 - Frontend: [apps/web/README.md](apps/web/README.md)
 - Backend: [apps/api/README.md](apps/api/README.md)
-- Phase 1 foundation handoff: [docs/IMPLEMENTATION_HANDOFF.md](docs/IMPLEMENTATION_HANDOFF.md)
+- Archived Phase 1 planning baseline (historical, not current implementation instructions): [docs/IMPLEMENTATION_HANDOFF.md](docs/IMPLEMENTATION_HANDOFF.md)
 - Engineering documentation index: [docs/index.md](docs/index.md)
 - Gate 3 acceptance contract: [docs/development/GATE_3_MARKET_DATA.md](docs/development/GATE_3_MARKET_DATA.md)
 
