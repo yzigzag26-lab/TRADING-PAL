@@ -843,28 +843,99 @@ private Binance endpoints, or trading operations were used.
 
 **G3-11 is merged and CI-verified.** Gate 3 remains incomplete.
 
-## 27. Next implementation item — G3-12 decision-safety enforcement
+## 27. G3-12 decision-safety enforcement — implementation and CI evidence
 
-Proceed to **G3-12: ensure stale, incomplete, contradictory, or unverified
-market inputs cannot produce trading decisions**.
+G3-12 was implemented in PR #54
+(`feat: enforce fail-closed market decision safety`) and merged to
+`main` on 2026-11-19 as commit
+`e43620fb2cce89b87d9e5c6fed6254d831544cea`.
 
-Inspect every decision-generation entry point and its input contract. Enforce
-a single fail-closed gate immediately before decision generation, not merely
-at UI presentation. Verify:
-1. Stale data, including data that expires after retrieval, blocks generation.
-2. Incomplete historical series, unresolved candle gaps, and open candles
-   cannot be treated as complete decision inputs.
-3. Contradictory symbol/source/timestamp/sequence evidence blocks generation.
-4. Missing snapshot identity, failed validation, or missing provenance/audit
-   linkage blocks market-dependent decisions.
-5. Educational/programming responses remain available without market data.
-6. Deterministic tests exercise each failure mode and prove the generator is
-   not called when a market-dependent input is unsafe.
+The implementation adds a final validation boundary in the AI response
+pipeline, immediately before response generation. It does not rely on the
+frontend to decide whether market evidence is safe.
 
-Use injected clocks, fake repositories and deterministic fixtures. Do not
-write production records or add bypass flags. Keep G3-12 isolated, and update
-both contract copies plus README with exact commit/CI evidence, limitations,
-and the next task before advancing to G3-13.
+The final gate enforces:
+
+- **Freshness:** revalidates the market event at generation time using the
+  approved 3,000 ms limit. Data that expires after retrieval is rejected.
+- **Identity and consistency:** validates the requested symbol, Binance Spot
+  source, numeric trade identity and timestamp ordering. Contradictory or
+  untrusted market evidence is rejected.
+- **Traceability:** requires the persisted market snapshot identity that is
+  linked to its audit record before market-dependent generation.
+- **Historical integrity:** incomplete series, unresolved gaps, open candles,
+  and inconsistent candle identity/timestamps cannot be accepted as complete
+  decision inputs.
+- **Decision intent:** explicit buy/sell/hold, position, entry/exit and
+  recommendation requests are conservatively identified and subjected to
+  the decision-safety gate.
+- **Fail-closed generation:** when a required check fails, the response
+  generator is not called.
+- **Non-market availability:** educational and programming responses remain
+  available without market data.
+
+**Important capability limitation:** Baymax does not yet have a complete,
+validated historical-candle-to-strategy evidence pipeline for issuing
+trade recommendations. Therefore, requests for buy/sell/hold or other
+trading recommendations are currently blocked rather than generated from a
+single live price. Historical analysis also remains unavailable where the
+required validated inputs are not yet implemented. This is intentional
+fail-closed behaviour, not evidence that strategy analysis is complete.
+
+Deterministic regression tests cover freshness expiry after retrieval,
+missing provenance, invalid source and contradictory timestamps, incomplete
+historical series, candle gaps, open candles, explicit recommendation
+requests, and proof that the generator is not invoked for blocked inputs.
+
+**CI evidence for exact PR head**
+`e73ccc289ae91d2af603bafd93dcc7111f30f4c3`:
+
+- Ruff format check — passed.
+- Ruff lint — passed.
+- mypy — passed.
+- pytest — passed.
+- Strict Zensical documentation build — passed.
+
+GitHub Actions Backend and Documentation CI run
+[44517973845](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44517973845)
+completed successfully on that exact PR head. PR #54 was merged as
+`e43620fb2cce89b87d9e5c6fed6254d831544cea`. The CI result verifies the
+reviewed source commit; it does not by itself establish a successful
+production deployment or live production recommendation test.
+
+No production database writes, migrations, Binance credentials, private
+exchange endpoints, trading operations, or production diagnostics were
+performed for this implementation.
+
+**G3-12 is merged and CI-verified.** Gate 3 remains incomplete.
+
+## 28. Next implementation item — G3-13 security and scope review
+
+Proceed to **G3-13: verify that Gate 3 introduced no Binance API secrets,
+private trading/account endpoints, fabricated market data, or unapproved
+paid providers**.
+
+Perform a repository-wide review of source code, configuration, environment
+variable names, dependency/provider wiring, documentation and deployment
+configuration. Confirm that:
+
+1. Binance access remains limited to public Spot market-data endpoints and
+   streams; no signing or private account/trading endpoint path exists.
+2. No Binance API key or secret is required, configured, logged, or exposed
+   to the frontend.
+3. No fabricated/demo market values, synthetic fallback candles, or fake
+   market snapshots can enter production decision paths.
+4. No unapproved paid market-data provider or paid dependency/service was
+   introduced.
+5. Existing owner authentication and authorization boundaries remain intact.
+6. Tests and CI evidence support the review; any exception is documented and
+   remains open until explicitly resolved.
+
+Use static repository/configuration inspection and deterministic tests where
+appropriate. Do not print secret values, inspect or expose live secret
+contents, change production credentials, or perform production database
+writes. Record the exact reviewed commit, findings, limitations and evidence
+in both documentation copies and the README before proceeding to G3-14.
 
 **Gate 3 remains incomplete** until every mandatory applicable criterion in
 Section 11 has reproducible evidence.
