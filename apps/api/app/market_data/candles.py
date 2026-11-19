@@ -83,8 +83,7 @@ def is_interval_boundary(value: datetime, interval: str) -> bool:
     value = value.astimezone(UTC)
     if interval.endswith("M"):
         return (
-            value.day == 1
-            and value.hour == value.minute == value.second == value.microsecond == 0
+            value.day == 1 and value.hour == value.minute == value.second == value.microsecond == 0
         )
     if interval == "1w":
         return (
@@ -247,9 +246,7 @@ class HistoricalCandleSeries(BaseModel):
     def normalize_series_symbol(cls, value: str) -> str:
         normalized = value.strip().upper()
         if not normalized or not normalized.isalnum():
-            raise ValueError(
-                "Historical series symbol must contain only letters and digits"
-            )
+            raise ValueError("Historical series symbol must contain only letters and digits")
         return normalized
 
     @field_validator("requested_start", "requested_end")
@@ -261,9 +258,7 @@ class HistoricalCandleSeries(BaseModel):
 
     @field_validator("missing_open_times")
     @classmethod
-    def normalize_missing_times(
-        cls, values: tuple[datetime, ...]
-    ) -> tuple[datetime, ...]:
+    def normalize_missing_times(cls, values: tuple[datetime, ...]) -> tuple[datetime, ...]:
         normalized: list[datetime] = []
         for value in values:
             if value.tzinfo is None or value.utcoffset() is None:
@@ -290,18 +285,12 @@ class HistoricalCandleSeries(BaseModel):
         ):
             raise ValueError("Historical series contains a mismatched candle")
         if any(open_time not in expected_set for open_time in opens):
-            raise ValueError(
-                "Historical series contains a candle outside the requested range"
-            )
+            raise ValueError("Historical series contains a candle outside the requested range")
         if tuple(sorted(set(self.missing_open_times))) != self.missing_open_times:
             raise ValueError("Missing candle timestamps must be unique and chronological")
-        actual_missing = tuple(
-            open_time for open_time in expected if open_time not in set(opens)
-        )
+        actual_missing = tuple(open_time for open_time in expected if open_time not in set(opens))
         if self.missing_open_times != actual_missing:
             raise ValueError("Missing candle timestamps do not match the incomplete series")
         if self.complete != (len(actual_missing) == 0):
-            raise ValueError(
-                "Historical completeness flag does not match missing intervals"
-            )
+            raise ValueError("Historical completeness flag does not match missing intervals")
         return self
