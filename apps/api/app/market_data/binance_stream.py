@@ -19,6 +19,8 @@ from app.market_data.models import PriceEvent
 
 BINANCE_SPOT_WS_BASE_URL = "wss://data-stream.binance.vision"
 PLANNED_RECONNECT_SECONDS = 23 * 60 * 60 + 50 * 60
+WEBSOCKET_PING_INTERVAL_SECONDS = 20
+WEBSOCKET_PING_TIMEOUT_SECONDS = 60
 
 
 class BinanceSpotTradeStream:
@@ -53,8 +55,8 @@ class BinanceSpotTradeStream:
             try:
                 async with connect(
                     url,
-                    ping_interval=20,
-                    ping_timeout=60,
+                    ping_interval=WEBSOCKET_PING_INTERVAL_SECONDS,
+                    ping_timeout=WEBSOCKET_PING_TIMEOUT_SECONDS,
                     close_timeout=10,
                     max_size=1_048_576,
                 ) as websocket:
