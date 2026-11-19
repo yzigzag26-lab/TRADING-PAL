@@ -110,9 +110,7 @@ async def _request_with_retry_budget(
                     )
                 server_delay = _retry_after_seconds(response.headers.get("Retry-After"))
                 delay = (
-                    server_delay
-                    if server_delay is not None
-                    else _backoff_seconds(attempt, policy)
+                    server_delay if server_delay is not None else _backoff_seconds(attempt, policy)
                 )
                 reason = "HTTP 429 rate limit"
             elif status == 408 or 500 <= status <= 599:
