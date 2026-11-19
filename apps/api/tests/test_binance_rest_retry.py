@@ -235,3 +235,27 @@ def test_permanent_client_error_is_not_retried() -> None:
 def test_invalid_retry_policy_is_rejected() -> None:
     with pytest.raises(ValueError, match="Retry delays"):
         RestRetryPolicy(max_total_wait_seconds=-1)
+
+
+def test_overall_deadline_cancels_slow_request_and_fails_closed() -> None:
+    async def run() -> None:
+        calls = 0
+
+        async def handler(_: httpx.Request) -> httpx.Response:
+            nonlocal calls
+            calls += 1
+            await asyncio.Event().wait()
+            return httpx.Response(200)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(MarketDataUnavailable, match="overall retry deadline"):
+            await get_with_retry(
+                client,
+                "https://test.invalid/api",
+                params={},
+                policy=RestRetryPolicy(max_elapsed_seconds=0.01),
+            )
+        assert calls == 1
+        await client.aclose()
+
+    asyncio.run(run())
