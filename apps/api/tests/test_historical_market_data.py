@@ -396,7 +396,9 @@ def test_binance_kline_parser_distinguishes_open_and_closed_boundaries() -> None
 
         async def fetch_at(now: datetime) -> HistoricalCandle:
             client = httpx.AsyncClient(
-                transport=httpx.MockTransport(lambda _: httpx.Response(200, json=[row]))
+                transport=httpx.MockTransport(
+                    lambda _: httpx.Response(200, json=[row])
+                )
             )
             rest = BinanceHistoricalRestClient(
                 base_url="https://test.invalid",
@@ -442,10 +444,16 @@ def test_binance_kline_parser_rejects_truncated_row() -> None:
         client = httpx.AsyncClient(
             transport=httpx.MockTransport(lambda _: httpx.Response(200, json=[row]))
         )
-        rest = BinanceHistoricalRestClient(base_url="https://test.invalid", client=client)
+        rest = BinanceHistoricalRestClient(
+            base_url="https://test.invalid",
+            client=client,
+        )
         with pytest.raises(MarketDataUnavailable, match="invalid OHLCV candle"):
             await rest.klines(
-                "BTCUSDT", "1m", start_time=START, end_time=START,
+                "BTCUSDT",
+                "1m",
+                start_time=START,
+                end_time=START,
                 now=START + timedelta(minutes=2),
             )
         await client.aclose()
