@@ -25,8 +25,8 @@ class RestRetryPolicy:
     max_elapsed_seconds: float = 12.0
 
     def __post_init__(self) -> None:
-        if self.max_attempts < 1:
-            raise ValueError("max_attempts must be at least one")
+        if not 1 <= self.max_attempts <= 5:
+            raise ValueError("max_attempts must be between one and five")
         if (
             not math.isfinite(self.base_delay_seconds)
             or not math.isfinite(self.max_delay_seconds)
