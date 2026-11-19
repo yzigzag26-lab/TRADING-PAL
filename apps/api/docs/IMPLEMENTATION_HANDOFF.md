@@ -1,10 +1,10 @@
 # Trading Pal — Phase 1 Implementation Handoff
 
-**Document status:** Prepared for owner review and approval  
+**Document status:** Archived historical Phase 1 planning baseline — do not use as current implementation instructions  
 **Plan baseline:** Phase 1, Revision 1.1  
 **Scope:** Cloud-first application foundation only  
 **Target repository:** `yzigzag26-lab/TRADING-PAL`  
-**Implementation status:** Not started. This document does not authorize application code, cloud provisioning, or paid services.
+**Historical implementation status:** The original Phase 1 plan was superseded by the implementation now present in this repository. This archived document does not authorize or direct current work.
 
 ---
 
@@ -12,7 +12,7 @@
 
 ## 1. Purpose and operating rules
 
-This document is the implementation contract for the development agent(s) assigned to Phase 1. Follow it as the source of truth for scope, sequencing, architecture boundaries, verification, and handover.
+This document preserves the original Phase 1 planning contract for historical reference only. It is not the current source of truth for architecture, scope, sequencing, or implementation. Use the repository README, current application documentation, and the binding Gate 3 acceptance contract instead.
 
 Trading Pal is a private, mobile-first cryptocurrency intelligence application. Phase 1 establishes a secure, documented, deployable foundation. It does **not** implement trading intelligence or trading functionality.
 
@@ -603,8 +603,6 @@ The future system must distinguish deterministic calculations from model-generat
 
 ---
 
-## 15. Final instruction to the development agent
+## 15. Historical closing note
 
-Your assignment is to implement the approved Phase 1 foundation exactly within the boundaries of this document. Do not start until the owner explicitly approves this handoff. After approval, begin at Stage 0, report the proposed work breakdown and dependencies, and wait for the owner's implementation-start confirmation before creating application code or provisioning services.
-
-**Build a secure, testable, documented foundation. Do not optimise for speed by sacrificing correctness, security, or clarity.**
+The instructions in this archived plan applied to the original Phase 1 proposal only. They are superseded by the implementation and decisions recorded in the current repository documentation. Do not restart Phase 1, introduce Supabase Auth, or treat this archived plan as authorization to change architecture or provision services.
