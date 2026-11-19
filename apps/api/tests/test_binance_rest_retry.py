@@ -82,7 +82,11 @@ def test_429_without_retry_after_uses_bounded_jittered_backoff(
         def handler(_: httpx.Request) -> httpx.Response:
             nonlocal calls
             calls += 1
-            return httpx.Response(429) if calls == 1 else httpx.Response(200)
+            return (
+                httpx.Response(429, headers={"Retry-After": "not-a-date"})
+                if calls == 1
+                else httpx.Response(200)
+            )
 
         monkeypatch.setattr("app.market_data.rest_retry.asyncio.sleep", sleep)
         monkeypatch.setattr("app.market_data.rest_retry.random.uniform", lambda low, high: high)
@@ -235,6 +239,8 @@ def test_permanent_client_error_is_not_retried() -> None:
 def test_invalid_retry_policy_is_rejected() -> None:
     with pytest.raises(ValueError, match="Retry delays"):
         RestRetryPolicy(max_total_wait_seconds=-1)
+    with pytest.raises(ValueError, match="max_attempts"):
+        RestRetryPolicy(max_attempts=6)
 
 
 def test_overall_deadline_cancels_slow_request_and_fails_closed() -> None:
