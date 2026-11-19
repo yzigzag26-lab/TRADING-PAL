@@ -30,6 +30,7 @@ class AnalysisRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4_000)
     intent: RequestIntent
     symbol: str | None = Field(default=None, min_length=1, max_length=30)
+    decision_requested: bool = False
 
     @field_validator("symbol")
     @classmethod
@@ -55,7 +56,9 @@ class PreparedAnalysisInput(BaseModel):
 
     intent: RequestIntent
     market_data_required: bool
-    market_data_status: Literal["not_required", "ready", "historical_not_implemented"]
+    market_data_status: Literal[
+        "not_required", "ready", "historical_not_implemented", "decision_blocked"
+    ]
     current_price: ValidatedPrice | None = None
     market_snapshot_id: UUID | None = None
 
@@ -105,6 +108,13 @@ class BaymaxRequestOrchestrator:
                 intent=request.intent,
                 market_data_required=False,
                 market_data_status="historical_not_implemented",
+            )
+
+        if request.decision_requested:
+            return PreparedAnalysisInput(
+                intent=request.intent,
+                market_data_required=True,
+                market_data_status="decision_blocked",
             )
 
         if request.symbol is None:

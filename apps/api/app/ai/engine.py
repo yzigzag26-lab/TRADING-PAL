@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
+from app.market_data.decision_safety import (
+    is_trading_decision_request,
+    validate_prepared_analysis_inputs,
+)
 from app.orchestration.requests import (
     AnalysisInputUnavailable,
     AnalysisRequest,
@@ -35,10 +41,12 @@ class BaymaxAIEngine:
         classifier: BaymaxIntentClassifier,
         generator: BaymaxAnalysisGenerator,
         orchestrator: BaymaxRequestOrchestrator,
+        decision_clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._classifier = classifier
         self._generator = generator
         self._orchestrator = orchestrator
+        self._decision_clock = decision_clock or (lambda: datetime.now(UTC))
 
     async def respond(
         self,
@@ -65,8 +73,14 @@ class BaymaxAIEngine:
             message=message,
             intent=classification.intent,
             symbol=classification.symbol,
+            decision_requested=(
+                classification.decision_requested
+                or is_trading_decision_request(message, intent=classification.intent)
+            ),
         )
         prepared = await self._orchestrator.prepare(request, request_id=request_id)
+        # Revalidate at the final boundary because data may expire during processing.
+        validate_prepared_analysis_inputs(request, prepared, now=self._decision_clock())
         answer = await self._generator.generate(request, prepared)
         return BaymaxAIResult(
             answer=answer,
