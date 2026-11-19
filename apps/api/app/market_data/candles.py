@@ -83,7 +83,8 @@ def is_interval_boundary(value: datetime, interval: str) -> bool:
     value = value.astimezone(UTC)
     if interval.endswith("M"):
         return (
-            value.day == 1 and value.hour == value.minute == value.second == value.microsecond == 0
+            value.day == 1
+            and value.hour == value.minute == value.second == value.microsecond == 0
         )
     if interval == "1w":
         return (
@@ -286,11 +287,17 @@ class HistoricalCandleSeries(BaseModel):
             for candle in self.candles
         ):
             raise ValueError("Historical series contains a mismatched candle")
-        if any(open_time not in expected_set for open_time in opens):
-            raise ValueError("Historical series contains a candle outside the requested range")
+        if any(
+            open_time not in expected_set for open_time in opens
+        ):
+            raise ValueError(
+                "Historical series contains a candle outside the requested range"
+            )
         if tuple(sorted(set(self.missing_open_times))) != self.missing_open_times:
             raise ValueError("Missing candle timestamps must be unique and chronological")
-        actual_missing = tuple(open_time for open_time in expected if open_time not in set(opens))
+        actual_missing = tuple(
+            open_time for open_time in expected if open_time not in set(opens)
+        )
         if self.missing_open_times != actual_missing:
             raise ValueError("Missing candle timestamps do not match the incomplete series")
         if self.complete != (len(actual_missing) == 0):
