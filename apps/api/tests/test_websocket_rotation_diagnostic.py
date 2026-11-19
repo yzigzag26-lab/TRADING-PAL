@@ -56,8 +56,6 @@ def test_rotation_diagnostic_uses_extended_stage_and_overall_timeouts() -> None:
 
 
 async def test_rotation_wait_timeout_identifies_the_failed_lifecycle_stage() -> None:
-    import asyncio
-
     import pytest
 
     from app.api.v1.endpoints.websocket_rotation import _wait_until
