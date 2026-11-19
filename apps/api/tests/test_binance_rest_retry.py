@@ -1,7 +1,6 @@
 """Deterministic tests for bounded public Binance REST retry behaviour."""
 
 import asyncio
-
 from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 
@@ -131,8 +130,10 @@ def test_418_ban_is_never_retried_even_with_retry_after(
     asyncio.run(run())
 
 
+@pytest.mark.parametrize("status", [408, 500, 502, 503, 504])
 def test_transient_server_failure_retries_with_exponential_backoff(
     monkeypatch: pytest.MonkeyPatch,
+    status: int,
 ) -> None:
     async def run() -> None:
         delays: list[float] = []
