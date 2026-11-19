@@ -784,13 +784,13 @@ GitHub Actions Backend and Documentation CI run
 completed successfully on that exact PR head. Earlier CI attempts caught
 formatting-only issues; those were corrected before this successful run.
 
-**Merge status:** PR #44 is still open and has not been merged. This evidence
-verifies the proposed PR head, not the main branch or a production deployment.
-No production database writes, durable diagnostics, new endpoints, exchange
-credentials, private Binance endpoints, or trading operations were used.
+**Merge status:** PR #44 was merged to `main` as commit
+`84059a6783d6eff0193549270c64212b7a5b4d7b`. CI verifies the exact PR head;
+this does not by itself establish a production deployment. No production
+database writes, durable diagnostics, new endpoints, exchange credentials,
+private Binance endpoints, or trading operations were used.
 
-**G3-10 is CI-verified on its PR head, pending merge.** Gate 3 remains
-incomplete.
+**G3-10 is merged and CI-verified.** Gate 3 remains incomplete.
 
 ## 26. G3-11 market-data provenance and audit records — implementation and CI evidence
 
@@ -835,18 +835,18 @@ GitHub Actions Backend and Documentation CI run
 completed successfully on that exact commit. Earlier CI attempts caught
 formatting and lint issues; those were corrected before this successful run.
 
-**Merge status:** implementation PR #46 remains open and unmerged. The
-successful CI result verifies the PR head, not main or production deployment.
+**Merge status:** implementation PR #46 was merged to `main` as commit
+`327faa7172171848930abc8884dfc79b76537c8f`. The successful CI result verifies
+the exact PR head; it does not by itself establish production deployment.
 No production database writes, diagnostics, schema changes, credentials,
 private Binance endpoints, or trading operations were used.
 
-**G3-11 is CI-verified on its PR head, pending merge.** Gate 3 remains
-incomplete.
+**G3-11 is merged and CI-verified.** Gate 3 remains incomplete.
 
 ## 27. Next implementation item — G3-12 decision-safety enforcement
 
-After PR #46 is merged, proceed to **G3-12: ensure stale, incomplete,
-contradictory, or unverified market inputs cannot produce trading decisions**.
+Proceed to **G3-12: ensure stale, incomplete, contradictory, or unverified
+market inputs cannot produce trading decisions**.
 
 Inspect every decision-generation entry point and its input contract. Enforce
 a single fail-closed gate immediately before decision generation, not merely
