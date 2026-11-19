@@ -118,9 +118,10 @@ class BaymaxIntentClassifier:
                             "null and request clarification for current-market intent. "
                             "Do not infer a quote asset. Set needs_clarification when the intent "
                             "or required symbol is ambiguous. Set decision_requested=true whenever "
-                            "the user asks Baymax to recommend or decide whether to buy, sell, hold, "
-                            "go long/short, enter, exit, or set a stop-loss/take-profit. When unsure, "
-                            "set it true. Confidence must reflect classification certainty."
+                            "the user asks Baymax to recommend or decide whether to buy, "
+                            "sell, hold, go long/short, enter, exit, or set a stop-loss/"
+                            "take-profit. When unsure, set it true. Confidence must reflect "
+                            "classification certainty."
                         ),
                     },
                     {"role": "user", "content": json.dumps({"message": message})},
