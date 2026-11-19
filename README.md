@@ -97,6 +97,14 @@ independent machine inspection. The frontend npm-lockfile hardening note
 remains non-blocking. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
 for findings and evidence.
 
+**G3-14 is passed and CI-verified** on the merged main commit
+`831d587bcc7bf892933421a16eb3d58395218360`. Post-merge GitHub Actions run
+[44554444224](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44554444224)
+passed Ruff format, Ruff lint, mypy, **187 pytest tests (1 warning)**, and
+the strict Zensical documentation build. This confirms CI for that source
+revision; it does not independently prove the Render deployment is running
+that revision. G3-15 live Binance payload-parsing smoke evidence remains open.
+
 A successful connection or green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational
 evidence.

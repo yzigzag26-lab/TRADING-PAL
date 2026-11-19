@@ -1036,10 +1036,32 @@ owner-confirmed Render environment-name check is recorded above. Neither CI
 nor that owner confirmation proves which source revision is currently
 deployed.
 
-## 29. Next implementation item — G3-14 CI evidence
+## 29. G3-14 backend quality checks and strict documentation-build evidence
 
-After G3-13 is closed, proceed to G3-14: verify backend quality checks and
-strict documentation build pass in GitHub Actions on the exact reviewed
-commit, with the workflow run linked from the Gate 3 evidence. Keep
-implementation and deployment status distinct; a passing CI run does not
-prove production deployment.
+G3-14 was verified after PR #58 was merged to `main` as commit
+`831d587bcc7bf892933421a16eb3d58395218360`.
+
+The post-merge GitHub Actions workflow
+[44554444224](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44554444224)
+checked out that exact merge commit and completed successfully. The
+`Python 3.12 quality checks and documentation build` job reported:
+
+- Ruff format check — passed (73 files already formatted).
+- Ruff lint — passed.
+- mypy — passed (73 source files; no issues).
+- pytest — **187 passed, 1 warning**.
+- Strict Zensical documentation build — passed (no issues found).
+
+The single pytest warning is a Starlette deprecation warning concerning
+`httpx` with `starlette.testclient`; it did not fail the job.
+
+**G3-14 backend quality checks and strict documentation build: passed and
+CI-verified on the merged main commit.** This evidence verifies the backend
+quality/test suite and documentation build for the stated source revision.
+It does not prove that Render is currently serving that revision or that
+production market-data acceptance is complete.
+
+**Next:** G3-15 live Binance payload-parsing smoke evidence remains to be
+verified. G3-08 remains not applicable because no local depth book is
+implemented. Gate 3 remains incomplete until every other applicable
+acceptance criterion has reproducible evidence.
