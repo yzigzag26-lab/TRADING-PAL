@@ -352,7 +352,9 @@ def test_candle_series_rejects_out_of_range_candle() -> None:
         {"open_time": START + timedelta(seconds=1)},
     ],
 )
-def test_invalid_or_incomplete_candle_fields_fail_closed(changes: dict[str, object]) -> None:
+def test_invalid_or_incomplete_candle_fields_fail_closed(
+    changes: dict[str, object],
+) -> None:
     values: dict[str, object] = {
         "symbol": "BTCUSDT",
         "interval": "1m",
