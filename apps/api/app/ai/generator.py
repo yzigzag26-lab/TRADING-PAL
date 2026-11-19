@@ -40,6 +40,7 @@ class BaymaxAnalysisGenerator:
             "intent": prepared.intent,
             "market_data_required": prepared.market_data_required,
             "market_data_status": prepared.market_data_status,
+            "decision_requested": request.decision_requested,
             "market_snapshot_id": (
                 str(prepared.market_snapshot_id) if prepared.market_snapshot_id else None
             ),
