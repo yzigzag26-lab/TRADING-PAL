@@ -2,10 +2,24 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 
 from app.market_data.candles import HistoricalCandleSeries, expected_open_times
 from app.orchestration.requests import AnalysisInputUnavailable, AnalysisRequest, PreparedAnalysisInput
+
+
+def is_trading_decision_request(message: str, *, intent: str) -> bool:
+    """Conservatively identify explicit buy/sell/position requests in live-market messages."""
+    if intent != "current_market":
+        return False
+    return re.search(
+        r"\\b(should\\s+i|would\\s+you|recommend(?:ation)?|buy|sell|hold|"
+        r"go\\s+long|go\\s+short|entry|exit|stop[- ]loss|take[- ]profit|"
+        r"trading\\s+signal|trade\\s+signal)\\b",
+        message,
+        flags=re.IGNORECASE,
+    ) is not None
 
 
 def _utc(value: datetime, label: str) -> datetime:
@@ -30,7 +44,10 @@ def validate_historical_series_for_decision(
         raise AnalysisInputUnavailable("Historical series is incomplete or contains unresolved candle gaps.")
     if not series.candles:
         raise AnalysisInputUnavailable("Historical series contains no candles.")
-    expected = expected_open_times(series.requested_start, series.requested_end, series.interval)
+    try:
+        expected = expected_open_times(series.requested_start, series.requested_end, series.interval)
+    except ValueError as exc:
+        raise AnalysisInputUnavailable("Historical series range is invalid.") from exc
     actual = tuple(candle.open_time for candle in series.candles)
     if actual != tuple(expected):
         raise AnalysisInputUnavailable("Historical candle sequence is incomplete or contradictory.")
@@ -39,8 +56,9 @@ def validate_historical_series_for_decision(
             raise AnalysisInputUnavailable("Historical candle identity conflicts with its series.")
         if not candle.is_closed or candle.close_time >= current_time:
             raise AnalysisInputUnavailable("Open candles cannot be used for a trading decision.")
-        if _utc(candle.received_time, "Candle receive timestamp") > current_time:
-            raise AnalysisInputUnavailable("Historical candle receive timestamp is in the future.")
+        received_time = _utc(candle.received_time, "Candle receive timestamp")
+        if received_time < candle.close_time or received_time > current_time:
+            raise AnalysisInputUnavailable("Historical candle receive timestamp is contradictory.")
 
 
 def validate_prepared_analysis_inputs(
