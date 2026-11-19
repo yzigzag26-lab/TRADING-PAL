@@ -213,7 +213,7 @@ def test_stream_trade_id_gap_requires_rest_reconciliation() -> None:
                 price=Decimal("105"),
                 market_event_timestamp=NOW + timedelta(milliseconds=202),
                 received_timestamp=NOW,
-                source=recovered_source,
+                source="binance_spot_rest",
                 event_id="202",
             )
 
@@ -378,7 +378,7 @@ def test_gap_reconciliation_rejects_wrong_symbol_or_non_rest_payload(
                 price=Decimal("105"),
                 market_event_timestamp=NOW,
                 received_timestamp=NOW,
-                source="binance_spot_rest",
+                source=recovered_source,
                 event_id="202",
             )
 
