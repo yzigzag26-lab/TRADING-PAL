@@ -1,7 +1,7 @@
 # Gate 3 — Binance Spot market data freshness and reliability
 
 **Specification:** Baymax Market Data Freshness & Reliability v1.0  
-**Status:** Owner-approved acceptance contract; final acceptance audit completed 2026-11-19. Gate 3 remains incomplete because G3-05 lacks explicit deterministic ping/pong keepalive evidence. See Section 31.  
+**Status:** Gate 3 acceptance audit closed on 2026-11-19. All mandatory applicable criteria G3-01–G3-15 passed; G3-08 is not applicable because no local order book is in scope. G3-05 ping/pong and keepalive-timeout recovery evidence is recorded in Section 31. Production deployment caveats remain explicit.  
 **Applies to:** Gate 3 of the private, single-owner Baymax system.  
 **Exchange:** Binance Spot only.  
 **Access:** Public market data, read-only.  
@@ -1145,7 +1145,7 @@ This is an evidence audit, not a new implementation or deployment.
 | G3-02 | **Passed** | Deterministic freshness tests cover the 3,000 ms acceptance boundary and rejection beyond it; source timestamps are preserved. |
 | G3-03 | **Passed** | Current-market orchestration obtains validated market data; cache reads are revalidated at consumption and stale cache triggers bounded REST recovery or unavailable. Educational/programming intents do not fetch market data; historical retrieval is a separate bounded endpoint. |
 | G3-04 | **Passed** | Freshness validation rejects missing/untrusted timestamps, unhealthy source and unhealthy clock; NTP monitor tests cover insufficient, disagreeing, excessive-offset and expired clock consensus. Production NTP consensus was also observed. |
-| G3-05 | **Partially passed — OPEN** | Deterministic tests cover planned 23h50m rotation configuration, connection-state transitions, disconnect and reconnection; the owner-authenticated five-second production diagnostic passed with resubscription and a fresh 52 ms post-reconnect event. The adapter configures ping_interval=20 and ping_timeout=60, relying on the websockets protocol implementation for ping/pong, but the current deterministic test suite does not explicitly verify ping/pong handling or keepalive timeout behaviour. This required evidence gap prevents Gate 3 closure. |
+| G3-05 | **Passed** | Deterministic in-process WebSocket server test sends a protocol ping and waits for the client's automatic pong before delivering a trade. A second deterministic test asserts the 20s ping interval and 60s timeout, injects the websockets `ConnectionClosedError` emitted for an expired keepalive, and verifies disconnect-state reporting, reconnection and resumed trade delivery. Existing lifecycle tests cover the 23h50m rotation setting. The owner-authenticated five-second production rotation diagnostic also passed with resubscription and a fresh 52 ms post-reconnect event. |
 | G3-06 | **Passed** | Deterministic duplicate/out-of-order trade-ID, forward-gap, REST reconciliation, failed/behind recovery and resumed-stream tests passed. |
 | G3-07 | **Passed** | Deterministic OHLC, volume, interval alignment, open/closed state, chronology, continuity and explicit gap tests passed. |
 | G3-08 | **Not applicable** | No local depth/order-book subsystem is implemented. Reassess only if depth is added to approved scope. |
@@ -1157,27 +1157,60 @@ This is an evidence audit, not a new implementation or deployment.
 | G3-14 | **Passed** | Post-merge backend CI run [44558506927](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44558506927) on documentation merge commit fc7e879cab42ad279cd892e1c3d1e7822701ec98 passed Ruff format/lint, mypy, pytest and strict Zensical build. |
 | G3-15 | **Passed** | Live public Binance Spot REST and WebSocket payloads parsed through repository adapters on GitHub Actions; final smoke run [44557857928](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44557857928) passed 188 tests. A 10,067 ms WebSocket event was correctly classified as stale. This smoke was not executed inside the Render process. |
 
+### G3-05 ping/pong verification and closure evidence
+
+Implementation PR [#63](https://github.com/yzigzag26-lab/TRADING-PAL/pull/63)
+was merged to `main` as `9e791400ffb6dacec7a44c38259849a87e7da4a8`.
+The WebSocket adapter now names its keepalive policy explicitly:
+`WEBSOCKET_PING_INTERVAL_SECONDS = 20` and
+`WEBSOCKET_PING_TIMEOUT_SECONDS = 60`.
+
+Two deterministic tests were added to
+`apps/api/tests/test_binance_market_data.py`:
+
+1. `test_websocket_client_automatically_pongs_server_ping` starts an
+   in-process WebSocket server, sends a protocol-level ping, waits for the
+   matching pong, and only then sends a trade payload. The repository adapter
+   receives and parses that trade, proving the client's protocol ping/pong
+   handling works.
+2. `test_keepalive_timeout_marks_connection_failed_and_reconnects` verifies
+   the configured 20s/60s keepalive options and injects the
+   `ConnectionClosedError` used by the websockets client when a keepalive
+   ping is not acknowledged before timeout. It asserts the stream reports the
+   connection down, opens a new connection, reports it up, and resumes trade
+   delivery. The timeout exception is injected deterministically rather than
+   waiting 60 seconds for a wall-clock timeout; the first test independently
+   exercises real protocol-level pong handling.
+
+Validation on exact PR head
+`72044ddc318ee7167d896a50597e98a5e4db25f8`:
+[GitHub Actions run 44563515699](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44563515699)
+passed Ruff format (73 files already formatted), Ruff lint, mypy (73 source
+files), pytest (**189 passed, 1 warning**) and strict Zensical build. The
+warning is non-blocking and is recorded in the workflow output.
+
+No changes were made to the 3,000 ms freshness boundary or 23h50m planned
+rotation. No credentials, private endpoints, production database writes,
+production diagnostics or trading operations were used for these tests.
+
 ### Required closure action
 
-Add deterministic WebSocket protocol-level coverage that verifies the configured
-ping/pong keepalive behaviour and that a missed pong/keepalive timeout causes
-the connection to be treated as failed and recovered through the existing
-reconnect path. Then run the backend quality suite and strict documentation
-build on the exact reviewed commit, update this audit with the evidence, and
-reassess G3-05. Do not change the approved 3,000 ms freshness limit or the
-23h50m planned rotation interval to make the test pass.
+No further G3-05 implementation action remains. Its protocol-level pong handling and deterministic timeout/recovery path are now covered and CI-verified as recorded above.
 
 ### Final decision
 
-**Gate 3 is NOT COMPLETE as of 2026-11-19.** Fourteen criteria are passed or
-not applicable; G3-05 remains partially open solely because explicit
-deterministic ping/pong keepalive evidence is missing. The five-second
-production rotation diagnostic is successful, but it does not substitute for
-that protocol-level test. No implementation code was changed by this audit.
+**Gate 3 acceptance is COMPLETE as of 2026-11-19.** G3-01–G3-07 and
+G3-09–G3-15 are passed; G3-08 is not applicable because no local order-book
+subsystem is implemented. G3-05 now has deterministic protocol-level pong
+handling and keepalive-timeout recovery coverage, plus the successful
+owner-authenticated production rotation diagnostic. All mandatory applicable
+acceptance criteria have reproducible evidence. This is Gate 3 acceptance of
+the merged source and test evidence; it is not a claim that Render has been
+independently verified to be serving the final merge commit.
 
 Separate release caveats remain explicit: the live payload smoke ran on a
 GitHub-hosted runner rather than inside Render, and the owner-confirmed Render
-secret-name check was not independently machine-inspected. These caveats are
-not misrepresented as stronger evidence than was actually collected. The
-frontend Vercel checks were rate-limited on the latest documentation commit;
-the Gate 3 backend quality and strict documentation-build job passed.
+secret-name check was not independently machine-inspected. The successful
+backend CI and source-level acceptance do not prove the final commit is
+currently deployed to Render. Frontend Vercel checks were rate-limited on
+some PRs; this does not change the backend Gate 3 acceptance result.
