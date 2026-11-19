@@ -304,6 +304,7 @@ def test_invalid_stale_rest_recovery_is_never_cached() -> None:
 
     asyncio.run(run())
 
+
 def _trade_event(trade_id: int, *, price: str = "95000") -> PriceEvent:
     return PriceEvent(
         symbol="BTCUSDT",
