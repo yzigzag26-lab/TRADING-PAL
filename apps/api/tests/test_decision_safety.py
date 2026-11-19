@@ -8,9 +8,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.ai.classifier import IntentClassification
+from app.ai.classifier import BaymaxIntentClassifier, IntentClassification
 from app.ai.engine import BaymaxAIEngine
-from app.ai.classifier import BaymaxIntentClassifier
 from app.ai.generator import BaymaxAnalysisGenerator
 from app.market_data.candles import HistoricalCandle, HistoricalCandleSeries
 from app.market_data.decision_safety import (
@@ -22,13 +21,18 @@ from app.market_data.models import ValidatedPrice
 from app.orchestration.requests import (
     AnalysisInputUnavailable,
     AnalysisRequest,
-    PreparedAnalysisInput,
     BaymaxRequestOrchestrator,
+    PreparedAnalysisInput,
 )
 
 
-def _price(now: datetime, *, event_age_ms: int = 0, symbol: str = "BTCUSDT",
-           event_id: str | None = "123456") -> ValidatedPrice:
+def _price(
+    now: datetime,
+    *,
+    event_age_ms: int = 0,
+    symbol: str = "BTCUSDT",
+    event_id: str | None = "123456",
+) -> ValidatedPrice:
     event_time = now - timedelta(milliseconds=event_age_ms)
     received_time = now - timedelta(milliseconds=min(event_age_ms, 1))
     return ValidatedPrice(
@@ -204,7 +208,9 @@ class _Classifier:
         self,
         *,
         decision_requested: bool = False,
-        intent: Literal["educational", "programming", "current_market", "historical_market"] = "current_market",
+        intent: Literal[
+            "educational", "programming", "current_market", "historical_market"
+        ] = "current_market",
     ) -> None:
         self.decision_requested = decision_requested
         self.intent = intent
@@ -260,13 +266,16 @@ def test_engine_blocks_explicit_trading_decision_before_generator() -> None:
     engine = BaymaxAIEngine(
         classifier=cast(BaymaxIntentClassifier, _Classifier()),
         generator=cast(BaymaxAnalysisGenerator, generator),
-        orchestrator=cast(BaymaxRequestOrchestrator, _Orchestrator(
-            PreparedAnalysisInput(
+        orchestrator=cast(
+            BaymaxRequestOrchestrator,
+            _Orchestrator(
+                PreparedAnalysisInput(
                 intent="current_market",
                 market_data_required=True,
-                market_data_status="decision_blocked",
-            )
-        )),
+                    market_data_status="decision_blocked",
+                )
+            ),
+        ),
         decision_clock=lambda: now,
     )
     with pytest.raises(AnalysisInputUnavailable, match="trading recommendation"):
@@ -283,16 +292,18 @@ def test_engine_keeps_educational_responses_available_without_market_data() -> N
             PreparedAnalysisInput(
                 intent="educational",
                 market_data_required=False,
-                market_data_status="not_required",
-            )
-        )),
+                    market_data_status="not_required",
+                )
+            ),
+        ),
     )
     result = asyncio.run(engine.respond("Explain support and resistance."))
     assert result.answer == "generated"
     assert generator.calls == 1
 
 
-def test_deterministic_detector_flags_recommendation_language_only_for_live_market() -> None:
+def test_deterministic_detector_flags_explicit_recommendation_language() -> None:
     assert is_trading_decision_request("Should I buy BTCUSDT now?", intent="current_market")
     assert is_trading_decision_request("Give me a trading signal", intent="current_market")
     assert not is_trading_decision_request("Explain what buy means", intent="educational")
+    assert is_trading_decision_request("Should I buy BTCUSDT?", intent="educational")
