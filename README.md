@@ -60,15 +60,16 @@ merged in PR #44 (commit
 Documentation CI on its exact PR head: Ruff format/lint, mypy, 168 pytest
 tests (1 warning), and strict Zensical build.
 
-G3-11 snapshot-to-audit linkage is implemented in PR #46 and passed Backend
-and Documentation CI on exact PR head
+G3-11 snapshot-to-audit linkage was implemented in PR #46 and merged to `main`
+as commit `327faa7172171848930abc8884dfc79b76537c8f`. Backend and
+Documentation CI passed on exact PR head
 `919109ef9f670f8c49405bce9dab77da7a0a9f71`: Ruff format/lint, mypy,
 170 pytest tests (1 warning), and strict Zensical build. Current-price and
 historical snapshots are linked to append-only audit rows in the same database
 transaction, with request and snapshot identity; persistence failure blocks
-market-dependent analysis. **PR #46 is still open and not merged. G3-12 is
-the next implementation task after that merge:** enforce decision-safety
-against stale, incomplete, contradictory, or unverified inputs. See the
+market-dependent analysis. **G3-11 is merged. G3-12 is now the next
+implementation task:** enforce decision-safety against stale, incomplete,
+contradictory, or unverified inputs. See the
 [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md) for the acceptance
 plan and evidence.
 
