@@ -55,14 +55,19 @@ def test_rotation_diagnostic_uses_extended_stage_and_overall_timeouts() -> None:
     assert ROTATION_TEST_CLEANUP_TIMEOUT_SECONDS == 15.0
 
 
-async def test_rotation_wait_timeout_identifies_the_failed_lifecycle_stage() -> None:
+def test_rotation_wait_timeout_identifies_the_failed_lifecycle_stage() -> None:
+    import asyncio
+
     import pytest
 
     from app.api.v1.endpoints.websocket_rotation import _wait_until
 
-    with pytest.raises(TimeoutError, match="replacement WebSocket subscription"):
+    async def wait_for_never_ready_stage() -> None:
         await _wait_until(
             lambda: False,
             timeout_seconds=0.01,
             description="replacement WebSocket subscription",
         )
+
+    with pytest.raises(TimeoutError, match="replacement WebSocket subscription"):
+        asyncio.run(wait_for_never_ready_stage())
