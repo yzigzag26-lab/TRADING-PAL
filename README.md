@@ -54,9 +54,14 @@ commit with independent Supabase readback, and the G3-05 forced five-second
 WebSocket rotation/recovery diagnostic. G3-06 trade-sequence integrity and
 G3-07 candle integrity have been merged with deterministic CI evidence.
 G3-08 is not applicable because the current implementation has no local depth
-book. **G3-09 bounded REST retry handling is in implementation.** It is not accepted until deterministic tests and backend CI pass.
-Other mandatory criteria remain open until their required deterministic and
-operational evidence is recorded. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md).
+book. G3-09 bounded REST retry handling was merged in PR #42
+(commit `1013a8afbcd96919e945398812f44b0506240e4b`) and passed Backend and
+Documentation CI on the exact PR head: Ruff format/lint, mypy, 166 pytest
+tests (1 warning), and strict Zensical build. Vercel deployment checks were
+rate-limited; no new deployment is claimed. **The next task is G3-10:
+deterministic verification that cache reuse cannot bypass consume-time
+freshness validation.** See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
+for the acceptance evidence and next-step plan.
 
 A successful connection or a green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational
