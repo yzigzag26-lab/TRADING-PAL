@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
+from typing import Literal
+from uuid import UUID
 from decimal import Decimal
 from uuid import uuid4
 
@@ -71,7 +74,7 @@ def test_final_gate_accepts_fresh_consistent_and_traceable_price_at_3000ms() -> 
     ("event_age_ms", "message"),
     [
         (3_001, "expired"),
-        (-1, "contradictory"),
+        (-1, "timestamps"),
     ],
 )
 def test_final_gate_rejects_stale_or_future_market_data(event_age_ms: int, message: str) -> None:
@@ -194,7 +197,12 @@ def test_historical_decision_gate_rejects_open_candles() -> None:
 
 
 class _Classifier:
-    def __init__(self, *, decision_requested: bool = False, intent: str = "current_market") -> None:
+    def __init__(
+        self,
+        *,
+        decision_requested: bool = False,
+        intent: Literal["educational", "programming", "current_market", "historical_market"] = "current_market",
+    ) -> None:
         self.decision_requested = decision_requested
         self.intent = intent
 
@@ -212,7 +220,9 @@ class _Orchestrator:
     def __init__(self, prepared: PreparedAnalysisInput) -> None:
         self.prepared = prepared
 
-    async def prepare(self, request: AnalysisRequest, *, request_id=None) -> PreparedAnalysisInput:
+    async def prepare(
+        self, request: AnalysisRequest, *, request_id: UUID | None = None
+    ) -> PreparedAnalysisInput:
         return self.prepared
 
 
