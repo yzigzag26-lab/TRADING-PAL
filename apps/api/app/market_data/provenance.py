@@ -8,6 +8,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.db.models.audit_log import AuditLog
 from app.db.models.market_data_snapshot import MarketDataSnapshot
 from app.market_data.candles import HistoricalCandleSeries
 from app.market_data.models import ValidatedPrice
@@ -53,11 +54,20 @@ class MarketDataProvenanceRepository:
                 "event_id": price.event_id,
             },
         )
-        with self._session_factory() as session:
-            session.add(row)
-            session.commit()
-            session.refresh(row)
-            return row.id
+        return self._commit_snapshot_with_audit(
+            row,
+            request_id=request_id,
+            metadata={
+                "exchange": price.exchange,
+                "market": price.market,
+                "symbol": price.symbol,
+                "data_type": "trade_price",
+                "source": price.source,
+                "validation_state": "VALIDATED",
+                "validated_timestamp": price.validated_timestamp.isoformat(),
+                "age_ms_at_validation": price.age_ms_at_validation,
+            },
+        )
 
     def record_historical_series(
         self,
@@ -87,8 +97,44 @@ class MarketDataProvenanceRepository:
             request_id=request_id,
             payload=series.model_dump(mode="json", exclude={"snapshot_id"}),
         )
+        return self._commit_snapshot_with_audit(
+            row,
+            request_id=request_id,
+            metadata={
+                "exchange": "BINANCE",
+                "market": "SPOT",
+                "symbol": series.symbol,
+                "data_type": "historical_ohlcv",
+                "interval": series.interval,
+                "source": series.source,
+                "validation_state": "VALIDATED" if series.complete else "INCOMPLETE",
+                "is_complete": series.complete,
+            },
+        )
+
+    def _commit_snapshot_with_audit(
+        self,
+        snapshot: MarketDataSnapshot,
+        *,
+        request_id: UUID | None,
+        metadata: dict[str, object],
+    ) -> UUID:
+        """Atomically persist a snapshot and its request-linked audit reference."""
         with self._session_factory() as session:
-            session.add(row)
+            session.add(snapshot)
+            session.flush()
+            if snapshot.id is None:
+                raise RuntimeError("Database did not assign a market snapshot ID")
+            session.add(
+                AuditLog(
+                    event_type="market_data.snapshot_recorded",
+                    actor_type="service",
+                    resource_type="market_data_snapshot",
+                    resource_id=str(snapshot.id),
+                    request_id=request_id,
+                    metadata_=metadata,
+                )
+            )
             session.commit()
-            session.refresh(row)
-            return row.id
+            session.refresh(snapshot)
+            return snapshot.id
