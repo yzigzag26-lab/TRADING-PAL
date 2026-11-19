@@ -132,6 +132,7 @@ class BinanceMarketDataService:
                 current_id = self._numeric_trade_id(event)
                 if event.symbol != symbol or current_id is None:
                     self._stream_healthy.discard(symbol)
+                    self._events.pop(symbol, None)
                     continue
 
                 previous = self._events.get(symbol)
