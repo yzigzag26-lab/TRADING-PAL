@@ -49,8 +49,40 @@ def test_rest_rate_limit_fails_closed(status: int) -> None:
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         rest = BinanceSpotRestClient(base_url="https://test.invalid", client=client)
-        with pytest.raises(MarketDataUnavailable, match="rate limited"):
+        with pytest.raises(MarketDataUnavailable, match="HTTP 418|HTTP 429"):
             await rest.latest_trade("BTCUSDT")
+        await client.aclose()
+
+    asyncio.run(run())
+
+
+
+def test_latest_trade_retries_http_429_and_returns_validated_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def run() -> None:
+        calls = 0
+
+        async def sleep(_: float) -> None:
+            return None
+
+        def handler(_: httpx.Request) -> httpx.Response:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return httpx.Response(429, headers={"Retry-After": "0"})
+            return httpx.Response(
+                200,
+                json=[{"id": 124, "price": "95001.12", "time": int(NOW.timestamp() * 1000)}],
+            )
+
+        monkeypatch.setattr("app.market_data.rest_retry.asyncio.sleep", sleep)
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        rest = BinanceSpotRestClient(base_url="https://test.invalid", client=client)
+        event = await rest.latest_trade("BTCUSDT")
+        assert calls == 2
+        assert event.event_id == "124"
+        assert event.price == Decimal("95001.12")
         await client.aclose()
 
     asyncio.run(run())
