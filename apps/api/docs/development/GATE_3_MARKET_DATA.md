@@ -240,7 +240,7 @@ Gate 3 is complete only when every applicable criterion below has reproducible e
 | G3-02 | Live price events preserve source timestamps and are validated against the 3-second maximum | Deterministic unit tests at boundary values (<=3,000 ms accepted; >3,000 ms rejected) |
 | G3-03 | Every market-dependent current query obtains/revalidates a fresh snapshot | Service/API tests proving old cache is refreshed or rejected |
 | G3-04 | Missing/untrusted timestamps and unhealthy clock state fail closed | Negative tests |
-| G3-05 | WebSocket ping/pong, planned 24-hour reconnect, disconnect detection and resubscription work | Deterministic lifecycle tests plus owner-authenticated forced 5-second production rotation diagnostic; deployed response still pending |
+| G3-05 | WebSocket ping/pong, planned 24-hour reconnect, disconnect detection and resubscription work | Deterministic lifecycle tests plus owner-authenticated forced 5-second production rotation diagnostic; production response passed 2026-11-19 (see Section 21) |
 | G3-06 | Duplicate/out-of-order events and sequence gaps are detected/handled safely | Deterministic event-sequence tests |
 | G3-07 | Candle OHLC, interval continuity and open/closed state are validated | Fixture-based candle and gap tests |
 | G3-08 | If local depth book is implemented, snapshot/update-ID synchronization and gap rebuild work | Depth snapshot/stream reconciliation tests |
@@ -556,3 +556,55 @@ verified. The forced five-second exercise verifies the same rotation code
 path, but does not claim a single connection was maintained for 23 hours and
 50 minutes. Until an actual production response is recorded, G3-05 and Gate 3
 remain open.
+
+
+## 21. G3-05 forced WebSocket rotation — production evidence (2026-11-19)
+
+The owner-authenticated `POST /api/v1/diagnostics/gate-3/websocket-rotation`
+was executed against the deployed production service after the timeout-budget
+fix was deployed. At `2026-11-19T08:50:58.474595Z`, the endpoint returned
+`status: "passed"`.
+
+| Check | Production result |
+|---|---|
+| Symbol | `BTCUSDT` |
+| Forced connection lifetime | 5 seconds |
+| Initial WebSocket trade | Passed; trade ID present |
+| Planned disconnect | Passed; disconnect observed |
+| Resubscription | Passed; connection count 2; first connection lifetime 5 seconds |
+| Fresh post-reconnect trade | Passed; source `binance_spot_websocket`; trade ID `6879967166` |
+| Post-reconnect event age | 52 ms |
+| Accepted price | `63574.00000000` |
+| Consume-time validation | Passed |
+
+The response proves that this deployed diagnostic instance accepted an initial
+WebSocket trade, observed the forced planned disconnect, established a second
+subscription, accepted a fresh trade from the replacement WebSocket, and
+validated that event through the normal consume-time freshness boundary.
+
+The diagnostic uses an isolated service instance with a five-second rotation
+lifetime. It does not change the application-owned service's normal
+23-hour-50-minute rotation setting, does not write a database row, and does not
+use Binance credentials, private endpoints, or trading operations.
+
+**Evidence limitation:** this production exercise verifies the forced
+short-duration rotation/recovery code path. It does not claim that a single
+production connection was kept open for 23 hours and 50 minutes, nor does it
+replace deterministic lifecycle/ping-pong tests. G3-05's production forced
+rotation check is now recorded as passed; Gate 3 remains open pending all
+other applicable acceptance evidence.
+
+### Updated acceptance tracker
+
+- **G3-05:** forced five-second production rotation diagnostic passed on
+  2026-11-19. The response proves disconnect observation, replacement
+  subscription, and fresh post-reconnect WebSocket data accepted at 52 ms.
+  Retain deterministic lifecycle tests as required evidence.
+- **Next outstanding criterion: G3-06** — duplicate/out-of-order event
+  handling and sequence-gap detection/reconciliation. The contract requires
+  deterministic event-sequence tests. The implementation notes describe
+  duplicate/out-of-order trade-ID rejection and REST reconciliation after a
+  forward trade-ID gap, but the acceptance tracker still requires the
+  corresponding deterministic test evidence to be explicitly verified.
+- **Gate 3 status:** incomplete. Do not mark the gate complete until every
+  applicable criterion in Section 11 has reproducible evidence.
