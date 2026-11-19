@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
+from app.market_data.decision_safety import validate_prepared_analysis_inputs
 from app.orchestration.requests import (
     AnalysisInputUnavailable,
     AnalysisRequest,
@@ -65,8 +67,11 @@ class BaymaxAIEngine:
             message=message,
             intent=classification.intent,
             symbol=classification.symbol,
+            decision_requested=classification.decision_requested,
         )
         prepared = await self._orchestrator.prepare(request, request_id=request_id)
+        # Revalidate at the final boundary because data may expire during processing.
+        validate_prepared_analysis_inputs(request, prepared, now=datetime.now(UTC))
         answer = await self._generator.generate(request, prepared)
         return BaymaxAIResult(
             answer=answer,
