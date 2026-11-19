@@ -270,7 +270,6 @@ def test_overall_deadline_cancels_slow_request_and_fails_closed() -> None:
     asyncio.run(run())
 
 
-
 def test_retry_after_http_date_is_parsed_as_server_deadline() -> None:
     target = datetime.now(UTC) + timedelta(seconds=5)
     header = format_datetime(target.replace(microsecond=0), usegmt=True)
