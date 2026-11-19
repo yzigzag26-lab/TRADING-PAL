@@ -755,7 +755,6 @@ def test_stream_rejects_trade_without_numeric_sequence_id() -> None:
     asyncio.run(run())
 
 
-
 def test_websocket_client_automatically_pongs_server_ping() -> None:
     async def run() -> None:
         pong_received = asyncio.Event()
