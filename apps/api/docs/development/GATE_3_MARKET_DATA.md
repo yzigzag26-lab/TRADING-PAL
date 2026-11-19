@@ -1,7 +1,7 @@
 # Gate 3 — Binance Spot market data freshness and reliability
 
 **Specification:** Baymax Market Data Freshness & Reliability v1.0  
-**Status:** Owner-approved acceptance contract; Gate 3 implementation is merged and production acceptance is in progress. Production evidence is recorded in Section 19; Gate 3 remains incomplete.  
+**Status:** Owner-approved acceptance contract; final acceptance audit completed 2026-11-19. Gate 3 remains incomplete because G3-05 lacks explicit deterministic ping/pong keepalive evidence. See Section 31.  
 **Applies to:** Gate 3 of the private, single-owner Baymax system.  
 **Exchange:** Binance Spot only.  
 **Access:** Public market data, read-only.  
@@ -1131,3 +1131,53 @@ diagnostic mutations, or trading operations were used.
 **Gate 3 remains subject to a final acceptance audit.** G3-08 remains not
 applicable because Baymax has no local order-book implementation. Do not
 declare the overall Gate 3 complete solely from this smoke test.
+
+## 31. Final Gate 3 acceptance audit — 2026-11-19
+
+The final audit checked the binding acceptance matrix in Section 11 against
+merged implementation, deterministic tests, production diagnostics, security
+review, live adapter smoke evidence, and post-merge GitHub Actions results.
+This is an evidence audit, not a new implementation or deployment.
+
+| Criterion | Audit result | Evidence / qualification |
+|---|---|---|
+| G3-01 | **Passed** | Production diagnostic verified public Binance Spot REST and WebSocket connectivity; the live adapter smoke separately parsed real public REST and WebSocket payloads. Public-only scope is covered by repository/configuration review. |
+| G3-02 | **Passed** | Deterministic freshness tests cover the 3,000 ms acceptance boundary and rejection beyond it; source timestamps are preserved. |
+| G3-03 | **Passed** | Current-market orchestration obtains validated market data; cache reads are revalidated at consumption and stale cache triggers bounded REST recovery or unavailable. Educational/programming intents do not fetch market data; historical retrieval is a separate bounded endpoint. |
+| G3-04 | **Passed** | Freshness validation rejects missing/untrusted timestamps, unhealthy source and unhealthy clock; NTP monitor tests cover insufficient, disagreeing, excessive-offset and expired clock consensus. Production NTP consensus was also observed. |
+| G3-05 | **Partially passed — OPEN** | Deterministic tests cover planned 23h50m rotation configuration, connection-state transitions, disconnect and reconnection; the owner-authenticated five-second production diagnostic passed with resubscription and a fresh 52 ms post-reconnect event. The adapter configures ping_interval=20 and ping_timeout=60, relying on the websockets protocol implementation for ping/pong, but the current deterministic test suite does not explicitly verify ping/pong handling or keepalive timeout behaviour. This required evidence gap prevents Gate 3 closure. |
+| G3-06 | **Passed** | Deterministic duplicate/out-of-order trade-ID, forward-gap, REST reconciliation, failed/behind recovery and resumed-stream tests passed. |
+| G3-07 | **Passed** | Deterministic OHLC, volume, interval alignment, open/closed state, chronology, continuity and explicit gap tests passed. |
+| G3-08 | **Not applicable** | No local depth/order-book subsystem is implemented. Reassess only if depth is added to approved scope. |
+| G3-09 | **Passed** | Shared bounded REST retry policy covers 429/Retry-After, 418 no-retry, transient failures, permanent 4xx, cancellation and bounded attempts/waits. |
+| G3-10 | **Passed** | Cache-expiry and consume-time revalidation tests cover the 3,000/3,001 ms boundary, stale recovery and valid fresh-cache reuse. |
+| G3-11 | **Passed** | Snapshot and audit rows are transactionally linked; failure blocks analysis. Production durable snapshot commit and independent read-only database readback were recorded. |
+| G3-12 | **Passed** | Final pre-generation safety gate blocks stale, incomplete, contradictory, untrusted or untraceable inputs and prevents generator invocation. Trading recommendations remain intentionally blocked until the separate strategy-evidence pipeline exists. |
+| G3-13 | **Passed** | Static repository/configuration security review and regression tests passed. The absence of Binance credential variable names in Render was owner-confirmed; the integration did not expose the inventory for independent machine inspection. |
+| G3-14 | **Passed** | Post-merge backend CI run [44558506927](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44558506927) on documentation merge commit fc7e879cab42ad279cd892e1c3d1e7822701ec98 passed Ruff format/lint, mypy, pytest and strict Zensical build. |
+| G3-15 | **Passed** | Live public Binance Spot REST and WebSocket payloads parsed through repository adapters on GitHub Actions; final smoke run [44557857928](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44557857928) passed 188 tests. A 10,067 ms WebSocket event was correctly classified as stale. This smoke was not executed inside the Render process. |
+
+### Required closure action
+
+Add deterministic WebSocket protocol-level coverage that verifies the configured
+ping/pong keepalive behaviour and that a missed pong/keepalive timeout causes
+the connection to be treated as failed and recovered through the existing
+reconnect path. Then run the backend quality suite and strict documentation
+build on the exact reviewed commit, update this audit with the evidence, and
+reassess G3-05. Do not change the approved 3,000 ms freshness limit or the
+23h50m planned rotation interval to make the test pass.
+
+### Final decision
+
+**Gate 3 is NOT COMPLETE as of 2026-11-19.** Fourteen criteria are passed or
+not applicable; G3-05 remains partially open solely because explicit
+deterministic ping/pong keepalive evidence is missing. The five-second
+production rotation diagnostic is successful, but it does not substitute for
+that protocol-level test. No implementation code was changed by this audit.
+
+Separate release caveats remain explicit: the live payload smoke ran on a
+GitHub-hosted runner rather than inside Render, and the owner-confirmed Render
+secret-name check was not independently machine-inspected. These caveats are
+not misrepresented as stronger evidence than was actually collected. The
+frontend Vercel checks were rate-limited on the latest documentation commit;
+the Gate 3 backend quality and strict documentation-build job passed.
