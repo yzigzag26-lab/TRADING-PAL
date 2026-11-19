@@ -20,7 +20,6 @@ on:
       - "zensical.toml"
       - "requirements-docs.txt"
       - ".github/workflows/backend-ci.yml"
-      - "CLAUDE_WORKS.md"
       - "render.yaml"
 
 permissions:
