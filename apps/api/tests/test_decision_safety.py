@@ -140,12 +140,12 @@ def test_final_gate_rejects_timestamp_ordering_and_freshness_metadata_conflicts(
         validate_prepared_analysis_inputs(_request(), _prepared(false_age), now=now)
 
 
-
 def test_final_gate_rejects_untrusted_exchange_source() -> None:
     now = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
     untrusted = _price(now).model_copy(update={"source": "untrusted"})
     with pytest.raises(AnalysisInputUnavailable, match="source"):
         validate_prepared_analysis_inputs(_request(), _prepared(untrusted), now=now)
+
 
 def test_historical_decision_gate_rejects_incomplete_series_and_unresolved_gaps() -> None:
     start = datetime(2026, 11, 19, 11, 0, tzinfo=UTC)
@@ -267,7 +267,6 @@ def test_engine_rechecks_expiry_after_retrieval_and_never_calls_generator() -> N
     assert generator.calls == 0
 
 
-
 def test_engine_blocks_market_generation_without_audit_snapshot_id() -> None:
     now = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
     generator = _Generator()
@@ -290,6 +289,7 @@ def test_engine_blocks_market_generation_without_audit_snapshot_id() -> None:
     with pytest.raises(AnalysisInputUnavailable, match="provenance"):
         asyncio.run(engine.respond("What is BTCUSDT trading at?"))
     assert generator.calls == 0
+
 
 def test_engine_blocks_explicit_trading_decision_before_generator() -> None:
     now = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
