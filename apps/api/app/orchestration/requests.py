@@ -55,7 +55,7 @@ class PreparedAnalysisInput(BaseModel):
 
     intent: RequestIntent
     market_data_required: bool
-    market_data_status: Literal["not_required", "ready", "historical_not_implemented"]
+    market_data_status: Literal["not_required", "ready", "historical_not_implemented", "decision_blocked"]
     current_price: ValidatedPrice | None = None
     market_snapshot_id: UUID | None = None
 
