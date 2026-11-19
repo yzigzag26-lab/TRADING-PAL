@@ -88,12 +88,13 @@ production market-data fallback, and no additional provider/service
 declaration. Existing owner-session authorization remains enforced and is
 covered by tests.
 
-**G3-13 has one external verification outstanding:** the live Render
-environment-variable *names* were not inspected, so the review does not claim
-that an unused Binance credential is absent from the hosting secret store.
-No secret values were read. A non-blocking supply-chain hardening note is also
-recorded: the frontend has no npm lockfile, so dependency resolution is not
-fully reproducible. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
+**G3-13 is closed:** the repository/configuration review passed, and the
+owner confirmed that no Binance API-key/API-secret variable names are present
+in the live Render environment. No secret values were accessed or recorded;
+the Render integration did not expose the variable-name inventory, so this
+external check is explicitly attributed to owner confirmation rather than
+independent machine inspection. The frontend npm-lockfile hardening note
+remains non-blocking. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
 for findings and evidence.
 
 A successful connection or green CI run alone does not complete Gate 3.
