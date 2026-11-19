@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -37,10 +38,12 @@ class BaymaxAIEngine:
         classifier: BaymaxIntentClassifier,
         generator: BaymaxAnalysisGenerator,
         orchestrator: BaymaxRequestOrchestrator,
+        decision_clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._classifier = classifier
         self._generator = generator
         self._orchestrator = orchestrator
+        self._decision_clock = decision_clock or (lambda: datetime.now(UTC))
 
     async def respond(
         self,
@@ -71,7 +74,7 @@ class BaymaxAIEngine:
         )
         prepared = await self._orchestrator.prepare(request, request_id=request_id)
         # Revalidate at the final boundary because data may expire during processing.
-        validate_prepared_analysis_inputs(request, prepared, now=datetime.now(UTC))
+        validate_prepared_analysis_inputs(request, prepared, now=self._decision_clock())
         answer = await self._generator.generate(request, prepared)
         return BaymaxAIResult(
             answer=answer,
