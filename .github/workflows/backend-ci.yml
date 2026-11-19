@@ -49,6 +49,8 @@ jobs:
           python -m pip install -e ".[dev]"
       - name: Install documentation tools
         run: python -m pip install -r ../../requirements-docs.txt
+      - name: Temporary Ruff format diff
+        run: ruff format --diff app tests || true
       - name: Ruff format check
         run: ruff format --check app tests
       - name: Ruff lint
