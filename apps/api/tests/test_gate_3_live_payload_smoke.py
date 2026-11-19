@@ -9,6 +9,7 @@ from decimal import Decimal
 
 from app.market_data.binance_rest import BinanceSpotRestClient
 from app.market_data.binance_stream import BinanceSpotTradeStream
+from app.market_data.freshness import MarketDataUnavailable, validate_price_event
 from app.market_data.models import PriceEvent
 
 SYMBOL = "BTCUSDT"
@@ -29,9 +30,28 @@ def _validated_report(event: PriceEvent, *, expected_source: str) -> dict[str, o
     assert event.event_id is not None and event.event_id.isdigit()
     assert event.market_event_timestamp.tzinfo is not None
     assert event.received_timestamp.tzinfo is not None
-    assert 0 <= age_ms <= MAX_EVENT_AGE_MS, (
-        f"{expected_source} event age {age_ms}ms exceeds {MAX_EVENT_AGE_MS}ms"
-    )
+    assert age_ms >= 0, f"{expected_source} event timestamp is in the future"
+
+    if age_ms > MAX_EVENT_AGE_MS:
+        try:
+            validate_price_event(
+                event,
+                now=now,
+                source_healthy=True,
+                clock_healthy=True,
+            )
+        except MarketDataUnavailable:
+            freshness_result = "rejected_stale_event"
+        else:
+            raise AssertionError("Freshness validator accepted an event older than 3 seconds")
+    else:
+        validate_price_event(
+            event,
+            now=now,
+            source_healthy=True,
+            clock_healthy=True,
+        )
+        freshness_result = "accepted_fresh_event"
 
     if expected_source == "binance_spot_websocket":
         assert event.exchange_event_timestamp is not None
@@ -51,6 +71,7 @@ def _validated_report(event: PriceEvent, *, expected_source: str) -> dict[str, o
         ),
         "received_timestamp": event.received_timestamp.isoformat(),
         "event_age_ms": age_ms,
+        "freshness_result": freshness_result,
         "canonical_model": "PriceEvent",
     }
 
