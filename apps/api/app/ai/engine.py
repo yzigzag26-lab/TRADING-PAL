@@ -9,7 +9,10 @@ from uuid import UUID
 
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
-from app.market_data.decision_safety import validate_prepared_analysis_inputs
+from app.market_data.decision_safety import (
+    is_trading_decision_request,
+    validate_prepared_analysis_inputs,
+)
 from app.orchestration.requests import (
     AnalysisInputUnavailable,
     AnalysisRequest,
@@ -70,7 +73,10 @@ class BaymaxAIEngine:
             message=message,
             intent=classification.intent,
             symbol=classification.symbol,
-            decision_requested=classification.decision_requested,
+            decision_requested=(
+                classification.decision_requested
+                or is_trading_decision_request(message, intent=classification.intent)
+            ),
         )
         prepared = await self._orchestrator.prepare(request, request_id=request_id)
         # Revalidate at the final boundary because data may expire during processing.
