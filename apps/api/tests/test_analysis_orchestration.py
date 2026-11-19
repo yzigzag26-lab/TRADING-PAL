@@ -259,7 +259,6 @@ def test_production_current_market_analysis_fails_closed_without_provenance() ->
     asyncio.run(run())
 
 
-
 def test_current_market_analysis_fails_closed_when_audit_persistence_fails() -> None:
     class FailingRecorder:
         def record_price(
