@@ -250,3 +250,39 @@ path, not a claim that the deployed connection has remained alive for 23 hours
 and 50 minutes. Deterministic lifecycle tests plus this production result are
 the combined evidence. G3-05 remains open until the owner runs the endpoint
 against the deployed backend and records its actual response and deployment.
+
+
+## Recorded production evidence — forced WebSocket rotation (2026-11-19)
+
+At `2026-11-19T08:50:58.474595Z`, the owner-authenticated
+`POST /api/v1/diagnostics/gate-3/websocket-rotation` returned
+`status: "passed"` against the deployed production service.
+
+- Symbol: `BTCUSDT`.
+- Forced connection lifetime: 5 seconds.
+- Initial WebSocket trade: passed; trade ID present.
+- Forced disconnect: passed; disconnect observed.
+- Resubscription: passed; connection count 2; first connection lifetime 5 seconds.
+- Fresh post-reconnect trade: passed; source
+  `binance_spot_websocket`; trade ID `6879967166`.
+- Post-reconnect event age: 52 ms.
+- Accepted price: `63574.00000000`.
+- Consume-time validation: passed.
+
+This is production evidence for the forced short-duration rotation path,
+disconnect detection, resubscription, and fresh WebSocket event acceptance.
+The diagnostic used an isolated service instance. It did not alter the
+application-owned 23-hour-50-minute rotation setting and did not write a
+database snapshot or use private Binance APIs/credentials/trading.
+
+The result does not claim a single connection was maintained for 23 hours and
+50 minutes. Keep deterministic lifecycle and ping/pong tests in the G3-05
+evidence set.
+
+### Next outstanding acceptance criterion
+
+G3-05's forced production rotation check is recorded as passed. The next
+criterion to close is **G3-06: duplicate/out-of-order event handling and
+sequence-gap detection/reconciliation**, with deterministic event-sequence
+tests required by the acceptance contract. Gate 3 remains incomplete until
+all applicable criteria have reproducible evidence.
