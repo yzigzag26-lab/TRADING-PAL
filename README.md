@@ -103,7 +103,17 @@ for findings and evidence.
 passed Ruff format, Ruff lint, mypy, **187 pytest tests (1 warning)**, and
 the strict Zensical documentation build. This confirms CI for that source
 revision; it does not independently prove the Render deployment is running
-that revision. G3-15 live Binance payload-parsing smoke evidence remains open.
+that revision. G3-15 live Binance payload parsing has now passed against live public Spot
+REST and WebSocket data using the repository adapters. The temporary smoke
+test passed in GitHub Actions run
+[44557857928](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44557857928)
+on exact test commit `2914dc03f9da5eb7c89d0e390d09cd9845adab5d` (188 pytest
+tests passed, one existing warning; Ruff, mypy, and strict docs build passed).
+An initial WebSocket event was 10,067 ms old and was treated as stale; the
+freshness validator must reject such events. The temporary test was removed
+after verification and was not merged. This does not prove the Render
+deployment is running that revision. See the [Gate 3 evidence](docs/development/GATE_3_MARKET_DATA.md).
+
 
 A successful connection or green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational

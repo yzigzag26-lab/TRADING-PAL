@@ -1065,3 +1065,69 @@ production market-data acceptance is complete.
 verified. G3-08 remains not applicable because no local depth book is
 implemented. Gate 3 remains incomplete until every other applicable
 acceptance criterion has reproducible evidence.
+
+## 30. G3-15 live Binance payload-parsing smoke evidence
+
+G3-15 was exercised against live Binance public Spot market data on
+2026-11-19 from a GitHub Actions runner, using Baymax's existing production
+adapter implementations:
+
+- REST: `BinanceSpotRestClient.latest_trade("BTCUSDT")`, backed by the
+  public `data-api.binance.vision/api/v3/trades` endpoint.
+- WebSocket: `BinanceSpotTradeStream.listen("BTCUSDT")`, backed by the
+  public `data-stream.binance.vision/ws/btcusdt@trade` stream.
+
+Both live responses were parsed into the canonical `PriceEvent` model. The
+smoke test validates Binance/Spot identity, BTCUSDT symbol, the expected
+adapter source, a finite positive `Decimal` price, numeric trade ID, and
+timezone-aware market/receive timestamps. The WebSocket event also preserves
+the exchange event timestamp separately from the trade timestamp.
+
+### Freshness observation
+
+The first live WebSocket sample parsed successfully but its trade timestamp
+was **10,067 ms old** when received, exceeding the 3,000 ms Gate 3 freshness
+limit. This is a stale event, not a parser failure. It must not be used for
+market-dependent analysis. The temporary smoke test was refined to separate
+payload parsing from freshness acceptance and to assert that the existing
+`validate_price_event()` boundary accepts a fresh event or rejects an event
+older than 3,000 ms. Existing deterministic freshness tests remain the
+authoritative boundary tests; the live smoke does not weaken that policy.
+
+### CI evidence
+
+The final temporary verification test was run on exact PR head
+`2914dc03f9da5eb7c89d0e390d09cd9845adab5d` by GitHub Actions run
+[44557857928](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44557857928).
+The job completed successfully:
+
+- Ruff format check — passed (74 files already formatted).
+- Ruff lint — passed.
+- mypy — passed (74 source files; no issues).
+- pytest — **188 passed, 1 warning**, including the live REST/WebSocket
+  payload-parsing smoke test.
+- Strict Zensical documentation build — passed.
+
+The one warning is the existing Starlette deprecation warning concerning
+`httpx` with `starlette.testclient`; it did not fail CI.
+
+The live smoke test was temporary and was not merged into the application or
+permanent test suite. Its verification-only PR #60 was closed unmerged after
+the evidence was captured. The temporary standalone script and temporary
+workflow were also removed. Ruff formatting, Ruff lint, and mypy all passed
+for the temporary test before cleanup. No temporary test file or workflow is
+retained on `main`.
+
+**G3-15 live payload parsing: passed and CI-verified against live public
+Binance Spot REST and WebSocket data.** This verifies the repository adapter
+parsers on a GitHub-hosted runner. It does not prove that Render is currently
+serving the same source revision, nor does it establish strategy quality or
+enable trading recommendations. The observed stale WebSocket sample was
+rejected by the freshness boundary and must remain unavailable to analysis.
+
+No Binance credentials, private endpoints, database writes, production
+diagnostic mutations, or trading operations were used.
+
+**Gate 3 remains subject to a final acceptance audit.** G3-08 remains not
+applicable because Baymax has no local order-book implementation. Do not
+declare the overall Gate 3 complete solely from this smoke test.
