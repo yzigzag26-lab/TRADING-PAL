@@ -9,9 +9,8 @@ MARKET_DATA = ROOT / "apps" / "api" / "app" / "market_data"
 
 def test_binance_adapters_remain_on_public_spot_market_data_hosts() -> None:
     rest = (MARKET_DATA / "binance_rest.py").read_text(encoding="utf-8")
-    historical = (MARKET_DATA / "binance_historical_rest.py").read_text(
-        encoding="utf-8"
-    )
+    historical_path = MARKET_DATA / "binance_historical_rest.py"
+    historical = historical_path.read_text(encoding="utf-8")
     stream = (MARKET_DATA / "binance_stream.py").read_text(encoding="utf-8")
 
     assert "data-api.binance.vision" in rest
