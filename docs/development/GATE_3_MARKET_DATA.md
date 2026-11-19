@@ -681,7 +681,7 @@ Gate 3 remains incomplete until all other applicable acceptance criteria are
 also evidenced.
 
 
-## 24. G3-08 applicability and G3-09 next acceptance item
+## 24. G3-08 applicability and G3-09 implementation status
 
 ### G3-08 — local order-book integrity: not applicable
 
@@ -695,43 +695,82 @@ current approved implementation**. Do not add an order-book subsystem solely
 to satisfy this conditional criterion. Reassess only if local depth is
 explicitly added to an approved scope.
 
-### G3-09 — REST rate limits and transient failures: next
+### G3-09 — REST rate limits and transient failures: merged and CI-verified
 
-G3-09 implementation is in progress on branch
-`feat/g3-09-bounded-binance-rest-retries`. The shared
-`app.market_data.rest_retry` policy is being applied to both the latest-trade
-and historical-kline REST adapters. The implementation must satisfy and tests
-must prove:
+G3-09 was implemented in PR #42
+(`feat: add bounded retry handling for Binance REST`) and merged to
+`main` on 2026-11-19 as commit
+`1013a8afbcd96919e945398812f44b0506240e4b`.
 
-- A valid delta-seconds or HTTP-date `Retry-After` value is honoured exactly;
-  the client must never retry before the server-specified time.
-- If `Retry-After` is absent or invalid, HTTP 429 uses bounded exponential
-  backoff with jitter. If the valid server delay exceeds the configured
-  cumulative wait budget, fail closed without retrying early.
-- HTTP 418 is treated as an IP-ban signal and is never automatically retried,
-  regardless of its `Retry-After` header.
-- HTTP 408, 5xx responses, and HTTP transport failures receive bounded
-  exponential backoff with jitter. Permanent 4xx responses are not retried.
+The shared `app.market_data.rest_retry` policy is used by both public Binance
+Spot REST adapters: latest-trade retrieval and historical-kline retrieval.
+Its safeguards are:
+
+- HTTP 429 honours valid delta-seconds and HTTP-date `Retry-After` values.
+  If the server-requested wait exceeds the cumulative wait budget, the request
+  fails closed; it never retries early.
+- Missing or invalid `Retry-After` values use bounded exponential backoff
+  with jitter.
+- HTTP 418 is treated as an IP-ban signal and is never automatically retried.
+- HTTP 408, 5xx responses, and transport failures receive bounded retries.
+  Permanent 4xx responses are not retried.
 - Attempts, cumulative sleep, and total elapsed request time have explicit
-  upper bounds. Cancellation is not swallowed; the operation returns a clear
-  unavailable error when its retry or deadline budget is exhausted.
-- Both REST adapters use the same policy. Mocked HTTP tests cover server delay,
-  fallback backoff, 418, 429, transient status/transport failures, exhaustion,
-  deadline cancellation, and permanent client errors.
+  upper bounds. Cancellation is preserved, and exhaustion returns an
+  unavailable error.
+- Both adapters share the same retry implementation rather than maintaining
+  separate retry policies.
 
-The initial G3-09 implementation commit
-`427c568d308d5af1c99135e68d32eb36e3c05db5` passed the repository Backend and
-Documentation CI workflow: Ruff format, Ruff lint, mypy, 166 pytest tests, and
-strict Zensical build. This is evidence for that exact PR commit; G3-09 is not
-considered merged or accepted until the final reviewed PR commit is merged.
+Deterministic mocked-transport tests cover Retry-After handling, budget
+exhaustion, invalid/missing headers, HTTP 418, transient status and transport
+failures, retry exhaustion, deadline cancellation, HTTP-date parsing, and
+permanent client errors. Adapter-level tests verify 429 recovery for both
+latest-trade and historical-kline clients.
 
-No live rate limit or ban should be induced for testing.
+**CI evidence for exact PR head**
+`f07784809c14daaa634e43af3c63a5be8843b031`:
 
-Do not test by deliberately generating production Binance rate limits or bans.
-Use mocked transport tests; a live smoke test must remain low-volume and
-must not attempt to circumvent exchange protections.
+- Ruff format — passed.
+- Ruff lint — passed.
+- mypy — passed.
+- pytest — **166 passed, 1 warning**.
+- Strict Zensical documentation build — passed.
 
-**Gate 3 remains incomplete.** G3-09 implementation and deterministic tests
-are in progress on the branch above. The criterion is not accepted until the
-exact PR commit passes backend CI and is reviewed; no production rate limit or
-ban test is required.
+The GitHub Actions Backend and Documentation CI workflow passed on that exact
+PR head. Vercel `baymax` and `web` checks were rate-limited by Vercel
+(`retry in 24 hours`); this is not evidence of a successful deployment.
+No production rate-limit or IP-ban test was performed or required. No
+database schema/data changes, Binance credentials, private endpoints, or
+trading operations were introduced.
+
+G3-09 is **merged and CI-verified**. This does not complete Gate 3 and does
+not establish production deployment or live rate-limit behaviour.
+
+**Gate 3 remains incomplete.** Continue with the next applicable acceptance
+criterion below; do not skip its deterministic evidence.
+
+## 25. Next implementation item — G3-10 cache freshness enforcement
+
+The next task is **G3-10: prove that cache reuse cannot bypass freshness
+validation**.
+
+Before changing code, inspect the current cache and consumption paths in
+`apps/api/app/market_data/` and the corresponding orchestration/API callers.
+Then:
+
+1. Identify every cache read and confirm that event age is revalidated at
+   consumption time against the approved 3,000 ms price-event limit.
+2. Verify that expired entries are rejected and cannot be returned as current.
+3. Verify that a stale/missing cache entry triggers only the approved fresh
+   retrieval/recovery path, and that failed recovery remains unavailable.
+4. Add deterministic tests at the exact freshness boundary, just beyond the
+   boundary, and for expired cache entries / consume-time revalidation.
+5. Update both copies of this Gate 3 contract and the root README with the
+   implementation, exact CI commit/results, limitations, and the next task.
+
+Use mocked clocks and service dependencies; do not write production database
+records or add a production diagnostic solely to repeat deterministic cache
+tests. Keep the change isolated in its own PR. Do not begin G3-11 until G3-10
+has been reviewed, merged, and its evidence recorded.
+
+**Gate 3 remains incomplete** until every mandatory applicable criterion in
+Section 11 has reproducible evidence.
