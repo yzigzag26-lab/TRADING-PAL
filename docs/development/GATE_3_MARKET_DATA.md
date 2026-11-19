@@ -979,17 +979,30 @@ unauthenticated access to analysis, history and all three diagnostic routes.
 The frontend proxy integration test confirms the public Swagger/schema path
 does not make the protected diagnostic callable without the owner cookie.
 
+### External Render environment-name verification — owner-confirmed passed
+
+On 2026-11-19, the owner confirmed that the live Render environment configuration
+was intact and explicitly authorized recording the external security check as
+passed. The owner-confirmed check found no Binance API-key or API-secret
+variable names (including equivalent Binance credential names) in the Render
+service environment. No environment-variable values were shared, retrieved,
+or recorded, and no Render settings were changed.
+
+The Render integration exposed service metadata but not the environment-variable
+inventory; therefore this is recorded as an **owner-confirmed external check**,
+not an independently machine-inspected secret-store inventory. The repository
+review remains read-only, and the external check does not attest to deployment
+of a particular source revision.
+
 ### Limitations and open verification
 
-- **External secret-store inventory remains unverified.** The live Render
-  workspace was not selected for this review, and its environment-variable
-  names were not inspected. Therefore this review confirms that Baymax code,
-  repository templates and deployment manifest neither require nor configure
-  Binance credentials; it does not attest that no unused Binance-named
-  variable exists in Render's secret store. No secret values were accessed.
-  Before declaring G3-13 fully closed, verify only the variable *names* in
-  Render and confirm there is no Binance API-key/secret entry; do not reveal
-  or copy any values.
+- **External secret-store inventory — owner-confirmed passed.** On
+  2026-11-19, the owner confirmed that no Binance API-key/API-secret variable
+  names (including equivalent Binance credential names) are present in the
+  live Render service environment. No variable values were accessed or
+  recorded, and no settings were changed. The Render integration did not
+  expose the variable-name inventory, so this is an owner-confirmed check,
+  not an independent machine inspection.
 - **Dependency reproducibility follow-up:** `apps/web/package.json` has no
   committed npm lockfile, and frontend CI uses `npm install`. This does not
   indicate an unapproved provider or dependency, but means frontend
@@ -999,10 +1012,13 @@ does not make the protected diagnostic callable without the owner cookie.
   does not prove a production deployment is running this exact source commit
   or inspect the hosting provider's secret store.
 
-**G3-13 repository review: passed with one external configuration
-verification outstanding.** Do not mark the criterion fully closed until the
-Render environment-variable-name check is confirmed. Gate 3 remains
-incomplete.
+**G3-13 security and scope review: passed and closed on 2026-11-19.**
+Repository/configuration review, automated regression coverage, and the
+owner-confirmed external Render environment-name check are recorded above.
+The external check found no Binance API-key/API-secret variable names; no
+secret values were accessed. The non-blocking frontend lockfile hardening
+follow-up remains open but does not block G3-13 acceptance. Gate 3 remains
+incomplete pending the other applicable criteria.
 
 
 ### Post-merge CI confirmation
@@ -1015,11 +1031,10 @@ job finished with a successful conclusion. The PR validation also passed on
 the exact reviewed PR head
 `1c42bdcf50d8e8a5b9a11c32d796555e30226e72`.
 
-This confirms repository CI after the security-review merge. It does **not**
-resolve the outstanding live Render environment-variable-name inventory,
-prove which source revision is currently deployed, or close G3-13 by itself.
-G3-13 remains open until the owner authorizes the read-only Render check and
-the check confirms that no unused Binance API-key/secret variable is present.
+This confirms repository CI after the security-review merge. The separate
+owner-confirmed Render environment-name check is recorded above. Neither CI
+nor that owner confirmation proves which source revision is currently
+deployed.
 
 ## 29. Next implementation item — G3-14 CI evidence
 
