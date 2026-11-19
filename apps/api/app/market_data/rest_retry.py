@@ -16,12 +16,13 @@ from app.market_data.freshness import MarketDataUnavailable
 
 @dataclass(frozen=True, slots=True)
 class RestRetryPolicy:
-    """Strict request-attempt and cumulative-wait budget."""
+    """Strict request-attempt, elapsed-time, and cumulative-wait budgets."""
 
     max_attempts: int = 3
     base_delay_seconds: float = 0.25
     max_delay_seconds: float = 1.0
     max_total_wait_seconds: float = 2.0
+    max_elapsed_seconds: float = 12.0
 
     def __post_init__(self) -> None:
         if self.max_attempts < 1:
@@ -30,11 +31,13 @@ class RestRetryPolicy:
             not math.isfinite(self.base_delay_seconds)
             or not math.isfinite(self.max_delay_seconds)
             or not math.isfinite(self.max_total_wait_seconds)
+            or not math.isfinite(self.max_elapsed_seconds)
             or self.base_delay_seconds < 0
             or self.max_delay_seconds < self.base_delay_seconds
             or self.max_total_wait_seconds < 0
+            or self.max_elapsed_seconds <= 0
         ):
-            raise ValueError("Retry delays must be finite, non-negative, and ordered")
+            raise ValueError("Retry delays and deadlines must be finite and non-negative")
 
 
 DEFAULT_RETRY_POLICY = RestRetryPolicy()
@@ -74,20 +77,13 @@ def _backoff_seconds(attempt: int, policy: RestRetryPolicy) -> float:
     return random.uniform(ceiling / 2, ceiling)
 
 
-async def get_with_retry(
+async def _request_with_retry_budget(
     client: httpx.AsyncClient,
     url: str,
     *,
     params: dict[str, str | int],
-    policy: RestRetryPolicy = DEFAULT_RETRY_POLICY,
+    policy: RestRetryPolicy,
 ) -> httpx.Response:
-    """GET with bounded retries; never retries Binance's HTTP 418 ban response.
-
-    HTTP 429 honours a valid Retry-After value exactly. If that delay cannot fit
-    inside the cumulative wait budget, the request fails closed rather than
-    retrying early. Missing/invalid Retry-After values use bounded jittered
-    backoff. HTTP 408, 5xx, and transport failures are retryable.
-    """
     waited = 0.0
     for attempt in range(1, policy.max_attempts + 1):
         try:
@@ -138,3 +134,32 @@ async def get_with_retry(
         waited += delay
 
     raise MarketDataUnavailable("Binance REST retry budget exhausted")
+
+
+async def get_with_retry(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    params: dict[str, str | int],
+    policy: RestRetryPolicy = DEFAULT_RETRY_POLICY,
+) -> httpx.Response:
+    """GET with bounded retries and an overall deadline.
+
+    HTTP 418 is a ban signal and is never retried. HTTP 429 honours a valid
+    Retry-After value exactly. If that delay cannot fit inside the cumulative
+    wait budget, the request fails closed rather than retrying early. Missing
+    or invalid Retry-After values use bounded jittered backoff. HTTP 408, 5xx,
+    and transport failures are retryable. Cancellation is not swallowed.
+    """
+    try:
+        async with asyncio.timeout(policy.max_elapsed_seconds):
+            return await _request_with_retry_budget(
+                client,
+                url,
+                params=params,
+                policy=policy,
+            )
+    except TimeoutError as exc:
+        raise MarketDataUnavailable(
+            "Binance REST request exceeded its overall retry deadline"
+        ) from exc
