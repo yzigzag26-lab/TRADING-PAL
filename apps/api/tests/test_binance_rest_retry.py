@@ -2,11 +2,14 @@
 
 import asyncio
 
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
+
 import httpx
 import pytest
 
 from app.market_data.freshness import MarketDataUnavailable
-from app.market_data.rest_retry import RestRetryPolicy, get_with_retry
+from app.market_data.rest_retry import RestRetryPolicy, _retry_after_seconds, get_with_retry
 
 
 def test_429_honours_retry_after_before_retrying(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -141,7 +144,7 @@ def test_transient_server_failure_retries_with_exponential_backoff(
         def handler(_: httpx.Request) -> httpx.Response:
             nonlocal calls
             calls += 1
-            return httpx.Response(503) if calls < 3 else httpx.Response(200)
+            return httpx.Response(status) if calls < 3 else httpx.Response(200)
 
         monkeypatch.setattr("app.market_data.rest_retry.asyncio.sleep", sleep)
         monkeypatch.setattr("app.market_data.rest_retry.random.uniform", lambda low, high: high)
@@ -265,3 +268,12 @@ def test_overall_deadline_cancels_slow_request_and_fails_closed() -> None:
         await client.aclose()
 
     asyncio.run(run())
+
+
+
+def test_retry_after_http_date_is_parsed_as_server_deadline() -> None:
+    target = datetime.now(UTC) + timedelta(seconds=5)
+    header = format_datetime(target.replace(microsecond=0), usegmt=True)
+    delay = _retry_after_seconds(header)
+    assert delay is not None
+    assert 3.5 <= delay <= 5.0
