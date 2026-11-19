@@ -58,10 +58,18 @@ book. G3-09 bounded REST retry handling was merged in PR #42
 (commit `1013a8afbcd96919e945398812f44b0506240e4b`) and passed Backend and
 Documentation CI on the exact PR head: Ruff format/lint, mypy, 166 pytest
 tests (1 warning), and strict Zensical build. Vercel deployment checks were
-rate-limited; no new deployment is claimed. **The next task is G3-10:
-deterministic verification that cache reuse cannot bypass consume-time
-freshness validation.** See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
-for the acceptance evidence and next-step plan.
+rate-limited; no new deployment is claimed.
+
+G3-10 cache freshness enforcement is implemented in PR #44. GitHub Actions
+Backend and Documentation CI passed on exact PR head
+`8657298d44a441d39b7dd3979a51f4a661df0f85`: Ruff format/lint, mypy,
+168 pytest tests (1 warning), and strict Zensical build. The implementation
+revalidates cache entries at consumption time, validates REST recovery before
+cache insertion, and rejects expired or invalid recovery data. **PR #44 is
+still open and not merged. G3-11 is the next implementation task after that
+merge:** verify durable provenance/audit references for the exact snapshot
+consumed by analysis. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
+for the evidence and next-step plan.
 
 A successful connection or a green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational

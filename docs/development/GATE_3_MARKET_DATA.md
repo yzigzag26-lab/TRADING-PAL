@@ -748,29 +748,76 @@ not establish production deployment or live rate-limit behaviour.
 **Gate 3 remains incomplete.** Continue with the next applicable acceptance
 criterion below; do not skip its deterministic evidence.
 
-## 25. Next implementation item — G3-10 cache freshness enforcement
+## 25. G3-10 cache freshness enforcement — implementation and CI evidence
 
-The next task is **G3-10: prove that cache reuse cannot bypass freshness
-validation**.
+G3-10 is implemented in PR #44
+(`fix: enforce cache freshness at consumption`). The change hardens the
+existing `BinanceMarketDataService.get_current_price()` cache boundary:
 
-Before changing code, inspect the current cache and consumption paths in
-`apps/api/app/market_data/` and the corresponding orchestration/API callers.
-Then:
+- Every cached event is revalidated against its source market-event timestamp
+  at the moment it is consumed, using the approved 3,000 ms maximum age.
+- A healthy, still-fresh REST recovery event can be reused from cache, but it
+  is subjected to the same consume-time age validation as a WebSocket event.
+- A stale, future-dated, or otherwise invalid REST recovery response is
+  validated before cache insertion and is never retained as a reusable entry.
+- If cached data expires, the service invalidates it and uses the approved
+  timestamped Binance public REST recovery path. Failed or stale recovery
+  remains unavailable.
 
-1. Identify every cache read and confirm that event age is revalidated at
-   consumption time against the approved 3,000 ms price-event limit.
-2. Verify that expired entries are rejected and cannot be returned as current.
-3. Verify that a stale/missing cache entry triggers only the approved fresh
-   retrieval/recovery path, and that failed recovery remains unavailable.
-4. Add deterministic tests at the exact freshness boundary, just beyond the
-   boundary, and for expired cache entries / consume-time revalidation.
-5. Update both copies of this Gate 3 contract and the root README with the
-   implementation, exact CI commit/results, limitations, and the next task.
+Deterministic tests cover the exact 3,000 ms acceptance boundary, the
+3,001 ms expiry boundary, recovery after a cached WebSocket event expires,
+reuse of a fresh REST recovery result, and rejection without caching when
+REST recovery itself is stale. Existing freshness tests continue to cover
+future timestamps, unhealthy source/clock state, and invalid prices.
 
-Use mocked clocks and service dependencies; do not write production database
-records or add a production diagnostic solely to repeat deterministic cache
-tests. Keep the change isolated in its own PR. Do not begin G3-11 until G3-10
-has been reviewed, merged, and its evidence recorded.
+**CI evidence for exact PR head**
+`8657298d44a441d39b7dd3979a51f4a661df0f85`:
+
+- Ruff format — passed.
+- Ruff lint — passed.
+- mypy — passed.
+- pytest — **168 passed, 1 warning**.
+- Strict Zensical documentation build — passed.
+
+GitHub Actions Backend and Documentation CI run
+[44510167820](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44510167820)
+completed successfully on that exact PR head. Earlier CI attempts caught
+formatting-only issues; those were corrected before this successful run.
+
+**Merge status:** PR #44 is still open and has not been merged. This evidence
+verifies the proposed PR head, not the main branch or a production deployment.
+No production database writes, durable diagnostics, new endpoints, exchange
+credentials, private Binance endpoints, or trading operations were used.
+
+**G3-10 is CI-verified on its PR head, pending merge.** Gate 3 remains
+incomplete.
+
+## 26. Next implementation item — G3-11 market-data provenance and audit records
+
+After PR #44 is merged, proceed to **G3-11: ensure every market-data input
+consumed by analysis has durable, queryable provenance and an audit reference**.
+
+The current repository already contains the append-only
+`baymax.market_data_snapshots` table and a provenance repository. Inspect
+whether the normal current-market and historical analysis paths also create
+the required `baymax.audit_logs` reference and whether the exact snapshot ID
+is carried through the response/analysis record. Reuse the existing schema
+and runtime permissions where sufficient; do not create duplicate tables or
+persist every raw tick.
+
+Acceptance work must verify:
+1. Source, exchange/market, symbol, event/receive/validation timestamps,
+   validation state, and snapshot identity are preserved.
+2. Each current-market analysis is linked to the exact snapshot it consumed.
+3. Audit references include the request ID and snapshot resource identity,
+   without secrets or unnecessary raw payload duplication.
+4. Provenance/audit write failure blocks a production current-market analysis.
+5. Deterministic repository/orchestration tests cover successful linkage and
+   failure handling, without production database writes.
+
+Keep G3-11 isolated in its own implementation PR. Do not begin G3-11 until
+G3-10 PR #44 has been merged. After G3-11, update this contract and the root
+README with exact commit/CI evidence, limitations, and the next task.
 
 **Gate 3 remains incomplete** until every mandatory applicable criterion in
 Section 11 has reproducible evidence.
