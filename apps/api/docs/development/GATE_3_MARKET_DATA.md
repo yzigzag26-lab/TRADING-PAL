@@ -549,7 +549,7 @@ The test is isolated from the application-owned service and does not modify
 its 23-hour-50-minute setting. It performs no database write and uses no
 Binance credentials, private endpoints, or trading operations. The runbook and
 owner-authenticated execution steps are in
-[GATE_3_DIAGNOSTICS.md](GATE_3_DIAGNOSTICS.md).
+[Gate 3 production diagnostics](GATE_3_DIAGNOSTICS.md).
 
 A successful deployed response is required before marking G3-05 as production
 verified. The forced five-second exercise verifies the same rotation code
