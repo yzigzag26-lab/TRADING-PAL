@@ -600,11 +600,42 @@ other applicable acceptance evidence.
   2026-11-19. The response proves disconnect observation, replacement
   subscription, and fresh post-reconnect WebSocket data accepted at 52 ms.
   Retain deterministic lifecycle tests as required evidence.
-- **Next outstanding criterion: G3-06** — duplicate/out-of-order event
-  handling and sequence-gap detection/reconciliation. The contract requires
-  deterministic event-sequence tests. The implementation notes describe
-  duplicate/out-of-order trade-ID rejection and REST reconciliation after a
-  forward trade-ID gap, but the acceptance tracker still requires the
-  corresponding deterministic test evidence to be explicitly verified.
+- **G3-06:** implementation and expanded deterministic tests are included in
+  the dedicated G3-06 pull request. Final acceptance remains pending review
+  and green backend CI for that exact commit; see Section 22.
 - **Gate 3 status:** incomplete. Do not mark the gate complete until every
   applicable criterion in Section 11 has reproducible evidence.
+
+
+## 22. G3-06 trade sequence integrity — implementation and test evidence
+
+The G3-06 implementation hardens Binance Spot trade-stream sequence handling:
+
+- A stream event must identify the requested symbol and contain a numeric
+  Binance trade ID. Invalid or mismatched events invalidate the cached stream
+  event and cannot mark the stream healthy.
+- Duplicate and out-of-order trade IDs are ignored, even if an older trade is
+  accompanied by a later timestamp.
+- A forward trade-ID gap invalidates the cached stream event and marks the
+  stream unhealthy while a timestamped REST latest-trade reconciliation is
+  requested.
+- Reconciliation is accepted only when REST returns the requested symbol,
+  identifies itself as the Binance REST source, contains a numeric trade ID,
+  and has reached or passed the gap-triggering trade ID.
+- If REST reconciliation fails or returns an invalid/behind result, the gap
+  event is not accepted and the stream remains unhealthy. Later WebSocket
+  events are not trusted until reconciliation succeeds.
+- After successful reconciliation, later sequential WebSocket events can be
+  accepted again. The ordinary consume-time freshness check remains in force;
+  sequence recovery does not bypass the 3,000 ms price-age limit.
+
+The deterministic test suite covers duplicate IDs, older IDs with both older
+and later timestamps, missing/non-numeric IDs, symbol mismatch, non-REST
+recovery payloads, forward gaps, REST recovery failure, REST results behind
+the gap event, and resumed WebSocket acceptance after successful reconciliation.
+
+The implementation and tests are submitted in a dedicated pull request.
+**G3-06 is not accepted until code review and the backend CI suite pass on the
+exact reviewed commit.** No production diagnostic or database write is needed
+for this deterministic sequence-handling criterion. Gate 3 remains incomplete
+until all other applicable acceptance criteria are also evidenced.
