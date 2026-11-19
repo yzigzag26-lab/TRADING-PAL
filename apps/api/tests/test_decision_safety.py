@@ -3,13 +3,15 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, cast
 from uuid import UUID, uuid4
 
 import pytest
 
 from app.ai.classifier import IntentClassification
 from app.ai.engine import BaymaxAIEngine
+from app.ai.classifier import BaymaxIntentClassifier
+from app.ai.generator import BaymaxAnalysisGenerator
 from app.market_data.candles import HistoricalCandle, HistoricalCandleSeries
 from app.market_data.decision_safety import (
     is_trading_decision_request,
@@ -21,6 +23,7 @@ from app.orchestration.requests import (
     AnalysisInputUnavailable,
     AnalysisRequest,
     PreparedAnalysisInput,
+    BaymaxRequestOrchestrator,
 )
 
 
@@ -51,7 +54,7 @@ def _request(*, decision_requested: bool = False) -> AnalysisRequest:
     )
 
 
-def _prepared(price: ValidatedPrice, *, snapshot_id=None) -> PreparedAnalysisInput:
+def _prepared(price: ValidatedPrice, *, snapshot_id: UUID | None = None) -> PreparedAnalysisInput:
     return PreparedAnalysisInput(
         intent="current_market",
         market_data_required=True,
@@ -241,9 +244,9 @@ def test_engine_rechecks_expiry_after_retrieval_and_never_calls_generator() -> N
     prepared = _prepared(price)
     generator = _Generator()
     engine = BaymaxAIEngine(
-        classifier=_Classifier(),
-        generator=generator,
-        orchestrator=_Orchestrator(prepared),
+        classifier=cast(BaymaxIntentClassifier, _Classifier()),
+        generator=cast(BaymaxAnalysisGenerator, generator),
+        orchestrator=cast(BaymaxRequestOrchestrator, _Orchestrator(prepared)),
         decision_clock=lambda: now + timedelta(milliseconds=3_001),
     )
     with pytest.raises(AnalysisInputUnavailable, match="expired"):
@@ -255,15 +258,15 @@ def test_engine_blocks_explicit_trading_decision_before_generator() -> None:
     now = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
     generator = _Generator()
     engine = BaymaxAIEngine(
-        classifier=_Classifier(),
-        generator=generator,
-        orchestrator=_Orchestrator(
+        classifier=cast(BaymaxIntentClassifier, _Classifier()),
+        generator=cast(BaymaxAnalysisGenerator, generator),
+        orchestrator=cast(BaymaxRequestOrchestrator, _Orchestrator(
             PreparedAnalysisInput(
                 intent="current_market",
                 market_data_required=True,
                 market_data_status="decision_blocked",
             )
-        ),
+        )),
         decision_clock=lambda: now,
     )
     with pytest.raises(AnalysisInputUnavailable, match="trading recommendation"):
@@ -274,15 +277,15 @@ def test_engine_blocks_explicit_trading_decision_before_generator() -> None:
 def test_engine_keeps_educational_responses_available_without_market_data() -> None:
     generator = _Generator()
     engine = BaymaxAIEngine(
-        classifier=_Classifier(intent="educational"),
-        generator=generator,
-        orchestrator=_Orchestrator(
+        classifier=cast(BaymaxIntentClassifier, _Classifier(intent="educational")),
+        generator=cast(BaymaxAnalysisGenerator, generator),
+        orchestrator=cast(BaymaxRequestOrchestrator, _Orchestrator(
             PreparedAnalysisInput(
                 intent="educational",
                 market_data_required=False,
                 market_data_status="not_required",
             )
-        ),
+        )),
     )
     result = asyncio.run(engine.respond("Explain support and resistance."))
     assert result.answer == "generated"
