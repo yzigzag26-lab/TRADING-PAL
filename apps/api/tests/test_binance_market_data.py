@@ -5,6 +5,7 @@ import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Literal
 
 import httpx
 import pytest
@@ -366,7 +367,7 @@ def test_stream_rotates_connection_and_reports_state_transitions(
 )
 def test_gap_reconciliation_rejects_wrong_symbol_or_non_rest_payload(
     recovered_symbol: str,
-    recovered_source: str,
+    recovered_source: Literal["binance_spot_rest", "binance_spot_websocket"],
 ) -> None:
     class FakeRest:
         calls = 0
