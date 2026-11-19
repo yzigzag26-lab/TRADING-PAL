@@ -10,13 +10,22 @@ from app.orchestration.requests import AnalysisInputUnavailable, AnalysisRequest
 
 
 def is_trading_decision_request(message: str, *, intent: str) -> bool:
-    """Conservatively identify explicit buy/sell/position requests in live-market messages."""
+    """Conservatively identify explicit buy/sell/position requests."""
+    explicit_request = re.search(
+        r"\b(should\s+i|would\s+you|do\s+you\s+recommend|recommend\s+me|"
+        r"give\s+me\s+(?:a\s+)?(?:trading\s+)?signal|buy\s+or\s+sell|"
+        r"long\s+or\s+short|where\s+should\s+i\s+(?:enter|exit)|"
+        r"set\s+(?:a\s+)?stop[- ]loss|take[- ]profit)\b",
+        message,
+        flags=re.IGNORECASE,
+    )
+    if explicit_request is not None:
+        return True
     if intent != "current_market":
         return False
     return re.search(
-        r"\b(should\s+i|would\s+you|recommend(?:ation)?|buy|sell|hold|"
-        r"go\s+long|go\s+short|entry|exit|stop[- ]loss|take[- ]profit|"
-        r"trading\s+signal|trade\s+signal)\b",
+        r"\b(recommend(?:ation)?|buy|sell|hold|go\s+long|go\s+short|"
+        r"entry|exit|stop[- ]loss|take[- ]profit|trading\s+signal|trade\s+signal)\b",
         message,
         flags=re.IGNORECASE,
     ) is not None
