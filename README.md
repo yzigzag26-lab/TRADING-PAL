@@ -61,17 +61,28 @@ Documentation CI on its exact PR head: Ruff format/lint, mypy, 168 pytest
 tests (1 warning), and strict Zensical build.
 
 G3-11 snapshot-to-audit linkage was implemented in PR #46 and merged to `main`
-as commit `327faa7172171848930abc8884dfc79b76537c8f`. Backend and
-Documentation CI passed on exact PR head
-`919109ef9f670f8c49405bce9dab77da7a0a9f71`: Ruff format/lint, mypy,
-170 pytest tests (1 warning), and strict Zensical build. Current-price and
+as commit `327faa7172171848930abc8884dfc79b76537c8f`. Current-price and
 historical snapshots are linked to append-only audit rows in the same database
 transaction, with request and snapshot identity; persistence failure blocks
-market-dependent analysis. **G3-11 is merged. G3-12 is now the next
-implementation task:** enforce decision-safety against stale, incomplete,
-contradictory, or unverified inputs. See the
-[Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md) for the acceptance
-plan and evidence.
+market-dependent analysis.
+
+G3-12 decision-safety enforcement was implemented in PR #54 and merged to
+`main` as commit `e43620fb2cce89b87d9e5c6fed6254d831544cea`. A final
+backend gate revalidates freshness, source/symbol/trade identity, timestamp
+consistency and snapshot/audit provenance immediately before AI generation.
+Incomplete historical series, unresolved gaps and open candles cannot be
+accepted as complete decision inputs; unsafe requests stop before the
+generator is called. Educational/programming responses remain available.
+Trade recommendations are intentionally blocked until Baymax has a complete,
+validated historical-candle and strategy-evidence pipeline. Backend and
+Documentation CI passed on exact PR head
+`e73ccc289ae91d2af603bafd93dcc7111f30f4c3`: Ruff format/lint, mypy, pytest
+and strict Zensical build.
+
+**G3-11 and G3-12 are merged and CI-verified. G3-13 is now the next
+implementation task:** perform the repository/configuration security and
+scope review. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
+for acceptance requirements and evidence.
 
 A successful connection or green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational
