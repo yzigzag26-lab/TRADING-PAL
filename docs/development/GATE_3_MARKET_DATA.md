@@ -909,33 +909,105 @@ performed for this implementation.
 
 **G3-12 is merged and CI-verified.** Gate 3 remains incomplete.
 
-## 28. Next implementation item — G3-13 security and scope review
+## 28. G3-13 security and scope review — repository findings
 
-Proceed to **G3-13: verify that Gate 3 introduced no Binance API secrets,
-private trading/account endpoints, fabricated market data, or unapproved
-paid providers**.
+The repository/configuration review was performed against the exact source
+commit `d92183a8522acc487a3c8466d6c089667c6d9ff5` (the `main` tip after
+PR #55). The review was read-only: no production credentials were read,
+changed or printed; no production database writes, migrations, diagnostics,
+or deployments were performed.
 
-Perform a repository-wide review of source code, configuration, environment
-variable names, dependency/provider wiring, documentation and deployment
-configuration. Confirm that:
+### Findings
 
-1. Binance access remains limited to public Spot market-data endpoints and
-   streams; no signing or private account/trading endpoint path exists.
-2. No Binance API key or secret is required, configured, logged, or exposed
-   to the frontend.
-3. No fabricated/demo market values, synthetic fallback candles, or fake
-   market snapshots can enter production decision paths.
-4. No unapproved paid market-data provider or paid dependency/service was
-   introduced.
-5. Existing owner authentication and authorization boundaries remain intact.
-6. Tests and CI evidence support the review; any exception is documented and
-   remains open until explicitly resolved.
+1. **Binance access is public Spot market data only.** The reviewed runtime
+   adapters use `https://data-api.binance.vision` for
+   `/api/v3/trades` and `/api/v3/klines`, and
+   `wss://data-stream.binance.vision` for the public `@trade` stream.
+   Code search found no `api.binance.com`, Futures or Delivery host,
+   `sapi` route, private account/order route, API-key header, request
+   signature, or receive-window parameter in the runtime market-data code.
 
-Use static repository/configuration inspection and deterministic tests where
-appropriate. Do not print secret values, inspect or expose live secret
-contents, change production credentials, or perform production database
-writes. Record the exact reviewed commit, findings, limitations and evidence
-in both documentation copies and the README before proceeding to G3-14.
+2. **No Binance credential handling exists in tracked application
+   configuration.** The backend settings do not read Binance key/secret
+   variables; the root and frontend environment templates and Render
+   manifest do not declare them. The Binance adapters make unsigned public
+   requests. No key or secret is passed to the frontend. The repository
+   contains only the two expected `.env.example` templates, not a tracked
+   live `.env` file.
 
-**Gate 3 remains incomplete** until every mandatory applicable criterion in
-Section 11 has reproducible evidence.
+3. **No synthetic production market-data fallback was found.** The reviewed
+   production market-data adapters parse exchange payloads; the decision
+   safety gate requires the approved Binance Spot source identity and
+   persisted provenance before market-dependent generation. Repository
+   searches found no demo, mock, synthetic or fallback market-data path under
+   `apps/api/app`. Existing freshness, candle-integrity, provenance and
+   decision-safety tests cover fail-closed behaviour.
+
+4. **No unapproved market-data provider or additional paid service was
+   declared.** Backend dependencies are the existing FastAPI, SQLAlchemy,
+   PostgreSQL driver, Argon2, HTTP client, WebSocket and migration/tooling
+   packages. Groq remains the configured AI provider; its credential is
+   backend-only. The Render Blueprint declares one existing Baymax API web
+   service. The frontend manifest contains the existing Next.js/React/UI
+   dependencies. No CoinAPI, CCXT, Alpha Vantage, Alpaca, Bybit, Stripe or
+   other additional provider/service wiring was found. Account billing plans
+   were not inspected.
+
+5. **Owner authorization remains in place.** The password is verified against
+   an Argon2id hash. The backend issues an eight-hour signed
+   `__Host-baymax_session` cookie with Secure, HttpOnly and SameSite=Lax
+   attributes. Login and logout validate the configured Origin; CORS rejects
+   wildcard origins and requires HTTPS in production. Analysis, history,
+   Gate 3 diagnostics and durable snapshot endpoints independently verify
+   the owner session. Public Swagger/OpenAPI exposes schemas only; it does
+   not bypass endpoint authorization. The migration workflow is manual,
+   main-only, requires the literal `APPLY` confirmation, and uses the
+   protected `baymax-production` environment.
+
+### Automated regression coverage added
+
+The G3-13 review branch adds
+`apps/api/tests/test_gate_3_security_scope.py` to guard:
+- the approved Binance public Spot hosts and REST/WebSocket route scope;
+- absence of Binance API key/secret variables in tracked environment
+  templates; and
+- the single-service Render manifest with no Binance credentials.
+
+Existing tests additionally cover environment-template hygiene, owner
+login/session properties, untrusted origins, CORS restrictions, and
+unauthenticated access to analysis, history and all three diagnostic routes.
+The frontend proxy integration test confirms the public Swagger/schema path
+does not make the protected diagnostic callable without the owner cookie.
+
+### Limitations and open verification
+
+- **External secret-store inventory remains unverified.** The live Render
+  workspace was not selected for this review, and its environment-variable
+  names were not inspected. Therefore this review confirms that Baymax code,
+  repository templates and deployment manifest neither require nor configure
+  Binance credentials; it does not attest that no unused Binance-named
+  variable exists in Render's secret store. No secret values were accessed.
+  Before declaring G3-13 fully closed, verify only the variable *names* in
+  Render and confirm there is no Binance API-key/secret entry; do not reveal
+  or copy any values.
+- **Dependency reproducibility follow-up:** `apps/web/package.json` has no
+  committed npm lockfile, and frontend CI uses `npm install`. This does not
+  indicate an unapproved provider or dependency, but means frontend
+  dependency resolution can change within declared semver ranges. Track
+  lockfile generation and `npm ci` adoption as supply-chain hardening.
+- This was a repository/static review plus deterministic test coverage. It
+  does not prove a production deployment is running this exact source commit
+  or inspect the hosting provider's secret store.
+
+**G3-13 repository review: passed with one external configuration
+verification outstanding.** Do not mark the criterion fully closed until the
+Render environment-variable-name check is confirmed. Gate 3 remains
+incomplete.
+
+## 29. Next implementation item — G3-14 CI evidence
+
+After G3-13 is closed, proceed to G3-14: verify backend quality checks and
+strict documentation build pass in GitHub Actions on the exact reviewed
+commit, with the workflow run linked from the Gate 3 evidence. Keep
+implementation and deployment status distinct; a passing CI run does not
+prove production deployment.
