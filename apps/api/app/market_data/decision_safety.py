@@ -14,13 +14,12 @@ def is_trading_decision_request(message: str, *, intent: str) -> bool:
     if intent != "current_market":
         return False
     return re.search(
-        r"\\b(should\\s+i|would\\s+you|recommend(?:ation)?|buy|sell|hold|"
-        r"go\\s+long|go\\s+short|entry|exit|stop[- ]loss|take[- ]profit|"
-        r"trading\\s+signal|trade\\s+signal)\\b",
+        r"\b(should\s+i|would\s+you|recommend(?:ation)?|buy|sell|hold|"
+        r"go\s+long|go\s+short|entry|exit|stop[- ]loss|take[- ]profit|"
+        r"trading\s+signal|trade\s+signal)\b",
         message,
         flags=re.IGNORECASE,
     ) is not None
-
 
 def _utc(value: datetime, label: str) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
