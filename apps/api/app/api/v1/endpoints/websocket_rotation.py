@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
 from time import monotonic, perf_counter
@@ -20,7 +21,12 @@ from app.market_data.service import BinanceMarketDataService
 router = APIRouter(prefix="/diagnostics/gate-3", tags=["Diagnostics"])
 
 ROTATION_TEST_LIFETIME_SECONDS = 5.0
-ROTATION_TEST_TIMEOUT_SECONDS = 45.0
+INITIAL_TRADE_TIMEOUT_SECONDS = 30.0
+FORCED_DISCONNECT_TIMEOUT_SECONDS = 30.0
+RESUBSCRIPTION_TIMEOUT_SECONDS = 30.0
+POST_RECONNECT_TRADE_TIMEOUT_SECONDS = 30.0
+ROTATION_TEST_TIMEOUT_SECONDS = 120.0
+ROTATION_TEST_CLEANUP_TIMEOUT_SECONDS = 15.0
 ROTATION_TEST_SYMBOL = "BTCUSDT"
 
 
@@ -104,8 +110,8 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
                 and service.stream_status(ROTATION_TEST_SYMBOL)["event_source"]
                 == "binance_spot_websocket"
             ),
-            timeout_seconds=10.0,
-            description="first healthy WebSocket trade",
+            timeout_seconds=INITIAL_TRADE_TIMEOUT_SECONDS,
+            description="initial healthy WebSocket trade",
         )
         initial_status = service.stream_status(ROTATION_TEST_SYMBOL)
         initial_event_id = cast(str | None, initial_status["event_id"])
@@ -114,12 +120,12 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
 
         await _wait_until(
             lambda: any(not connected for connected, _ in observed_stream.transitions),
-            timeout_seconds=12.0,
-            description="forced connection close",
+            timeout_seconds=FORCED_DISCONNECT_TIMEOUT_SECONDS,
+            description="forced WebSocket disconnect",
         )
         await _wait_until(
             lambda: sum(connected for connected, _ in observed_stream.transitions) >= 2,
-            timeout_seconds=12.0,
+            timeout_seconds=RESUBSCRIPTION_TIMEOUT_SECONDS,
             description="replacement WebSocket subscription",
         )
         first_connected_at = next(
@@ -140,7 +146,7 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
                 == "binance_spot_websocket"
                 and service.stream_status(ROTATION_TEST_SYMBOL)["event_id"] != initial_event_id
             ),
-            timeout_seconds=12.0,
+            timeout_seconds=POST_RECONNECT_TRADE_TIMEOUT_SECONDS,
             description="fresh WebSocket trade accepted after reconnection",
         )
 
@@ -179,7 +185,21 @@ async def _run_rotation_test(clock_healthy: bool) -> dict[str, Any]:
             "duration_ms": round((perf_counter() - started_at) * 1000),
         }
     finally:
-        await asyncio.wait_for(service.close(), timeout=5.0)
+        # Preserve the lifecycle failure if cleanup also fails; cleanup must
+        # not mask the stage-specific error that explains the failed check.
+        active_error = sys.exc_info()[1]
+        try:
+            await asyncio.wait_for(
+                service.close(),
+                timeout=ROTATION_TEST_CLEANUP_TIMEOUT_SECONDS,
+            )
+        except Exception as cleanup_error:
+            if active_error is None:
+                raise
+            active_error.add_note(
+                f"Service cleanup also failed: {type(cleanup_error).__name__}: "
+                f"{str(cleanup_error)[:160]}"
+            )
 
 
 @router.post(
@@ -204,10 +224,18 @@ async def verify_websocket_rotation(
     clock_healthy = clock_provider()
 
     try:
-        result = await asyncio.wait_for(
-            _run_rotation_test(clock_healthy),
-            timeout=ROTATION_TEST_TIMEOUT_SECONDS,
-        )
+        try:
+            result = await asyncio.wait_for(
+                _run_rotation_test(clock_healthy),
+                timeout=ROTATION_TEST_TIMEOUT_SECONDS,
+            )
+        except TimeoutError as exc:
+            if not str(exc):
+                raise TimeoutError(
+                    "Overall WebSocket rotation diagnostic exceeded its "
+                    f"{ROTATION_TEST_TIMEOUT_SECONDS:.0f}-second deadline"
+                ) from exc
+            raise
         checks = {
             "initial_websocket_trade": {
                 "status": "passed",
@@ -240,7 +268,9 @@ async def verify_websocket_rotation(
             "forced_rotation_lifecycle": {
                 "status": "failed",
                 "reason": type(exc).__name__,
-                "message": str(exc)[:240],
+                "message": str(exc)[:240] or "No exception message was provided",
+                "overall_timeout_seconds": ROTATION_TEST_TIMEOUT_SECONDS,
+                "cleanup_timeout_seconds": ROTATION_TEST_CLEANUP_TIMEOUT_SECONDS,
             }
         }
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE

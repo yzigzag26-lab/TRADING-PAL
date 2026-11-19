@@ -219,6 +219,8 @@ Run it after the backend deployment containing this endpoint is **Live**:
 3. Select **Try it out**. No request body is required.
 4. Select **Execute** and allow up to 45 seconds for the bounded test.
 
+The diagnostic uses independent 30-second observation windows for the initial trade, forced disconnect, replacement subscription, and fresh post-reconnect trade. Its overall deadline is 120 seconds, with up to 15 seconds reserved for orderly service cleanup. The five-second forced connection lifetime is unchanged.
+
 The diagnostic verifies, in order:
 
 - The service accepts an initial fresh BTCUSDT WebSocket trade.
