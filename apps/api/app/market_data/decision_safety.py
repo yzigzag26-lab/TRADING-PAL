@@ -27,12 +27,15 @@ def is_trading_decision_request(message: str, *, intent: str) -> bool:
         return True
     if intent != "current_market":
         return False
-    return re.search(
-        r"\b(recommend(?:ation)?|buy|sell|hold|go\s+long|go\s+short|"
-        r"entry|exit|stop[- ]loss|take[- ]profit|trading\s+signal|trade\s+signal)\b",
-        message,
-        flags=re.IGNORECASE,
-    ) is not None
+    return (
+        re.search(
+            r"\b(recommend(?:ation)?|buy|sell|hold|go\s+long|go\s+short|"
+            r"entry|exit|stop[- ]loss|take[- ]profit|trading\s+signal|trade\s+signal)\b",
+            message,
+            flags=re.IGNORECASE,
+        )
+        is not None
+    )
 
 
 def _utc(value: datetime, label: str) -> datetime:
@@ -72,16 +75,12 @@ def validate_historical_series_for_decision(
         raise AnalysisInputUnavailable("Historical candle sequence is incomplete or contradictory.")
     for candle in series.candles:
         if candle.symbol != series.symbol or candle.interval != series.interval:
-            raise AnalysisInputUnavailable(
-                "Historical candle identity conflicts with its series."
-            )
+            raise AnalysisInputUnavailable("Historical candle identity conflicts with its series.")
         if not candle.is_closed or candle.close_time >= current_time:
             raise AnalysisInputUnavailable("Open candles cannot be used for a trading decision.")
         received_time = _utc(candle.received_time, "Candle receive timestamp")
         if received_time < candle.close_time or received_time > current_time:
-            raise AnalysisInputUnavailable(
-                "Historical candle receive timestamp is contradictory."
-            )
+            raise AnalysisInputUnavailable("Historical candle receive timestamp is contradictory.")
 
 
 def validate_prepared_analysis_inputs(
