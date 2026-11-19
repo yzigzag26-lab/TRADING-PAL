@@ -183,6 +183,128 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
     asyncio.run(run())
 
 
+
+def test_cached_price_is_revalidated_at_each_consumption_boundary() -> None:
+    class FakeRest:
+        calls = 0
+
+        async def latest_trade(self, symbol: str) -> PriceEvent:
+            self.calls += 1
+            return PriceEvent(
+                symbol=symbol,
+                price=Decimal("95100"),
+                market_event_timestamp=NOW + timedelta(milliseconds=2_900),
+                received_timestamp=NOW + timedelta(milliseconds=3_001),
+                source="binance_spot_rest",
+                event_id="rest-900",
+            )
+
+    class IdleStream:
+        async def listen(
+            self,
+            symbol: str,
+            *,
+            on_connection_state: Callable[[bool], Awaitable[None]],
+        ) -> AsyncIterator[PriceEvent]:
+            await on_connection_state(True)
+            try:
+                await asyncio.Event().wait()
+            finally:
+                await on_connection_state(False)
+            if False:
+                yield _trade_event(1)
+
+    async def run() -> None:
+        rest = FakeRest()
+        service = BinanceMarketDataService(rest_client=rest, stream=IdleStream())
+        service._started = True
+        service._events["BTCUSDT"] = PriceEvent(
+            symbol="BTCUSDT",
+            price=Decimal("95000"),
+            market_event_timestamp=NOW,
+            received_timestamp=NOW,
+            source="binance_spot_websocket",
+            event_id="stream-1",
+        )
+        service._stream_healthy.add("BTCUSDT")
+
+        at_boundary = await service.get_current_price(
+            "BTCUSDT",
+            clock_healthy=True,
+            now=NOW + timedelta(milliseconds=3_000),
+        )
+        assert at_boundary.price == Decimal("95000")
+        assert rest.calls == 0
+
+        after_boundary = await service.get_current_price(
+            "BTCUSDT",
+            clock_healthy=True,
+            now=NOW + timedelta(milliseconds=3_001),
+        )
+        assert after_boundary.price == Decimal("95100")
+        assert after_boundary.source == "binance_spot_rest"
+        assert rest.calls == 1
+
+        # The recovered REST event is itself a valid cache entry while fresh.
+        still_fresh = await service.get_current_price(
+            "BTCUSDT",
+            clock_healthy=True,
+            now=NOW + timedelta(milliseconds=3_100),
+        )
+        assert still_fresh.price == Decimal("95100")
+        assert rest.calls == 1
+        await service.close()
+
+    asyncio.run(run())
+
+
+def test_invalid_stale_rest_recovery_is_never_cached() -> None:
+    class FakeRest:
+        async def latest_trade(self, symbol: str) -> PriceEvent:
+            return PriceEvent(
+                symbol=symbol,
+                price=Decimal("95000"),
+                market_event_timestamp=NOW - timedelta(seconds=4),
+                received_timestamp=NOW,
+                source="binance_spot_rest",
+                event_id="stale-rest",
+            )
+
+    class IdleStream:
+        async def listen(
+            self,
+            symbol: str,
+            *,
+            on_connection_state: Callable[[bool], Awaitable[None]],
+        ) -> AsyncIterator[PriceEvent]:
+            await on_connection_state(True)
+            try:
+                await asyncio.Event().wait()
+            finally:
+                await on_connection_state(False)
+            if False:
+                yield _trade_event(1)
+
+    async def run() -> None:
+        service = BinanceMarketDataService(rest_client=FakeRest(), stream=IdleStream())
+        service._started = True
+        service._events["BTCUSDT"] = PriceEvent(
+            symbol="BTCUSDT",
+            price=Decimal("94000"),
+            market_event_timestamp=NOW - timedelta(seconds=5),
+            received_timestamp=NOW,
+            source="binance_spot_websocket",
+            event_id="stale-stream",
+        )
+        service._stream_healthy.add("BTCUSDT")
+
+        with pytest.raises(MarketDataUnavailable, match="older than 3 seconds"):
+            await service.get_current_price("BTCUSDT", clock_healthy=True, now=NOW)
+        assert "BTCUSDT" not in service._events
+        await service.close()
+
+    asyncio.run(run())
+
 def _trade_event(trade_id: int, *, price: str = "95000") -> PriceEvent:
     return PriceEvent(
         symbol="BTCUSDT",
