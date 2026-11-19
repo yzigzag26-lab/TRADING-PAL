@@ -670,8 +670,11 @@ incorrect interval timestamps, truncated Binance rows, the open/closed
 boundary, exact continuity, false completeness declarations, inaccurate gap
 lists, and out-of-range candles.
 
-The G3-07 code and tests are submitted in a dedicated pull request. **G3-07
-remains pending review and green backend CI on the exact proposed commit.**
-No production database write or live Binance diagnostic is required to prove
-these deterministic candle-integrity rules. Gate 3 remains incomplete until
-all other applicable acceptance criteria are also evidenced.
+G3-07 was merged in PR #39 as commit
+`ce18eaa967c039835a7def46d0d6c4fc8c4fa311`. Backend CI passed on the exact
+reviewed PR head: Ruff format, Ruff lint, mypy (68 source files), all 149
+pytest tests, and strict Zensical documentation build. This verifies the
+deterministic candle-integrity implementation; it does not by itself complete
+Gate 3. No production database write or live Binance diagnostic was required.
+Gate 3 remains incomplete until all other applicable acceptance criteria are
+also evidenced.
