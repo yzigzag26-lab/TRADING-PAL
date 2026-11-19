@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import cast
 from uuid import UUID, uuid4
 
+import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models.audit_log import AuditLog
@@ -152,7 +153,6 @@ def test_historical_provenance_persists_incomplete_series_without_filling_gaps()
     assert audit.metadata_["is_complete"] is False
 
 
-
 def test_snapshot_and_audit_share_one_atomic_commit() -> None:
     class FailingSession(FakeSession):
         def commit(self) -> None:
@@ -179,8 +179,6 @@ def test_snapshot_and_audit_share_one_atomic_commit() -> None:
         source_healthy=True,
         clock_healthy=True,
     )
-
-    import pytest
 
     with pytest.raises(RuntimeError, match="audit insert failed"):
         repository.record_price(price, request_id=uuid4())
