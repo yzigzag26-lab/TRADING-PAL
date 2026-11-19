@@ -183,7 +183,6 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
     asyncio.run(run())
 
 
-
 def test_cached_price_is_revalidated_at_each_consumption_boundary() -> None:
     class FakeRest:
         calls = 0
