@@ -14,9 +14,7 @@ def test_binance_adapters_remain_on_public_spot_market_data_hosts() -> None:
     )
     stream = (MARKET_DATA / "binance_stream.py").read_text(encoding="utf-8")
 
-    assert (
-        'BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"' in rest
-    )
+    assert 'BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"' in rest
     assert (
         'BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"' in historical
     )
