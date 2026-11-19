@@ -52,16 +52,12 @@ class BinanceSpotRestClient:
             raise RuntimeError("Use BinanceSpotRestClient as an async context manager")
 
         try:
-            response = await client.get(
+            response = await get_with_retry(
+                client,
                 f"{self._base_url}/api/v3/trades",
                 params={"symbol": normalized, "limit": 1},
+                policy=self._retry_policy,
             )
-            if response.status_code in (418, 429):
-                retry_after = response.headers.get("Retry-After")
-                raise MarketDataUnavailable(
-                    f"Binance REST rate limited the request (HTTP {response.status_code}); "
-                    f"Retry-After={retry_after or 'not-provided'}"
-                )
             response.raise_for_status()
             payload: Any = response.json()
         except MarketDataUnavailable:
