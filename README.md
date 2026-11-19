@@ -48,7 +48,7 @@ invalidation. It does not execute trades.
 
 ### Gate 3 — market-data freshness and reliability
 
-**Gate 3 remains incomplete after the 2026-11-19 final acceptance audit:** G3-01–04 and G3-06–07, G3-09–15 passed; G3-08 is not applicable; G3-05 remains partially open pending deterministic WebSocket ping/pong keepalive coverage. See the [final acceptance audit](docs/development/GATE_3_MARKET_DATA.md#31-final-gate-3-acceptance-audit--2026-11-19).
+**Gate 3 acceptance is complete as of 2026-11-19:** all mandatory applicable criteria G3-01–G3-15 passed; G3-08 is not applicable because no local order book is implemented. G3-05 protocol-level pong and keepalive-timeout recovery are now deterministic-test and CI verified. This confirms source/test acceptance, not independent proof that Render is serving the final commit. See the [final acceptance audit](docs/development/GATE_3_MARKET_DATA.md#31-final-gate-3-acceptance-audit--2026-11-19).
 Production evidence records NTP/REST smoke checks, a durable BTCUSDT snapshot
 commit with independent Supabase readback, and the G3-05 forced five-second
 WebSocket rotation/recovery diagnostic. G3-06 trade-sequence integrity and
