@@ -36,7 +36,7 @@ class FakeSession:
         return None
 
     def add(self, row: object) -> None:
-        assert isinstance(row, (MarketDataSnapshot, AuditLog))
+        assert isinstance(row, MarketDataSnapshot | AuditLog)
         self.rows.append(row)
         if isinstance(row, MarketDataSnapshot):
             self.snapshot = row
