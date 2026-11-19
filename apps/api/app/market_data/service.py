@@ -211,8 +211,7 @@ class BinanceMarketDataService:
                     event,
                     now=now,
                     source_healthy=(
-                        event.source == "binance_spot_rest"
-                        or normalized in self._stream_healthy
+                        event.source == "binance_spot_rest" or normalized in self._stream_healthy
                     ),
                     clock_healthy=clock_healthy,
                 )
