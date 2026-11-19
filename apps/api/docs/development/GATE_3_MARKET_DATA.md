@@ -518,10 +518,10 @@ same acceptance test.
   snapshot-reference behaviour remains covered by service/API tests.
 - **G3-15:** live Binance REST/WS payload smoke evidence recorded. This is
   supplemental to, not a replacement for, deterministic tests.
-- **G3-05 is the next production acceptance item:** capture evidence for
-  disconnect detection, planned reconnect/resubscription, and restored fresh
-  price acceptance in the deployed service. The diagnostic's second-connection
-  check is not sufficient to close the full lifecycle criterion.
+- **G3-05:** the forced five-second production rotation/recovery diagnostic
+  passed on 2026-11-19 (Section 21). Its evidence is supplemental to the
+  deterministic lifecycle/ping-pong tests; it does not prove a 23h50m
+  uninterrupted connection.
 - **Gate 3 remains incomplete** until every mandatory applicable criterion in
   Section 11 has its required evidence.
 
@@ -600,9 +600,9 @@ other applicable acceptance evidence.
   2026-11-19. The response proves disconnect observation, replacement
   subscription, and fresh post-reconnect WebSocket data accepted at 52 ms.
   Retain deterministic lifecycle tests as required evidence.
-- **G3-06:** implementation and expanded deterministic tests are included in
-  the dedicated G3-06 pull request. Final acceptance remains pending review
-  and green backend CI for that exact commit; see Section 22.
+- **G3-06:** merged in PR #38 (main commit
+  `16c9c34545d5bc19c08afa90e273ff63f4e8e192`); backend CI passed on the exact
+  reviewed PR head with 135 tests. See Section 22.
 - **Gate 3 status:** incomplete. Do not mark the gate complete until every
   applicable criterion in Section 11 has reproducible evidence.
 
@@ -634,11 +634,12 @@ and later timestamps, missing/non-numeric IDs, symbol mismatch, non-REST
 recovery payloads, forward gaps, REST recovery failure, REST results behind
 the gap event, and resumed WebSocket acceptance after successful reconciliation.
 
-The implementation and tests are submitted in a dedicated pull request.
-**G3-06 is not accepted until code review and the backend CI suite pass on the
-exact reviewed commit.** No production diagnostic or database write is needed
-for this deterministic sequence-handling criterion. Gate 3 remains incomplete
-until all other applicable acceptance criteria are also evidenced.
+G3-06 was merged in PR #38 as commit
+`16c9c34545d5bc19c08afa90e273ff63f4e8e192`. Backend CI passed on the exact
+reviewed PR head `c25ce33e831b62062c47f4ee2f2f602e870a6375`: Ruff format,
+Ruff lint, mypy, 135 pytest tests, and strict Zensical build. The implementation
+and deterministic evidence are accepted for G3-06; this does not complete
+Gate 3. No production diagnostic or database write was required.
 
 
 ## 23. G3-07 candle integrity — implementation and deterministic acceptance
@@ -678,3 +679,45 @@ deterministic candle-integrity implementation; it does not by itself complete
 Gate 3. No production database write or live Binance diagnostic was required.
 Gate 3 remains incomplete until all other applicable acceptance criteria are
 also evidenced.
+
+
+## 24. G3-08 applicability and G3-09 next acceptance item
+
+### G3-08 — local order-book integrity: not applicable
+
+G3-08 is conditional on a local depth/order-book implementation. Inspection of
+the current repository found no Binance depth REST adapter
+(`/api/v3/depth`), depth WebSocket stream (`@depth` / `depthUpdate`), local
+order-book synchronization, or depth sequence-recovery implementation.
+The current Gate 3 scope implements public trade streams and historical
+candles, not a local order book. G3-08 is therefore **not applicable to the
+current approved implementation**. Do not add an order-book subsystem solely
+to satisfy this conditional criterion. Reassess only if local depth is
+explicitly added to an approved scope.
+
+### G3-09 — REST rate limits and transient failures: next
+
+G3-09 remains open. The current REST adapters detect Binance HTTP 418/429 and
+surface Retry-After information, but do not yet implement bounded retry and
+backoff for eligible transient failures. The next implementation must:
+
+- Respect a valid Binance `Retry-After` value without retrying before the
+  instructed delay; use a bounded policy when the header is absent or invalid.
+- Treat HTTP 418 as a ban signal and fail closed rather than retrying
+  aggressively or attempting to evade the ban.
+- Handle HTTP 429 with bounded retries, honoring the server delay and never
+  exceeding an explicit retry/deadline budget.
+- Apply bounded exponential backoff with jitter to eligible transient
+  transport/server failures; do not retry permanent client errors.
+- Preserve cancellation and request deadlines, avoid retry multiplication
+  across layers, and surface a clear unavailable error when the budget ends.
+- Add deterministic mocked HTTP tests for Retry-After, 418/429, transient
+  failures, exhaustion, and non-retryable responses.
+
+Do not test by deliberately generating production Binance rate limits or bans.
+Use mocked transport tests; a live smoke test must remain low-volume and
+must not attempt to circumvent exchange protections.
+
+**Gate 3 remains incomplete.** G3-09 is the next implementation criterion,
+not a claim that all preceding operational evidence or every other mandatory
+criterion has been closed.
