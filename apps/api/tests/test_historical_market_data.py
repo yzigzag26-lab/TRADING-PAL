@@ -398,9 +398,7 @@ def test_binance_kline_parser_distinguishes_open_and_closed_boundaries() -> None
 
         async def fetch_at(now: datetime) -> HistoricalCandle:
             client = httpx.AsyncClient(
-                transport=httpx.MockTransport(
-                    lambda _: httpx.Response(200, json=[row])
-                )
+                transport=httpx.MockTransport(lambda _: httpx.Response(200, json=[row]))
             )
             rest = BinanceHistoricalRestClient(
                 base_url="https://test.invalid",
@@ -416,9 +414,7 @@ def test_binance_kline_parser_distinguishes_open_and_closed_boundaries() -> None
             await client.aclose()
             return result[0]
 
-        before_close = await fetch_at(
-            START + timedelta(minutes=1) - timedelta(milliseconds=1)
-        )
+        before_close = await fetch_at(START + timedelta(minutes=1) - timedelta(milliseconds=1))
         at_next_open = await fetch_at(START + timedelta(minutes=1))
         assert before_close.is_closed is False
         assert at_next_open.is_closed is True
