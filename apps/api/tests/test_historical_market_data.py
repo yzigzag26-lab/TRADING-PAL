@@ -152,8 +152,49 @@ def test_historical_rest_rate_limit_fails_closed(status: int) -> None:
             )
         )
         rest = BinanceHistoricalRestClient(base_url="https://test.invalid", client=client)
-        with pytest.raises(MarketDataUnavailable, match="rate limited"):
+        with pytest.raises(MarketDataUnavailable, match="HTTP 418|HTTP 429"):
             await rest.klines("BTCUSDT", "1m", start_time=START, end_time=START)
+        await client.aclose()
+
+    asyncio.run(run())
+
+
+
+def test_historical_klines_retries_http_429(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def run() -> None:
+        open_ms = int(START.timestamp() * 1000)
+        close_ms = open_ms + 60_000 - 1
+        calls = 0
+
+        async def sleep(_: float) -> None:
+            return None
+
+        def handler(_: httpx.Request) -> httpx.Response:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return httpx.Response(429, headers={"Retry-After": "0"})
+            return httpx.Response(
+                200,
+                json=[[
+                    open_ms, "100", "105", "95", "101", "10.5", close_ms,
+                    "1050", 12, "4.5", "450", "0",
+                ]],
+            )
+
+        monkeypatch.setattr("app.market_data.rest_retry.asyncio.sleep", sleep)
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        rest = BinanceHistoricalRestClient(base_url="https://test.invalid", client=client)
+        rows = await rest.klines(
+            "BTCUSDT",
+            "1m",
+            start_time=START,
+            end_time=START,
+            now=START + timedelta(minutes=2),
+        )
+        assert calls == 2
+        assert len(rows) == 1
+        assert rows[0].close == Decimal("101")
         await client.aclose()
 
     asyncio.run(run())
