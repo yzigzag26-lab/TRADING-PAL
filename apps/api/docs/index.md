@@ -4,8 +4,7 @@ Baymax is a private, single-owner, mobile-first cryptocurrency trading-intellige
 
 ## Start here
 
-- [Phase 1 implementation handoff](IMPLEMENTATION_HANDOFF.md)
-- [Claude work allocation](https://github.com/yzigzag26-lab/TRADING-PAL/blob/main/CLAUDE_WORKS.md)
+- [Archived Phase 1 planning baseline — historical reference only](IMPLEMENTATION_HANDOFF.md)
 - [Local development](development/LOCAL_DEVELOPMENT.md)
 - [Testing and Gate 3 acceptance](development/TESTING.md)
 - [Environment variables](development/ENVIRONMENT_VARIABLES.md)
@@ -19,14 +18,16 @@ Baymax is a private, single-owner, mobile-first cryptocurrency trading-intellige
 
 The repository contains a runnable FastAPI backend with private single-owner
 password/session authentication, a public liveness endpoint, strict CORS,
-request correlation, structured logs, standardized errors, and the Gate 1/2
-database foundation. The private Zensical site is served under `/guide/` using
-the existing owner session. Supabase PostgreSQL is connected to the production
-API for append-only market-data provenance.
+request correlation, structured logs, standardized errors, the Gate 1/2
+database foundation, and the Gate 3 Binance Spot market-data pipeline. The
+private Zensical site is served under `/guide/` using the existing owner
+session. Supabase PostgreSQL is connected to the production API for append-only
+market-data provenance.
 
-**Gate 3 is implemented and undergoing acceptance testing, not complete.**
-Production NTP consensus, Binance REST/basic WebSocket smoke checks, and one
-durable BTCUSDT snapshot commit with independent Supabase readback have passed.
-Full deployed-service WebSocket lifecycle recovery and the remaining
-acceptance-contract evidence are still open. AI evaluation, learning and
-curated memory remain later gates.
+**Gate 3 remains incomplete.** Production NTP/REST smoke checks, the durable
+BTCUSDT snapshot commit/readback, and the G3-05 forced WebSocket rotation
+diagnostic are recorded. G3-06 trade-sequence integrity and G3-07 candle
+integrity have merged deterministic CI evidence. G3-08 is not applicable
+because no local depth book exists in the current scope. G3-09 rate-limit and
+transient-error handling is the next implementation criterion. See the
+[Gate 3 acceptance contract](development/GATE_3_MARKET_DATA.md).
