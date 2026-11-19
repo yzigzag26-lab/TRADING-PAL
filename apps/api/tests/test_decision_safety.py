@@ -88,9 +88,7 @@ def test_final_gate_rejects_stale_or_future_market_data(event_age_ms: int, messa
     now = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
     price = _price(now, event_age_ms=max(event_age_ms, 0))
     if event_age_ms < 0:
-        price = price.model_copy(
-            update={"market_event_timestamp": now + timedelta(milliseconds=1)}
-        )
+        price = price.model_copy(update={"market_event_timestamp": now + timedelta(milliseconds=1)})
     with pytest.raises(AnalysisInputUnavailable, match=message):
         validate_prepared_analysis_inputs(_request(), _prepared(price), now=now)
 
