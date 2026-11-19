@@ -213,7 +213,7 @@ def test_stream_trade_id_gap_requires_rest_reconciliation() -> None:
                 price=Decimal("105"),
                 market_event_timestamp=NOW + timedelta(milliseconds=202),
                 received_timestamp=NOW,
-                source="binance_spot_rest",
+                source=recovered_source,
                 event_id="202",
             )
 
@@ -360,14 +360,21 @@ def test_stream_rotates_connection_and_reports_state_transitions(
     asyncio.run(run())
 
 
-def test_gap_reconciliation_rejects_wrong_symbol_or_non_rest_payload() -> None:
+@pytest.mark.parametrize(
+    ("recovered_symbol", "recovered_source"),
+    [("ETHUSDT", "binance_spot_rest"), ("BTCUSDT", "binance_spot_websocket")],
+)
+def test_gap_reconciliation_rejects_wrong_symbol_or_non_rest_payload(
+    recovered_symbol: str,
+    recovered_source: str,
+) -> None:
     class FakeRest:
         calls = 0
 
         async def latest_trade(self, symbol: str) -> PriceEvent:
             self.calls += 1
             return PriceEvent(
-                symbol="ETHUSDT",
+                symbol=recovered_symbol,
                 price=Decimal("105"),
                 market_event_timestamp=NOW,
                 received_timestamp=NOW,
