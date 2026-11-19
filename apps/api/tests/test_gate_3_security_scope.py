@@ -14,8 +14,12 @@ def test_binance_adapters_remain_on_public_spot_market_data_hosts() -> None:
     )
     stream = (MARKET_DATA / "binance_stream.py").read_text(encoding="utf-8")
 
-    assert 'BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"' in rest
-    assert 'BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"' in historical
+    assert (
+        'BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"' in rest
+    )
+    assert (
+        'BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"' in historical
+    )
     assert 'BINANCE_SPOT_WS_BASE_URL = "wss://data-stream.binance.vision"' in stream
     assert '"/api/v3/trades"' in rest
     assert '"/api/v3/klines"' in historical
@@ -50,7 +54,8 @@ def test_environment_templates_do_not_declare_binance_credentials() -> None:
         assert forbidden.search(content) is None
 
 
-def test_render_manifest_does_not_configure_binance_credentials_or_extra_services() -> None:
+def test_render_manifest_does_not_configure_binance_credentials_or_extra_services(
+) -> None:
     manifest = (ROOT / "render.yaml").read_text(encoding="utf-8")
 
     assert manifest.count("  - type:") == 1
