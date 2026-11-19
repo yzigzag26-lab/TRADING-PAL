@@ -719,6 +719,12 @@ must prove:
   fallback backoff, 418, 429, transient status/transport failures, exhaustion,
   deadline cancellation, and permanent client errors.
 
+The initial G3-09 implementation commit
+`427c568d308d5af1c99135e68d32eb36e3c05db5` passed the repository Backend and
+Documentation CI workflow: Ruff format, Ruff lint, mypy, 166 pytest tests, and
+strict Zensical build. This is evidence for that exact PR commit; G3-09 is not
+considered merged or accepted until the final reviewed PR commit is merged.
+
 No live rate limit or ban should be induced for testing.
 
 Do not test by deliberately generating production Binance rate limits or bans.
