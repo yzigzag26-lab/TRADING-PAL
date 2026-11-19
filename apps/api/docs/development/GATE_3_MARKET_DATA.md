@@ -697,27 +697,41 @@ explicitly added to an approved scope.
 
 ### G3-09 — REST rate limits and transient failures: next
 
-G3-09 remains open. The current REST adapters detect Binance HTTP 418/429 and
-surface Retry-After information, but do not yet implement bounded retry and
-backoff for eligible transient failures. The next implementation must:
+G3-09 implementation is in progress on branch
+`feat/g3-09-bounded-binance-rest-retries`. The shared
+`app.market_data.rest_retry` policy is being applied to both the latest-trade
+and historical-kline REST adapters. The implementation must satisfy and tests
+must prove:
 
-- Respect a valid Binance `Retry-After` value without retrying before the
-  instructed delay; use a bounded policy when the header is absent or invalid.
-- Treat HTTP 418 as a ban signal and fail closed rather than retrying
-  aggressively or attempting to evade the ban.
-- Handle HTTP 429 with bounded retries, honoring the server delay and never
-  exceeding an explicit retry/deadline budget.
-- Apply bounded exponential backoff with jitter to eligible transient
-  transport/server failures; do not retry permanent client errors.
-- Preserve cancellation and request deadlines, avoid retry multiplication
-  across layers, and surface a clear unavailable error when the budget ends.
-- Add deterministic mocked HTTP tests for Retry-After, 418/429, transient
-  failures, exhaustion, and non-retryable responses.
+- A valid delta-seconds or HTTP-date `Retry-After` value is honoured exactly;
+  the client must never retry before the server-specified time.
+- If `Retry-After` is absent or invalid, HTTP 429 uses bounded exponential
+  backoff with jitter. If the valid server delay exceeds the configured
+  cumulative wait budget, fail closed without retrying early.
+- HTTP 418 is treated as an IP-ban signal and is never automatically retried,
+  regardless of its `Retry-After` header.
+- HTTP 408, 5xx responses, and HTTP transport failures receive bounded
+  exponential backoff with jitter. Permanent 4xx responses are not retried.
+- Attempts, cumulative sleep, and total elapsed request time have explicit
+  upper bounds. Cancellation is not swallowed; the operation returns a clear
+  unavailable error when its retry or deadline budget is exhausted.
+- Both REST adapters use the same policy. Mocked HTTP tests cover server delay,
+  fallback backoff, 418, 429, transient status/transport failures, exhaustion,
+  deadline cancellation, and permanent client errors.
+
+The initial G3-09 implementation commit
+`427c568d308d5af1c99135e68d32eb36e3c05db5` passed the repository Backend and
+Documentation CI workflow: Ruff format, Ruff lint, mypy, 166 pytest tests, and
+strict Zensical build. This is evidence for that exact PR commit; G3-09 is not
+considered merged or accepted until the final reviewed PR commit is merged.
+
+No live rate limit or ban should be induced for testing.
 
 Do not test by deliberately generating production Binance rate limits or bans.
 Use mocked transport tests; a live smoke test must remain low-volume and
 must not attempt to circumvent exchange protections.
 
-**Gate 3 remains incomplete.** G3-09 is the next implementation criterion,
-not a claim that all preceding operational evidence or every other mandatory
-criterion has been closed.
+**Gate 3 remains incomplete.** G3-09 implementation and deterministic tests
+are in progress on the branch above. The criterion is not accepted until the
+exact PR commit passes backend CI and is reviewed; no production rate limit or
+ban test is required.

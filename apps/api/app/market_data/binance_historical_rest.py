@@ -15,6 +15,7 @@ from app.market_data.candles import (
     parse_utc_milliseconds,
 )
 from app.market_data.freshness import MarketDataUnavailable
+from app.market_data.rest_retry import DEFAULT_RETRY_POLICY, RestRetryPolicy, get_with_retry
 
 BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"
 MAX_KLINE_LIMIT = 1_000
@@ -29,11 +30,13 @@ class BinanceHistoricalRestClient:
         base_url: str = BINANCE_SPOT_REST_BASE_URL,
         timeout_seconds: float = 8.0,
         client: httpx.AsyncClient | None = None,
+        retry_policy: RestRetryPolicy = DEFAULT_RETRY_POLICY,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout_seconds
         self._client = client
         self._owns_client = client is None
+        self._retry_policy = retry_policy
 
     async def __aenter__(self) -> BinanceHistoricalRestClient:
         if self._client is None:
@@ -79,13 +82,12 @@ class BinanceHistoricalRestClient:
             "limit": limit,
         }
         try:
-            response = await client.get(f"{self._base_url}/api/v3/klines", params=params)
-            if response.status_code in (418, 429):
-                retry_after = response.headers.get("Retry-After")
-                raise MarketDataUnavailable(
-                    f"Binance kline REST rate limited (HTTP {response.status_code}); "
-                    f"Retry-After={retry_after or 'not-provided'}"
-                )
+            response = await get_with_retry(
+                client,
+                f"{self._base_url}/api/v3/klines",
+                params=params,
+                policy=self._retry_policy,
+            )
             response.raise_for_status()
             payload: Any = response.json()
         except MarketDataUnavailable:

@@ -54,7 +54,7 @@ commit with independent Supabase readback, and the G3-05 forced five-second
 WebSocket rotation/recovery diagnostic. G3-06 trade-sequence integrity and
 G3-07 candle integrity have been merged with deterministic CI evidence.
 G3-08 is not applicable because the current implementation has no local depth
-book. **G3-09 rate-limit and transient-error handling is the next criterion.**
+book. **G3-09 bounded REST retry handling is in implementation.** It is not accepted until deterministic tests and backend CI pass.
 Other mandatory criteria remain open until their required deterministic and
 operational evidence is recorded. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md).
 
