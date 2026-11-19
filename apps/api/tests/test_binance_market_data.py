@@ -228,6 +228,7 @@ def test_stream_trade_id_gap_requires_rest_reconciliation() -> None:
             try:
                 yield _trade_event(200, price="100")
                 yield _trade_event(202, price="102")
+                yield _trade_event(203, price="103")
                 await asyncio.Event().wait()
             finally:
                 await on_connection_state(False)
@@ -240,13 +241,13 @@ def test_stream_trade_id_gap_requires_rest_reconciliation() -> None:
         )
         await service.start_symbol_stream("BTCUSDT")
         for _ in range(20):
-            if rest.calls:
+            if service._last_trade_ids.get("BTCUSDT") == 203:
                 break
             await asyncio.sleep(0)
         assert rest.calls == 1
-        assert service._last_trade_ids["BTCUSDT"] == 202
-        assert service._events["BTCUSDT"].source == "binance_spot_rest"
-        assert service._events["BTCUSDT"].price == Decimal("105")
+        assert service._last_trade_ids["BTCUSDT"] == 203
+        assert service._events["BTCUSDT"].source == "binance_spot_websocket"
+        assert service._events["BTCUSDT"].price == Decimal("103")
         assert "BTCUSDT" in service._stream_healthy
         await service.close()
 
@@ -361,7 +362,10 @@ def test_stream_rotates_connection_and_reports_state_transitions(
 
 def test_gap_reconciliation_rejects_wrong_symbol_or_non_rest_payload() -> None:
     class FakeRest:
+        calls = 0
+
         async def latest_trade(self, symbol: str) -> PriceEvent:
+            self.calls += 1
             return PriceEvent(
                 symbol="ETHUSDT",
                 price=Decimal("105"),
@@ -387,15 +391,14 @@ def test_gap_reconciliation_rejects_wrong_symbol_or_non_rest_payload() -> None:
                 await on_connection_state(False)
 
     async def run() -> None:
-        service = BinanceMarketDataService(rest_client=FakeRest(), stream=GapStream())
+        rest = FakeRest()
+        service = BinanceMarketDataService(rest_client=rest, stream=GapStream())
         await service.start_symbol_stream("BTCUSDT")
         for _ in range(20):
-            if service._last_trade_ids.get("BTCUSDT") == 200:
-                await asyncio.sleep(0)
-            if "BTCUSDT" not in service._stream_healthy:
-                await asyncio.sleep(0)
+            if rest.calls:
                 break
             await asyncio.sleep(0)
+        assert rest.calls == 1
         assert service._last_trade_ids["BTCUSDT"] == 200
         assert "BTCUSDT" not in service._events
         assert "BTCUSDT" not in service._stream_healthy
@@ -406,7 +409,10 @@ def test_gap_reconciliation_rejects_wrong_symbol_or_non_rest_payload() -> None:
 
 def test_gap_reconciliation_failure_keeps_stream_unhealthy() -> None:
     class FakeRest:
+        calls = 0
+
         async def latest_trade(self, symbol: str) -> PriceEvent:
+            self.calls += 1
             raise MarketDataUnavailable("REST recovery unavailable")
 
     class GapStream:
@@ -425,15 +431,14 @@ def test_gap_reconciliation_failure_keeps_stream_unhealthy() -> None:
                 await on_connection_state(False)
 
     async def run() -> None:
-        service = BinanceMarketDataService(rest_client=FakeRest(), stream=GapStream())
+        rest = FakeRest()
+        service = BinanceMarketDataService(rest_client=rest, stream=GapStream())
         await service.start_symbol_stream("BTCUSDT")
         for _ in range(20):
-            if service._last_trade_ids.get("BTCUSDT") == 300:
-                await asyncio.sleep(0)
-            if "BTCUSDT" not in service._events:
-                await asyncio.sleep(0)
+            if rest.calls:
                 break
             await asyncio.sleep(0)
+        assert rest.calls == 1
         assert service._last_trade_ids["BTCUSDT"] == 300
         assert "BTCUSDT" not in service._events
         assert "BTCUSDT" not in service._stream_healthy
@@ -444,7 +449,10 @@ def test_gap_reconciliation_failure_keeps_stream_unhealthy() -> None:
 
 def test_gap_reconciliation_rejects_rest_trade_older_than_gap_event() -> None:
     class FakeRest:
+        calls = 0
+
         async def latest_trade(self, symbol: str) -> PriceEvent:
+            self.calls += 1
             return PriceEvent(
                 symbol=symbol,
                 price=Decimal("101"),
@@ -470,15 +478,14 @@ def test_gap_reconciliation_rejects_rest_trade_older_than_gap_event() -> None:
                 await on_connection_state(False)
 
     async def run() -> None:
-        service = BinanceMarketDataService(rest_client=FakeRest(), stream=GapStream())
+        rest = FakeRest()
+        service = BinanceMarketDataService(rest_client=rest, stream=GapStream())
         await service.start_symbol_stream("BTCUSDT")
         for _ in range(20):
-            if service._last_trade_ids.get("BTCUSDT") == 400:
-                await asyncio.sleep(0)
-            if "BTCUSDT" not in service._events:
-                await asyncio.sleep(0)
+            if rest.calls:
                 break
             await asyncio.sleep(0)
+        assert rest.calls == 1
         assert service._last_trade_ids["BTCUSDT"] == 400
         assert "BTCUSDT" not in service._events
         assert "BTCUSDT" not in service._stream_healthy
@@ -549,6 +556,8 @@ def test_stream_rejects_trade_without_numeric_sequence_id() -> None:
         async def latest_trade(self, symbol: str) -> PriceEvent:
             raise AssertionError("Invalid stream IDs must not be reconciled as valid events")
 
+    processed = asyncio.Event()
+
     class InvalidIdStream:
         async def listen(
             self,
@@ -566,6 +575,8 @@ def test_stream_rejects_trade_without_numeric_sequence_id() -> None:
                     source="binance_spot_websocket",
                     event_id=None,
                 )
+                await asyncio.sleep(0)
+                processed.set()
                 await asyncio.Event().wait()
             finally:
                 await on_connection_state(False)
@@ -573,11 +584,7 @@ def test_stream_rejects_trade_without_numeric_sequence_id() -> None:
     async def run() -> None:
         service = BinanceMarketDataService(rest_client=FakeRest(), stream=InvalidIdStream())
         await service.start_symbol_stream("BTCUSDT")
-        for _ in range(20):
-            if "BTCUSDT" not in service._stream_healthy:
-                await asyncio.sleep(0)
-                break
-            await asyncio.sleep(0)
+        await asyncio.wait_for(processed.wait(), timeout=1)
         assert "BTCUSDT" not in service._events
         assert "BTCUSDT" not in service._stream_healthy
         await service.close()
