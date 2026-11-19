@@ -127,40 +127,46 @@ class BinanceMarketDataService:
                 symbol,
                 on_connection_state=connection_state,
             ):
-                previous = self._events.get(symbol)
-                previous_id = self._last_trade_ids.get(symbol)
+                # Binance Spot trade events always carry a numeric trade ID.
+                # Without it, sequence integrity cannot be established.
                 current_id = self._numeric_trade_id(event)
-
-                if previous is not None:
-                    if event.market_event_timestamp < previous.market_event_timestamp:
-                        continue
-                    if (
-                        event.market_event_timestamp == previous.market_event_timestamp
-                        and current_id is not None
-                        and previous_id is not None
-                        and current_id <= previous_id
-                    ):
-                        continue
-
-                if current_id is not None and previous_id is not None and current_id <= previous_id:
+                if event.symbol != symbol or current_id is None:
+                    self._stream_healthy.discard(symbol)
                     continue
 
-                if (
-                    current_id is not None
-                    and previous_id is not None
-                    and current_id > previous_id + 1
+                previous = self._events.get(symbol)
+                previous_id = self._last_trade_ids.get(symbol)
+
+                if previous is not None and (
+                    event.market_event_timestamp < previous.market_event_timestamp
                 ):
-                    # Trade IDs are sequence evidence. Do not accept a stream
-                    # event across a gap until REST reconciles the latest trade.
+                    continue
+
+                # Trade IDs are strictly increasing per symbol. This check is
+                # independent of timestamps so a delayed event cannot pass by
+                # carrying a later/malformed timestamp.
+                if previous_id is not None and current_id <= previous_id:
+                    continue
+
+                if previous_id is not None and current_id > previous_id + 1:
+                    # A forward gap invalidates the stream cache. Reconcile
+                    # from Binance REST before accepting any further WS event.
                     self._stream_healthy.discard(symbol)
                     self._events.pop(symbol, None)
                     try:
                         recovered = await self._rest.latest_trade(symbol)
                     except MarketDataUnavailable:
                         continue
+
                     recovered_id = self._numeric_trade_id(recovered)
-                    if recovered_id is None or recovered_id < current_id:
+                    if (
+                        recovered.symbol != symbol
+                        or recovered.source != "binance_spot_rest"
+                        or recovered_id is None
+                        or recovered_id < current_id
+                    ):
                         continue
+
                     self._events[symbol] = recovered
                     self._last_trade_ids[symbol] = recovered_id
                     if symbol in self._stream_connected:
@@ -168,8 +174,7 @@ class BinanceMarketDataService:
                     continue
 
                 self._events[symbol] = event
-                if current_id is not None:
-                    self._last_trade_ids[symbol] = current_id
+                self._last_trade_ids[symbol] = current_id
                 if symbol in self._stream_connected:
                     self._stream_healthy.add(symbol)
         except asyncio.CancelledError:
