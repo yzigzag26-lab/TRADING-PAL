@@ -6,7 +6,11 @@ import re
 from datetime import UTC, datetime
 
 from app.market_data.candles import HistoricalCandleSeries, expected_open_times
-from app.orchestration.requests import AnalysisInputUnavailable, AnalysisRequest, PreparedAnalysisInput
+from app.orchestration.requests import (
+    AnalysisInputUnavailable,
+    AnalysisRequest,
+    PreparedAnalysisInput,
+)
 
 
 def is_trading_decision_request(message: str, *, intent: str) -> bool:
@@ -30,6 +34,7 @@ def is_trading_decision_request(message: str, *, intent: str) -> bool:
         flags=re.IGNORECASE,
     ) is not None
 
+
 def _utc(value: datetime, label: str) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise AnalysisInputUnavailable(f"{label} must be timezone-aware.")
@@ -45,15 +50,21 @@ def validate_historical_series_for_decision(
     """Reject historical evidence unless it is complete, closed, continuous and traceable."""
     current_time = _utc(now, "Decision validation time")
     if series.symbol != expected_symbol.strip().upper():
-        raise AnalysisInputUnavailable("Historical series symbol does not match the requested market.")
+        raise AnalysisInputUnavailable(
+            "Historical series symbol does not match the requested market."
+        )
     if series.source != "binance_spot_rest" or series.snapshot_id is None:
         raise AnalysisInputUnavailable("Historical series has no trusted, traceable provenance.")
     if not series.complete or series.missing_open_times:
-        raise AnalysisInputUnavailable("Historical series is incomplete or contains unresolved candle gaps.")
+        raise AnalysisInputUnavailable(
+            "Historical series is incomplete or contains unresolved candle gaps."
+        )
     if not series.candles:
         raise AnalysisInputUnavailable("Historical series contains no candles.")
     try:
-        expected = expected_open_times(series.requested_start, series.requested_end, series.interval)
+        expected = expected_open_times(
+            series.requested_start, series.requested_end, series.interval
+        )
     except ValueError as exc:
         raise AnalysisInputUnavailable("Historical series range is invalid.") from exc
     actual = tuple(candle.open_time for candle in series.candles)
@@ -61,12 +72,16 @@ def validate_historical_series_for_decision(
         raise AnalysisInputUnavailable("Historical candle sequence is incomplete or contradictory.")
     for candle in series.candles:
         if candle.symbol != series.symbol or candle.interval != series.interval:
-            raise AnalysisInputUnavailable("Historical candle identity conflicts with its series.")
+            raise AnalysisInputUnavailable(
+                "Historical candle identity conflicts with its series."
+            )
         if not candle.is_closed or candle.close_time >= current_time:
             raise AnalysisInputUnavailable("Open candles cannot be used for a trading decision.")
         received_time = _utc(candle.received_time, "Candle receive timestamp")
         if received_time < candle.close_time or received_time > current_time:
-            raise AnalysisInputUnavailable("Historical candle receive timestamp is contradictory.")
+            raise AnalysisInputUnavailable(
+                "Historical candle receive timestamp is contradictory."
+            )
 
 
 def validate_prepared_analysis_inputs(
@@ -91,7 +106,9 @@ def validate_prepared_analysis_inputs(
             or prepared.current_price is not None
             or prepared.market_snapshot_id is not None
         ):
-            raise AnalysisInputUnavailable("Non-market response contains unexpected market evidence.")
+            raise AnalysisInputUnavailable(
+                "Non-market response contains unexpected market evidence."
+            )
         return
 
     if request.intent == "historical_market":
@@ -113,7 +130,9 @@ def validate_prepared_analysis_inputs(
     if request.symbol is None or price.symbol != request.symbol:
         raise AnalysisInputUnavailable("Market symbol does not match the classified request.")
     if price.exchange != "BINANCE" or price.market != "SPOT":
-        raise AnalysisInputUnavailable("Market source identity is not an approved Binance Spot feed.")
+        raise AnalysisInputUnavailable(
+            "Market source identity is not an approved Binance Spot feed."
+        )
     if price.source not in {"binance_spot_websocket", "binance_spot_rest"}:
         raise AnalysisInputUnavailable("Market source is not trusted.")
     if price.event_id is None or not price.event_id.isdecimal():
@@ -127,7 +146,9 @@ def validate_prepared_analysis_inputs(
     if price.exchange_event_timestamp is not None:
         exchange_time = _utc(price.exchange_event_timestamp, "Exchange event timestamp")
         if not market_time <= exchange_time <= received_time:
-            raise AnalysisInputUnavailable("Exchange and market event timestamps contradict each other.")
+            raise AnalysisInputUnavailable(
+                "Exchange and market event timestamps contradict each other."
+            )
 
     age_at_validation_ms = int((validated_time - market_time).total_seconds() * 1_000)
     age_now_ms = int((current_time - market_time).total_seconds() * 1_000)
