@@ -159,7 +159,6 @@ def test_historical_rest_rate_limit_fails_closed(status: int) -> None:
     asyncio.run(run())
 
 
-
 def test_historical_klines_retries_http_429(monkeypatch: pytest.MonkeyPatch) -> None:
     async def run() -> None:
         open_ms = int(START.timestamp() * 1000)
@@ -176,10 +175,22 @@ def test_historical_klines_retries_http_429(monkeypatch: pytest.MonkeyPatch) -> 
                 return httpx.Response(429, headers={"Retry-After": "0"})
             return httpx.Response(
                 200,
-                json=[[
-                    open_ms, "100", "105", "95", "101", "10.5", close_ms,
-                    "1050", 12, "4.5", "450", "0",
-                ]],
+                json=[
+                    [
+                        open_ms,
+                        "100",
+                        "105",
+                        "95",
+                        "101",
+                        "10.5",
+                        close_ms,
+                        "1050",
+                        12,
+                        "4.5",
+                        "450",
+                        "0",
+                    ]
+                ],
             )
 
         monkeypatch.setattr("app.market_data.rest_retry.asyncio.sleep", sleep)
