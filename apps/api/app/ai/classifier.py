@@ -72,7 +72,7 @@ CLASSIFICATION_SCHEMA: dict[str, object] = {
                 "confidence": {"type": "number"},
                 "needs_clarification": {"type": "boolean"},
             },
-            "required": ["intent", "symbol", "confidence", "needs_clarification"],
+            "required": ["intent", "symbol", "confidence", "needs_clarification", "decision_requested"],
             "additionalProperties": False,
         },
     },
