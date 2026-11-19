@@ -11,7 +11,7 @@ After the backend deployment containing the endpoint is Live, open
 
 `POST /api/v1/diagnostics/gate-3/websocket-rotation`
 
-No request body is required. Allow up to 45 seconds for the diagnostic.
+No request body is required. Allow up to 120 seconds for the diagnostic.
 
 The diagnostic starts an isolated instance of the real
 `BinanceMarketDataService` using Binance's public Spot REST and WebSocket
