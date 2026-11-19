@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from typing import Literal
-from uuid import UUID
 from decimal import Decimal
-from uuid import uuid4
+from typing import Literal
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -13,6 +12,7 @@ from app.ai.classifier import IntentClassification
 from app.ai.engine import BaymaxAIEngine
 from app.market_data.candles import HistoricalCandle, HistoricalCandleSeries
 from app.market_data.decision_safety import (
+    is_trading_decision_request,
     validate_historical_series_for_decision,
     validate_prepared_analysis_inputs,
 )
@@ -247,8 +247,6 @@ def test_engine_rechecks_expiry_after_retrieval_and_never_calls_generator() -> N
         decision_clock=lambda: now + timedelta(milliseconds=3_001),
     )
     with pytest.raises(AnalysisInputUnavailable, match="expired"):
-        import asyncio
-
         asyncio.run(engine.respond("What is BTCUSDT trading at?"))
     assert generator.calls == 0
 
@@ -257,7 +255,7 @@ def test_engine_blocks_explicit_trading_decision_before_generator() -> None:
     now = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
     generator = _Generator()
     engine = BaymaxAIEngine(
-        classifier=_Classifier(decision_requested=True),
+        classifier=_Classifier(),
         generator=generator,
         orchestrator=_Orchestrator(
             PreparedAnalysisInput(
@@ -269,15 +267,11 @@ def test_engine_blocks_explicit_trading_decision_before_generator() -> None:
         decision_clock=lambda: now,
     )
     with pytest.raises(AnalysisInputUnavailable, match="trading recommendation"):
-        import asyncio
-
         asyncio.run(engine.respond("Should I buy BTCUSDT now?"))
     assert generator.calls == 0
 
 
 def test_engine_keeps_educational_responses_available_without_market_data() -> None:
-    import asyncio
-
     generator = _Generator()
     engine = BaymaxAIEngine(
         classifier=_Classifier(intent="educational"),
@@ -293,3 +287,9 @@ def test_engine_keeps_educational_responses_available_without_market_data() -> N
     result = asyncio.run(engine.respond("Explain support and resistance."))
     assert result.answer == "generated"
     assert generator.calls == 1
+
+
+def test_deterministic_detector_flags_recommendation_language_only_for_live_market() -> None:
+    assert is_trading_decision_request("Should I buy BTCUSDT now?", intent="current_market")
+    assert is_trading_decision_request("Give me a trading signal", intent="current_market")
+    assert not is_trading_decision_request("Explain what buy means", intent="educational")
