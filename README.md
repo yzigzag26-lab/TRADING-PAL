@@ -79,10 +79,22 @@ Documentation CI passed on exact PR head
 `e73ccc289ae91d2af603bafd93dcc7111f30f4c3`: Ruff format/lint, mypy, pytest
 and strict Zensical build.
 
-**G3-11 and G3-12 are merged and CI-verified. G3-13 is now the next
-implementation task:** perform the repository/configuration security and
-scope review. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
-for acceptance requirements and evidence.
+**G3-11 and G3-12 are merged and CI-verified.** The G3-13
+repository/configuration security and scope review was performed against
+source commit `d92183a8522acc487a3c8466d6c089667c6d9ff5`. The review found
+only public Binance Spot market-data adapters, no Binance credential handling
+or private/trading routes in tracked source/configuration, no synthetic
+production market-data fallback, and no additional provider/service
+declaration. Existing owner-session authorization remains enforced and is
+covered by tests.
+
+**G3-13 has one external verification outstanding:** the live Render
+environment-variable *names* were not inspected, so the review does not claim
+that an unused Binance credential is absent from the hosting secret store.
+No secret values were read. A non-blocking supply-chain hardening note is also
+recorded: the frontend has no npm lockfile, so dependency resolution is not
+fully reproducible. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
+for findings and evidence.
 
 A successful connection or green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational
