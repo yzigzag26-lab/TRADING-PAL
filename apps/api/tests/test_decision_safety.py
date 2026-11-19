@@ -270,8 +270,8 @@ def test_engine_blocks_explicit_trading_decision_before_generator() -> None:
             BaymaxRequestOrchestrator,
             _Orchestrator(
                 PreparedAnalysisInput(
-                intent="current_market",
-                market_data_required=True,
+                    intent="current_market",
+                    market_data_required=True,
                     market_data_status="decision_blocked",
                 )
             ),
@@ -288,10 +288,12 @@ def test_engine_keeps_educational_responses_available_without_market_data() -> N
     engine = BaymaxAIEngine(
         classifier=cast(BaymaxIntentClassifier, _Classifier(intent="educational")),
         generator=cast(BaymaxAnalysisGenerator, generator),
-        orchestrator=cast(BaymaxRequestOrchestrator, _Orchestrator(
-            PreparedAnalysisInput(
-                intent="educational",
-                market_data_required=False,
+        orchestrator=cast(
+            BaymaxRequestOrchestrator,
+            _Orchestrator(
+                PreparedAnalysisInput(
+                    intent="educational",
+                    market_data_required=False,
                     market_data_status="not_required",
                 )
             ),
