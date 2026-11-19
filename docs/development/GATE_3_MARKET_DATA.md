@@ -792,32 +792,79 @@ credentials, private Binance endpoints, or trading operations were used.
 **G3-10 is CI-verified on its PR head, pending merge.** Gate 3 remains
 incomplete.
 
-## 26. Next implementation item — G3-11 market-data provenance and audit records
+## 26. G3-11 market-data provenance and audit records — implementation and CI evidence
 
-After PR #44 is merged, proceed to **G3-11: ensure every market-data input
-consumed by analysis has durable, queryable provenance and an audit reference**.
+G3-11 is implemented in PR #46
+(`feat: link market-data snapshots to audit records`). It reuses the existing
+append-only `baymax.market_data_snapshots` and `baymax.audit_logs` tables;
+no migration or privilege change is introduced.
 
-The current repository already contains the append-only
-`baymax.market_data_snapshots` table and a provenance repository. Inspect
-whether the normal current-market and historical analysis paths also create
-the required `baymax.audit_logs` reference and whether the exact snapshot ID
-is carried through the response/analysis record. Reuse the existing schema
-and runtime permissions where sufficient; do not create duplicate tables or
-persist every raw tick.
+For current-price and historical OHLCV provenance:
+- The repository inserts the market snapshot, flushes it to obtain its UUID,
+  then inserts a `market_data.snapshot_recorded` audit row referencing that
+  exact `market_data_snapshot` resource ID.
+- Both rows are committed in the same SQLAlchemy transaction. A failure to
+  write the audit row prevents the snapshot transaction from committing.
+- Both records carry the originating request ID when one is available.
+- Audit metadata identifies exchange, market, symbol, data type, source,
+  validation state and relevant validation details. It deliberately omits
+  raw price values and credentials; the snapshot retains its existing
+  purpose-limited payload.
+- Historical series are audited too, including explicit incomplete status
+  and missing-candle evidence. Gaps are not fabricated or concealed.
+- Current-market orchestration already requires provenance in production;
+  a persistence failure is converted to unavailable and prevents analysis
+  generation. Historical retrieval similarly fails unavailable if persistence
+  fails in the configured production path.
 
-Acceptance work must verify:
-1. Source, exchange/market, symbol, event/receive/validation timestamps,
-   validation state, and snapshot identity are preserved.
-2. Each current-market analysis is linked to the exact snapshot it consumed.
-3. Audit references include the request ID and snapshot resource identity,
-   without secrets or unnecessary raw payload duplication.
-4. Provenance/audit write failure blocks a production current-market analysis.
-5. Deterministic repository/orchestration tests cover successful linkage and
-   failure handling, without production database writes.
+Deterministic tests cover exact snapshot/audit resource linkage, request ID,
+source and validation metadata, metadata minimization, historical incomplete
+series linkage, transaction failure, and orchestration fail-closed behaviour.
 
-Keep G3-11 isolated in its own implementation PR. Do not begin G3-11 until
-G3-10 PR #44 has been merged. After G3-11, update this contract and the root
-README with exact commit/CI evidence, limitations, and the next task.
+**CI evidence for exact PR head**
+`919109ef9f670f8c49405bce9dab77da7a0a9f71`:
+
+- Ruff format — passed.
+- Ruff lint — passed.
+- mypy — passed.
+- pytest — **170 passed, 1 warning**.
+- Strict Zensical documentation build — passed.
+
+GitHub Actions Backend and Documentation CI run
+[44511549531](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44511549531)
+completed successfully on that exact commit. Earlier CI attempts caught
+formatting and lint issues; those were corrected before this successful run.
+
+**Merge status:** implementation PR #46 remains open and unmerged. The
+successful CI result verifies the PR head, not main or production deployment.
+No production database writes, diagnostics, schema changes, credentials,
+private Binance endpoints, or trading operations were used.
+
+**G3-11 is CI-verified on its PR head, pending merge.** Gate 3 remains
+incomplete.
+
+## 27. Next implementation item — G3-12 decision-safety enforcement
+
+After PR #46 is merged, proceed to **G3-12: ensure stale, incomplete,
+contradictory, or unverified market inputs cannot produce trading decisions**.
+
+Inspect every decision-generation entry point and its input contract. Enforce
+a single fail-closed gate immediately before decision generation, not merely
+at UI presentation. Verify:
+1. Stale data, including data that expires after retrieval, blocks generation.
+2. Incomplete historical series, unresolved candle gaps, and open candles
+   cannot be treated as complete decision inputs.
+3. Contradictory symbol/source/timestamp/sequence evidence blocks generation.
+4. Missing snapshot identity, failed validation, or missing provenance/audit
+   linkage blocks market-dependent decisions.
+5. Educational/programming responses remain available without market data.
+6. Deterministic tests exercise each failure mode and prove the generator is
+   not called when a market-dependent input is unsafe.
+
+Use injected clocks, fake repositories and deterministic fixtures. Do not
+write production records or add bypass flags. Keep G3-12 isolated, and update
+both contract copies plus README with exact commit/CI evidence, limitations,
+and the next task before advancing to G3-13.
 
 **Gate 3 remains incomplete** until every mandatory applicable criterion in
 Section 11 has reproducible evidence.

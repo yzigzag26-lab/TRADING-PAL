@@ -52,26 +52,27 @@ invalidation. It does not execute trades.
 Production evidence records NTP/REST smoke checks, a durable BTCUSDT snapshot
 commit with independent Supabase readback, and the G3-05 forced five-second
 WebSocket rotation/recovery diagnostic. G3-06 trade-sequence integrity and
-G3-07 candle integrity have been merged with deterministic CI evidence.
-G3-08 is not applicable because the current implementation has no local depth
-book. G3-09 bounded REST retry handling was merged in PR #42
-(commit `1013a8afbcd96919e945398812f44b0506240e4b`) and passed Backend and
-Documentation CI on the exact PR head: Ruff format/lint, mypy, 166 pytest
-tests (1 warning), and strict Zensical build. Vercel deployment checks were
-rate-limited; no new deployment is claimed.
+G3-07 candle integrity are merged with deterministic CI evidence. G3-08 is
+not applicable because no local depth book is implemented. G3-09 bounded REST
+retry handling is merged in PR #42. G3-10 cache freshness enforcement is
+merged in PR #44 (commit
+`84059a6783d6eff0193549270c64212b7a5b4d7b`) and passed Backend and
+Documentation CI on its exact PR head: Ruff format/lint, mypy, 168 pytest
+tests (1 warning), and strict Zensical build.
 
-G3-10 cache freshness enforcement is implemented in PR #44. GitHub Actions
-Backend and Documentation CI passed on exact PR head
-`8657298d44a441d39b7dd3979a51f4a661df0f85`: Ruff format/lint, mypy,
-168 pytest tests (1 warning), and strict Zensical build. The implementation
-revalidates cache entries at consumption time, validates REST recovery before
-cache insertion, and rejects expired or invalid recovery data. **PR #44 is
-still open and not merged. G3-11 is the next implementation task after that
-merge:** verify durable provenance/audit references for the exact snapshot
-consumed by analysis. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
-for the evidence and next-step plan.
+G3-11 snapshot-to-audit linkage is implemented in PR #46 and passed Backend
+and Documentation CI on exact PR head
+`919109ef9f670f8c49405bce9dab77da7a0a9f71`: Ruff format/lint, mypy,
+170 pytest tests (1 warning), and strict Zensical build. Current-price and
+historical snapshots are linked to append-only audit rows in the same database
+transaction, with request and snapshot identity; persistence failure blocks
+market-dependent analysis. **PR #46 is still open and not merged. G3-12 is
+the next implementation task after that merge:** enforce decision-safety
+against stale, incomplete, contradictory, or unverified inputs. See the
+[Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md) for the acceptance
+plan and evidence.
 
-A successful connection or a green CI run alone does not complete Gate 3.
+A successful connection or green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational
 evidence.
 
