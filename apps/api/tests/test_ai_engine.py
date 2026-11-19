@@ -146,13 +146,12 @@ def test_low_confidence_classification_requests_clarification_without_fetching()
     asyncio.run(run())
 
 
-def test_historical_request_is_explicitly_not_implemented_in_generation_context() -> None:
+def test_historical_market_request_fails_closed_without_decision_inputs() -> None:
     async def run() -> None:
         groq = FakeGroq(
             [
                 '{"intent":"historical_market","symbol":"BTCUSDT","confidence":0.95,'
-                '"needs_clarification":false}',
-                "Historical market retrieval is not implemented yet.",
+                '"needs_clarification":false}'
             ]
         )
         market_data = FakeMarketData()
@@ -164,11 +163,10 @@ def test_historical_request_is_explicitly_not_implemented_in_generation_context(
                 clock_health_provider=lambda: True,
             ),
         )
-        result = await engine.respond("Review BTCUSDT over the previous month.")
-        assert result.market_data_status == "historical_not_implemented"
-        assert "not implemented" in result.answer
+        with pytest.raises(AnalysisInputUnavailable, match="Historical decision analysis"):
+            await engine.respond("Review BTCUSDT over the previous month.")
         assert market_data.calls == []
-        assert len(groq.calls) == 2
+        assert len(groq.calls) == 1
 
     asyncio.run(run())
 
