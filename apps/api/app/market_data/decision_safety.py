@@ -69,6 +69,12 @@ def validate_prepared_analysis_inputs(
     """Revalidate all decision inputs at the final boundary before model generation."""
     current_time = _utc(now, "Decision validation time")
 
+    if request.decision_requested:
+        raise AnalysisInputUnavailable(
+            "A trading recommendation is blocked: Baymax currently has no complete, closed "
+            "historical candle series and validated strategy evidence for this decision."
+        )
+
     if request.intent in {"educational", "programming"}:
         if (
             prepared.market_data_required
@@ -83,12 +89,6 @@ def validate_prepared_analysis_inputs(
         raise AnalysisInputUnavailable(
             "Historical decision analysis is unavailable until complete, closed and audited "
             "historical-series inputs are connected to the analysis pipeline."
-        )
-
-    if request.decision_requested:
-        raise AnalysisInputUnavailable(
-            "A trading recommendation is blocked: Baymax currently has no complete, closed "
-            "historical candle series and validated strategy evidence for this decision."
         )
 
     if (
