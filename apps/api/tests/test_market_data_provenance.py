@@ -162,9 +162,7 @@ def test_snapshot_and_audit_share_one_atomic_commit() -> None:
         def __call__(self) -> FailingSession:
             return FailingSession()
 
-    repository = MarketDataProvenanceRepository(
-        cast(sessionmaker[Session], FailingFactory())
-    )
+    repository = MarketDataProvenanceRepository(cast(sessionmaker[Session], FailingFactory()))
     event = PriceEvent(
         symbol="BTCUSDT",
         price=Decimal("95000"),
