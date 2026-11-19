@@ -35,3 +35,36 @@ def test_market_data_service_exposes_read_only_stream_status() -> None:
         "event_id": None,
         "market_event_timestamp": None,
     }
+
+
+def test_rotation_diagnostic_uses_extended_stage_and_overall_timeouts() -> None:
+    from app.api.v1.endpoints.websocket_rotation import (
+        FORCED_DISCONNECT_TIMEOUT_SECONDS,
+        INITIAL_TRADE_TIMEOUT_SECONDS,
+        POST_RECONNECT_TRADE_TIMEOUT_SECONDS,
+        RESUBSCRIPTION_TIMEOUT_SECONDS,
+        ROTATION_TEST_CLEANUP_TIMEOUT_SECONDS,
+        ROTATION_TEST_TIMEOUT_SECONDS,
+    )
+
+    assert INITIAL_TRADE_TIMEOUT_SECONDS == 30.0
+    assert FORCED_DISCONNECT_TIMEOUT_SECONDS == 30.0
+    assert RESUBSCRIPTION_TIMEOUT_SECONDS == 30.0
+    assert POST_RECONNECT_TRADE_TIMEOUT_SECONDS == 30.0
+    assert ROTATION_TEST_TIMEOUT_SECONDS == 120.0
+    assert ROTATION_TEST_CLEANUP_TIMEOUT_SECONDS == 15.0
+
+
+async def test_rotation_wait_timeout_identifies_the_failed_lifecycle_stage() -> None:
+    import asyncio
+
+    import pytest
+
+    from app.api.v1.endpoints.websocket_rotation import _wait_until
+
+    with pytest.raises(TimeoutError, match="replacement WebSocket subscription"):
+        await _wait_until(
+            lambda: False,
+            timeout_seconds=0.01,
+            description="replacement WebSocket subscription",
+        )
