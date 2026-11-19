@@ -287,9 +287,7 @@ class HistoricalCandleSeries(BaseModel):
             for candle in self.candles
         ):
             raise ValueError("Historical series contains a mismatched candle")
-        if any(
-            open_time not in expected_set for open_time in opens
-        ):
+        if any(open_time not in expected_set for open_time in opens):
             raise ValueError(
                 "Historical series contains a candle outside the requested range"
             )
