@@ -639,3 +639,39 @@ The implementation and tests are submitted in a dedicated pull request.
 exact reviewed commit.** No production diagnostic or database write is needed
 for this deterministic sequence-handling criterion. Gate 3 remains incomplete
 until all other applicable acceptance criteria are also evidenced.
+
+
+## 23. G3-07 candle integrity — implementation and deterministic acceptance
+
+The G3-07 candle-integrity slice enforces the following rules:
+
+- OHLC prices must be finite positive decimals. The candle low cannot exceed
+  the open or close, and the high cannot be below either value.
+- Base, quote, and taker-buy volumes must be finite and non-negative.
+  Taker-buy volumes cannot exceed their corresponding total volumes.
+- Candle open timestamps must align to the requested Binance interval, and
+  the inclusive close timestamp must equal one millisecond before the next
+  interval boundary.
+- Binance kline rows must contain all 12 documented fields. Truncated rows
+  are rejected rather than partially interpreted.
+- The parser marks a candle open until its inclusive close timestamp has
+  passed the supplied current-time boundary. It marks it closed only after
+  that boundary. Open candles are valid forming data, not finalized OHLCV.
+- A historical series must contain unique chronological candles within the
+  requested range. Its missing-open-time list must exactly equal the expected
+  interval boundaries absent from the returned candles. The `complete` flag
+  must agree with that exact missing list.
+- Missing intervals remain explicit after bounded recovery. The service does
+  not interpolate or fabricate candles.
+
+Deterministic tests cover invalid OHLC relationships, non-finite and
+non-positive prices, negative or contradictory volumes, invalid trade counts,
+incorrect interval timestamps, truncated Binance rows, the open/closed
+boundary, exact continuity, false completeness declarations, inaccurate gap
+lists, and out-of-range candles.
+
+The G3-07 code and tests are submitted in a dedicated pull request. **G3-07
+remains pending review and green backend CI on the exact proposed commit.**
+No production database write or live Binance diagnostic is required to prove
+these deterministic candle-integrity rules. Gate 3 remains incomplete until
+all other applicable acceptance criteria are also evidenced.

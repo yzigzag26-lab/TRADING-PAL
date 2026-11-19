@@ -104,8 +104,8 @@ class BinanceHistoricalRestClient:
         candles: list[HistoricalCandle] = []
         try:
             for row in payload:
-                if not isinstance(row, list) or len(row) < 11:
-                    raise ValueError("Kline row is incomplete")
+                if not isinstance(row, list) or len(row) != 12:
+                    raise ValueError("Kline row must contain all 12 Binance fields")
                 open_time = parse_utc_milliseconds(int(row[0]))
                 close_time = parse_utc_milliseconds(int(row[6]))
                 expected_close = interval_close_time(open_time, interval)

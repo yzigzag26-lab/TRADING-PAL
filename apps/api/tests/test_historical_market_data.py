@@ -12,6 +12,7 @@ from app.api.v1.endpoints.analysis import HistoricalAnalysisRequest
 from app.market_data.binance_historical_rest import BinanceHistoricalRestClient
 from app.market_data.candles import (
     HistoricalCandle,
+    HistoricalCandleSeries,
     expected_open_times,
     interval_close_time,
 )
@@ -122,7 +123,10 @@ def test_binance_kline_parser_preserves_ohlcv_and_closed_state() -> None:
             )
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        rest = BinanceHistoricalRestClient(base_url="https://test.invalid", client=client)
+        rest = BinanceHistoricalRestClient(
+            base_url="https://test.invalid",
+            client=client,
+        )
         rows = await rest.klines(
             "btcusdt",
             "1m",
@@ -275,3 +279,181 @@ def test_historical_request_rejects_large_ranges_before_full_enumeration() -> No
             start_time=datetime(2020, 1, 1, tzinfo=UTC),
             end_time=datetime(2026, 1, 1, tzinfo=UTC),
         )
+
+
+def test_candle_series_requires_exact_interval_continuity() -> None:
+    rows = tuple(candle(START + timedelta(minutes=index)) for index in range(3))
+    result = HistoricalCandleSeries(
+        symbol="BTCUSDT",
+        interval="1m",
+        requested_start=START,
+        requested_end=START + timedelta(minutes=2),
+        candles=rows,
+        missing_open_times=(),
+        complete=True,
+        recovery_attempts=0,
+    )
+    assert result.complete is True
+    assert len(result.candles) == 3
+
+
+def test_candle_series_rejects_false_complete_flag() -> None:
+    with pytest.raises(ValidationError, match="completeness flag"):
+        HistoricalCandleSeries(
+            symbol="BTCUSDT",
+            interval="1m",
+            requested_start=START,
+            requested_end=START + timedelta(minutes=2),
+            candles=(candle(START), candle(START + timedelta(minutes=2))),
+            missing_open_times=(START + timedelta(minutes=1),),
+            complete=True,
+            recovery_attempts=0,
+        )
+
+
+def test_candle_series_rejects_inaccurate_missing_interval_list() -> None:
+    with pytest.raises(ValidationError, match="Missing candle timestamps"):
+        HistoricalCandleSeries(
+            symbol="BTCUSDT",
+            interval="1m",
+            requested_start=START,
+            requested_end=START + timedelta(minutes=2),
+            candles=(candle(START),),
+            missing_open_times=(START + timedelta(minutes=2),),
+            complete=False,
+            recovery_attempts=0,
+        )
+
+
+def test_candle_series_rejects_out_of_range_candle() -> None:
+    with pytest.raises(ValidationError, match="outside the requested range"):
+        HistoricalCandleSeries(
+            symbol="BTCUSDT",
+            interval="1m",
+            requested_start=START,
+            requested_end=START + timedelta(minutes=1),
+            candles=(candle(START), candle(START + timedelta(minutes=2))),
+            missing_open_times=(),
+            complete=True,
+            recovery_attempts=0,
+        )
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"open": "0"},
+        {"close": "-1"},
+        {"high": "NaN"},
+        {"quote_volume": "-0.01"},
+        {"taker_buy_quote_volume": "1001"},
+        {"trade_count": -1},
+        {"close_time": START + timedelta(minutes=2)},
+        {"open_time": START + timedelta(seconds=1)},
+    ],
+)
+def test_invalid_or_incomplete_candle_fields_fail_closed(
+    changes: dict[str, object],
+) -> None:
+    values: dict[str, object] = {
+        "symbol": "BTCUSDT",
+        "interval": "1m",
+        "open_time": START,
+        "close_time": interval_close_time(START, "1m"),
+        "open": "100",
+        "high": "105",
+        "low": "95",
+        "close": "101",
+        "base_volume": "10",
+        "quote_volume": "1000",
+        "trade_count": 5,
+        "taker_buy_base_volume": "4",
+        "taker_buy_quote_volume": "400",
+        "received_time": START,
+        "is_closed": True,
+    }
+    values.update(changes)
+    with pytest.raises(ValidationError):
+        HistoricalCandle.model_validate(values)
+
+
+def test_binance_kline_parser_distinguishes_open_and_closed_boundaries() -> None:
+    async def run() -> None:
+        open_ms = int(START.timestamp() * 1000)
+        close_ms = open_ms + 60_000 - 1
+        row = [
+            open_ms,
+            "100",
+            "105",
+            "95",
+            "101",
+            "10.5",
+            close_ms,
+            "1050",
+            12,
+            "4.5",
+            "450",
+            "0",
+        ]
+
+        async def fetch_at(now: datetime) -> HistoricalCandle:
+            client = httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda _: httpx.Response(200, json=[row]))
+            )
+            rest = BinanceHistoricalRestClient(
+                base_url="https://test.invalid",
+                client=client,
+            )
+            result = await rest.klines(
+                "BTCUSDT",
+                "1m",
+                start_time=START,
+                end_time=START,
+                now=now,
+            )
+            await client.aclose()
+            return result[0]
+
+        before_close = await fetch_at(START + timedelta(minutes=1) - timedelta(milliseconds=1))
+        at_next_open = await fetch_at(START + timedelta(minutes=1))
+        assert before_close.is_closed is False
+        assert at_next_open.is_closed is True
+
+    asyncio.run(run())
+
+
+def test_binance_kline_parser_rejects_truncated_row() -> None:
+    async def run() -> None:
+        open_ms = int(START.timestamp() * 1000)
+        close_ms = open_ms + 60_000 - 1
+        row = [
+            open_ms,
+            "100",
+            "105",
+            "95",
+            "101",
+            "10.5",
+            close_ms,
+            "1050",
+            12,
+            "4.5",
+            "450",
+        ]
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, json=[row]))
+        )
+        rest = BinanceHistoricalRestClient(
+            base_url="https://test.invalid",
+            client=client,
+        )
+        with pytest.raises(MarketDataUnavailable, match="invalid OHLCV candle"):
+            await rest.klines(
+                "BTCUSDT",
+                "1m",
+                start_time=START,
+                end_time=START,
+                now=START + timedelta(minutes=2),
+            )
+        await client.aclose()
+
+    asyncio.run(run())
