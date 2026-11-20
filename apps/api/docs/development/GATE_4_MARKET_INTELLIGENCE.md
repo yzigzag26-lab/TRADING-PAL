@@ -270,8 +270,10 @@ WAIT, explain its reasoning from the supplied evidence, and respect the
 Spot-only SELL semantics. Output is constrained by
 `ASSESSMENT_RESPONSE_SCHEMA` (strict JSON schema) and validated by
 `_AssessmentDraft`. Invalid JSON, missing fields, unsupported decisions and
-provider failures all raise `AnalysisGenerationError` → the engine proceeds
-with `proposal=None` → deterministic WAIT.
+provider failures produce deterministic WAIT. Numeric prose is rejected;
+when a valid BUY/SELL/WAIT field was parsed, the proposal is retained for
+audit but a safety blocking reason forces WAIT and the model explanation is
+not displayed.
 
 ## 10. Decision-safety gate — Python validates Groq (Stage 3)
 
@@ -382,7 +384,8 @@ Gate 3 block was waiting for.
 ```
 
 - `decision` always comes from the safety gate — never from model text.
-- `model_decision` preserves Groq's proposal for audit (e.g., a vetoed BUY).
+- `model_decision` preserves Groq's proposal for audit (e.g., a vetoed BUY),
+  including when its numeric explanation is rejected.
 - `intelligence.timeframes` exposes all five intervals with per-timeframe
   indicators, zones, structure and provenance; unavailable values are
   `null`/empty with `limitations` explaining why — nothing is fabricated.
@@ -391,9 +394,11 @@ Gate 3 block was waiting for.
   is used and the limitation notes the veto.
 - The generator rejects **all numeric literals** in Groq's summary,
   evidence, risks, invalidation conditions and limitations, even if a number
-  also appears in the prompt. Python alone renders numerical indicator
-  readings, current price and scenario levels. This is not a semantic proof:
-  qualitative Groq explanations remain model-authored and advisory.
+  also appears in the prompt. A parsed proposal is retained for audit, but
+  the rejected explanation adds a safety block and forces WAIT. Python alone
+  renders numerical indicator readings, current price and scenario levels.
+  This is not a semantic proof: qualitative Groq explanations remain
+  model-authored and advisory.
 - `deterministic_fallback_summary()` contains only verified facts.
 
 ## 12. API contract
@@ -448,8 +453,10 @@ diagnostics endpoints are unchanged.
   resolves to WAIT — including staleness introduced *during* analysis
   (release-time revalidation), not only at initial validation.
 - Groq cannot alter Python's structured numeric fields or force a
-  recommendation. All numeric literals in model prose are rejected;
-  qualitative prose remains advisory rather than independently verified.
+  recommendation. All numeric literals in model prose are rejected; a parsed
+  model proposal remains auditable but is vetoed to WAIT when its explanation
+  contains numeric claims. Qualitative prose remains advisory rather than
+  independently verified.
 - No new environment variables were required; all periods, thresholds and
   timeframes are versioned constants in the modules above.
 
