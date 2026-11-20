@@ -294,7 +294,8 @@ def test_groq_assessment_accepts_non_numeric_explanation_with_numeric_context() 
         client = FakeGroq(
             [
                 '{"decision":"BUY","summary":"The 5m and 1h trends support a bullish proposal.",'
-                '"key_evidence":["Momentum and trend evidence align."],"risks":["Volatility remains a risk."],'
+                '"key_evidence":["Momentum and trend evidence align."],'
+                '"risks":["Volatility remains a risk."],'
                 '"invalidation_conditions":["A confirmed trend reversal."],"limitations":[]}'
             ]
         )
