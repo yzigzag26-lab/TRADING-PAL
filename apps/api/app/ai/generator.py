@@ -59,7 +59,6 @@ def _unsupported_numeric_claims(draft: _AssessmentDraft) -> tuple[str, ...]:
     return tuple(sorted(set(_NUMERIC_TOKEN.findall(model_text))))
 
 
-
 class BaymaxAnalysisGenerator:
     """Generate an answer grounded only in the prepared, validated inputs."""
 
@@ -201,7 +200,8 @@ class BaymaxAnalysisGenerator:
         unsupported_numbers = _unsupported_numeric_claims(draft)
         if unsupported_numbers:
             raise AnalysisGenerationError(
-                "Baymax returned numeric claims; all numerical facts are rendered by Python"
+                "Baymax returned numeric claims; "
+                "all numerical facts are rendered by Python"
             )
         return MarketAssessment(
             decision=draft.decision,  # type: ignore[arg-type]
