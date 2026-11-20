@@ -20,11 +20,14 @@ are not a substitute for the production evidence required by the Gate 3
 acceptance contract. Gate 3 has no trading or order-execution capability.
 
 Gate 4 adds deterministic coverage for the market-intelligence engine:
-indicator known-value vectors and warm-up behaviour, swing/structure/zone
+indicator known-value vectors and warm-up behaviour (including flat-series
+RSI = 50 and equal-moving-average neutrality), swing/structure/zone
 derivation, trend and volatility classification, multi-timeframe alignment,
-verified input-bundle assembly and provenance, scenario level mathematics,
-risk/reward gating, and every fail-closed safety-gate rejection path. These
-tests use synthetic candle fixtures only; they never contact Binance or Groq.
+verified input-bundle assembly and provenance, BUY scenario level
+mathematics, Spot-only SELL exit guidance (no short scenarios), Groq
+proposal validation and safety veto, release-time price freshness, and
+every fail-closed safety-gate rejection path. These tests use synthetic
+candle fixtures and fakes only; they never contact Binance or Groq.
 
 ## Gate 3 — mandatory acceptance testing
 

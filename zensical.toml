@@ -13,6 +13,7 @@ nav = [
     "development/ENVIRONMENT_VARIABLES.md",
     "development/GATE_2_CONFIGURATION.md",
     "development/GATE_3_MARKET_DATA.md",
+    "development/GATE_4_MARKET_INTELLIGENCE.md",
     "development/SECURE_MIGRATIONS.md",
   ] },
   { "Operations" = [
