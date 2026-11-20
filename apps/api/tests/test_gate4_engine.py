@@ -233,7 +233,9 @@ def test_groq_unavailable_returns_deterministic_wait() -> None:
     asyncio.run(run())
 
 
-def test_release_time_freshness_vetoes_stale_price(caplog: pytest.LogCaptureFixture) -> None:
+def test_release_time_freshness_vetoes_stale_price(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """F1: price ages past 3s during analysis -> final assessment is WAIT."""
 
     async def run() -> None:
@@ -245,7 +247,9 @@ def test_release_time_freshness_vetoes_stale_price(caplog: pytest.LogCaptureFixt
         assert result.assessment is not None
         assert result.assessment.decision == "WAIT"
         assert result.assessment.model_decision == "BUY"
-        record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
+        record = next(
+            item for item in caplog.records if item.message == "Gate 4 analysis timing"
+        )
         assert record.gate4_freshness_veto is True
 
     asyncio.run(run())
@@ -333,7 +337,9 @@ def test_groq_cannot_supply_or_override_python_scenario_levels() -> None:
     asyncio.run(run())
 
 
-def test_gate4_pipeline_emits_stage_latency_and_freshness_metrics(caplog: pytest.LogCaptureFixture) -> None:
+def test_gate4_pipeline_emits_stage_latency_and_freshness_metrics(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     async def run() -> None:
         report = ts._report(ts.BULLISH_5, zones_1h=ts.BUY_ZONES)
         engine, _, _ = _engine(report=report, proposal="BUY")
