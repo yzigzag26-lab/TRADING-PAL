@@ -528,9 +528,12 @@ language; model prose remains advisory.
 
 The market-price release limit remains **3,000 ms**. The system does not
 increase this threshold to improve recommendation frequency. It logs:
+- intent-classification duration;
+- initial current-price retrieval and provenance duration;
 - concurrent historical input-build duration (candle retrieval plus
   provenance persistence);
-- deterministic intelligence-analysis duration;
+- deterministic intelligence-analysis duration (indicators, trend,
+  structure, zones, volatility and candidate construction);
 - Groq proposal duration;
 - final safety-validation duration;
 - total Gate 4 pipeline duration; and
