@@ -9,6 +9,7 @@ and provenance repository. No second candle downloader is introduced.
 from __future__ import annotations
 
 import asyncio
+from time import perf_counter
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -149,7 +150,9 @@ class MarketIntelligenceInputBuilder:
                 snapshot_id=series.snapshot_id,
             )
 
+        fetch_started = perf_counter()
         results = await asyncio.gather(*(fetch_series(tf) for tf in self._timeframes))
+        historical_fetch_ms = (perf_counter() - fetch_started) * 1000
         timeframes = {
             interval: entry
             for interval, entry in zip(self._timeframes, results, strict=True)
@@ -159,6 +162,7 @@ class MarketIntelligenceInputBuilder:
             price=price,
             price_snapshot_id=prepared.market_snapshot_id,
             timeframes=timeframes,
+            historical_fetch_ms=round(historical_fetch_ms, 3),
         )
 
 
