@@ -4,6 +4,7 @@ validation, and Gate 3 safety integration (findings F1/F2/F4)."""
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -232,17 +233,22 @@ def test_groq_unavailable_returns_deterministic_wait() -> None:
     asyncio.run(run())
 
 
-def test_release_time_freshness_vetoes_stale_price() -> None:
+def test_release_time_freshness_vetoes_stale_price(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """F1: price ages past 3s during analysis -> final assessment is WAIT."""
 
     async def run() -> None:
         report = ts._report(ts.BULLISH_5, zones_1h=ts.BUY_ZONES)
         stale_clock = lambda: datetime.now(UTC) + timedelta(seconds=10)  # noqa: E731
         engine, _, _ = _engine(report=report, proposal="BUY", decision_clock=stale_clock)
-        result = await engine.respond("Should I buy BTCUSDT?")
+        with caplog.at_level(logging.INFO, logger="app.ai.engine"):
+            result = await engine.respond("Should I buy BTCUSDT?")
         assert result.assessment is not None
         assert result.assessment.decision == "WAIT"
         assert result.assessment.model_decision == "BUY"
+        record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
+        assert record.__dict__["gate4_freshness_veto"] is True
 
     asyncio.run(run())
 
@@ -256,5 +262,167 @@ def test_gate3_block_preserved_without_decision_evidence() -> None:
         with pytest.raises(AnalysisInputUnavailable):
             await engine.respond("Should I buy BTCUSDT?")
         assert builder.calls == 0
+
+    asyncio.run(run())
+
+
+def test_groq_numeric_claim_not_present_in_verified_context_is_rejected() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"RSI is 99.0 and momentum is strong.",'
+                '"key_evidence":["Trend is bullish"],"risks":[],"invalidation_conditions":[],'
+                '"limitations":[]}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
+        with pytest.raises(AnalysisGenerationError, match="numeric claims") as exc_info:
+            await generator.generate_assessment(request, context)
+        assert exc_info.value.model_decision == "BUY"
+
+    asyncio.run(run())
+
+
+def test_groq_assessment_accepts_non_numeric_explanation_with_numeric_context() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"The 5m and 1h trends support a bullish proposal.",'
+                '"key_evidence":["Momentum and trend evidence align."],'
+                '"risks":["Volatility remains a risk."],'
+                '"invalidation_conditions":["A confirmed trend reversal."],"limitations":[]}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
+        result = await generator.generate_assessment(request, context)
+        assert result.decision == "BUY"
+        assert "5m and 1h trends" in result.summary
+
+    asyncio.run(run())
+
+
+def test_groq_cannot_supply_or_override_python_scenario_levels() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"Bullish evidence supports the proposal.",'
+                '"key_evidence":[],"risks":[],"invalidation_conditions":[],"limitations":[],'
+                '"entry":99999,"stop_loss":1}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        with pytest.raises(AnalysisGenerationError):
+            await generator.generate_assessment(request, {"current_price": "100.00"})
+
+    asyncio.run(run())
+
+
+def test_gate4_pipeline_emits_stage_latency_and_freshness_metrics(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async def run() -> None:
+        report = ts._report(ts.BULLISH_5, zones_1h=ts.BUY_ZONES)
+        engine, _, _ = _engine(report=report, proposal="BUY")
+        with caplog.at_level(logging.INFO, logger="app.ai.engine"):
+            result = await engine.respond("Should I buy BTCUSDT?")
+        assert result.assessment is not None
+        record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
+        assert record.__dict__["gate4_classification_ms"] >= 0
+        assert record.__dict__["gate4_market_price_prepare_ms"] >= 0
+        assert record.__dict__["gate4_historical_input_build_ms"] == 0.0
+        assert record.__dict__["gate4_intelligence_analysis_ms"] >= 0
+        assert record.__dict__["gate4_groq_proposal_ms"] >= 0
+        assert record.__dict__["gate4_decision_safety_ms"] >= 0
+        assert record.__dict__["gate4_total_ms"] >= 0
+        assert record.__dict__["gate4_freshness_veto"] is False
+
+    asyncio.run(run())
+
+
+def test_groq_numeric_claim_is_rejected_even_when_number_exists_in_context() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"RSI is 52.3.",'
+                '"key_evidence":[],"risks":[],"invalidation_conditions":[],"limitations":[]}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        with pytest.raises(AnalysisGenerationError, match="numeric claims") as exc_info:
+            await generator.generate_assessment(
+                request, {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
+            )
+        assert exc_info.value.model_decision == "BUY"
+
+    asyncio.run(run())
+
+
+def test_groq_numeric_claim_with_multiplier_suffix_is_rejected() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"The setup offers a 3x reward.",'
+                '"key_evidence":[],"risks":[],"invalidation_conditions":[],"limitations":[]}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        with pytest.raises(AnalysisGenerationError, match="numeric claims"):
+            await generator.generate_assessment(request, {"timeframes": ["5m", "1h"]})
+
+    asyncio.run(run())
+
+
+def test_rejected_groq_explanation_forces_wait_and_preserves_proposal_audit() -> None:
+    class RejectedExplanationGenerator(FakeGenerator):
+        async def generate_assessment(
+            self, request: AnalysisRequest, context: Mapping[str, object]
+        ) -> MarketAssessment:
+            raise AnalysisGenerationError(
+                "Numeric claims are not allowed in model prose",
+                model_decision="BUY",
+            )
+
+    async def run() -> None:
+        report = ts._report(ts.BULLISH_5, zones_1h=ts.BUY_ZONES)
+        engine, _, _ = _engine(report=report, proposal="BUY")
+        engine._generator = cast(BaymaxAnalysisGenerator, RejectedExplanationGenerator())
+        result = await engine.respond("Should I buy BTCUSDT?")
+        assert result.assessment is not None
+        assert result.assessment.decision == "WAIT"
+        assert result.assessment.model_decision == "BUY"
+        assert any("explanation was rejected" in item for item in result.assessment.limitations)
+        assert "Market assessment" in result.assessment.summary
 
     asyncio.run(run())

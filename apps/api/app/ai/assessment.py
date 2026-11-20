@@ -397,7 +397,7 @@ def build_market_assessment(
         safety.scenario, safety.exit_guidance
     )
     intelligence = build_intelligence_section(report, prepared)
-    proposal = draft.decision if draft is not None else None
+    proposal = draft.decision if draft is not None else safety.model_proposal
     report_limitations = tuple(report.limitations[:10])
 
     if draft is not None and draft.decision == safety.decision:
@@ -418,8 +418,13 @@ def build_market_assessment(
         )
 
     fallback_notes: list[str] = []
-    if draft is None:
+    if draft is None and proposal is None:
         fallback_notes.append("AI interpretation unavailable; deterministic summary shown")
+    elif draft is None:
+        fallback_notes.append(
+            f"Model proposed {proposal}, but its explanation was rejected; "
+            "deterministic evidence shown"
+        )
     else:
         fallback_notes.append(
             f"Model proposed {proposal}; the safety gate returned "

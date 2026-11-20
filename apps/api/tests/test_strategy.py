@@ -436,3 +436,120 @@ def test_safety_gate_requires_provenance_when_configured() -> None:
     )
     assert result.decision == "WAIT"
     assert any("provenance" in r.lower() for r in result.block_reasons)
+
+
+def test_buy_waits_when_all_support_zones_are_above_current_price() -> None:
+    zones = (
+        _zone("support", "102.00", "103.00"),
+        _zone("resistance", "110.00", "111.00"),
+    )
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=zones))
+    assert outcome.proposed_decision == "WAIT"
+    assert outcome.scenario is None
+    assert any("No active support zone" in reason for reason in outcome.blocking_reasons)
+
+
+def test_buy_accepts_support_zone_containing_current_price() -> None:
+    zones = (
+        _zone("support", "99.00", "101.00"),
+        _zone("resistance", "110.00", "111.00"),
+    )
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=zones))
+    assert outcome.proposed_decision == "BUY"
+    assert outcome.scenario is not None
+    assert outcome.scenario.stop_loss.price < outcome.scenario.entry_zone.lower
+
+
+def test_buy_accepts_support_zone_below_current_price() -> None:
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=BUY_ZONES))
+    assert outcome.proposed_decision == "BUY"
+    assert outcome.scenario is not None
+    assert outcome.scenario.stop_loss.price < outcome.scenario.entry_zone.lower
+
+
+def test_buy_waits_when_no_support_zones_exist() -> None:
+    zones = (_zone("resistance", "110.00", "111.00"),)
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=zones))
+    assert outcome.proposed_decision == "WAIT"
+    assert outcome.scenario is None
+    assert any("No active support zone" in reason for reason in outcome.blocking_reasons)
+
+
+def test_buy_uses_below_price_support_not_overhead_support() -> None:
+    zones = (
+        _zone("support", "95.00", "96.00"),
+        _zone("support", "102.00", "103.00"),
+        _zone("resistance", "110.00", "111.00"),
+    )
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=zones))
+    assert outcome.proposed_decision == "BUY"
+    assert outcome.scenario is not None
+    assert outcome.scenario.stop_loss.price == Decimal("94.50")
+    assert outcome.scenario.stop_loss.price < outcome.scenario.entry_zone.lower
+    assert outcome.scenario.take_profit_1.price > PRICE
+
+
+def test_safety_gate_requires_all_five_timeframes_to_be_usable() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    analyses = [
+        item.model_copy(
+            update={
+                "usable": False,
+                "limitations": ("Only 45 closed candles; minimum is 60",),
+            }
+        )
+        if item.interval == "1d"
+        else item
+        for item in report.timeframe_analyses
+    ]
+    report = report.model_copy(update={"timeframe_analyses": tuple(analyses)})
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal="BUY")
+    assert result.decision == "WAIT"
+    assert any(
+        "Only 4 usable timeframe(s); minimum is 5" in reason for reason in result.block_reasons
+    )
+    assert any("Timeframe 1d is not usable" in reason for reason in result.block_reasons)
+
+
+def test_safety_gate_distinguishes_incomplete_series_from_missing_timeframe() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    analyses = [
+        item.model_copy(
+            update={
+                "series_complete": False,
+                "limitations": ("Series incomplete: 2 missing intervals",),
+            }
+        )
+        if item.interval == "4h"
+        else item
+        for item in report.timeframe_analyses
+    ]
+    report = report.model_copy(update={"timeframe_analyses": tuple(analyses)})
+    result = _gate(report, evaluate_setup(report), proposal="BUY")
+    assert result.decision == "WAIT"
+    assert any(
+        "Incomplete candle series for timeframe 4h" in reason for reason in result.block_reasons
+    )
+
+
+def test_safety_gate_blocks_timeframe_with_insufficient_closed_history() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    analyses = [
+        item.model_copy(
+            update={
+                "candle_count": 45,
+                "closed_candle_count": 45,
+                "usable": False,
+                "limitations": ("Only 45 closed candles; minimum is 60",),
+            }
+        )
+        if item.interval == "1d"
+        else item
+        for item in report.timeframe_analyses
+    ]
+    report = report.model_copy(update={"timeframe_analyses": tuple(analyses)})
+    result = _gate(report, evaluate_setup(report), proposal="BUY")
+    assert result.decision == "WAIT"
+    assert any("Timeframe 1d is not usable" in reason for reason in result.block_reasons)
+    assert any("only 45 candles" in reason.lower() for reason in result.block_reasons)

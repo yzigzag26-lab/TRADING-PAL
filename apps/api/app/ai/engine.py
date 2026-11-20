@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from time import perf_counter
 from uuid import UUID
 
 from app.ai.assessment import (
@@ -31,6 +33,8 @@ from app.orchestration.requests import (
 )
 from app.strategy.decision_safety import DecisionSafetyGate
 from app.strategy.setup import evaluate_setup
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +79,10 @@ class BaymaxAIEngine:
         request_id: UUID | None = None,
     ) -> BaymaxAIResult:
         """Classify first, prepare only necessary inputs, then generate the answer."""
+        request_started = perf_counter()
+        classification_started = perf_counter()
         classification = await self._classifier.classify(message)
+        classification_ms = (perf_counter() - classification_started) * 1000
         if classification.needs_clarification:
             return BaymaxAIResult(
                 answer=(
@@ -98,14 +105,23 @@ class BaymaxAIEngine:
                 or is_trading_decision_request(message, intent=classification.intent)
             ),
         )
+        price_prepare_started = perf_counter()
         prepared = await self._orchestrator.prepare(request, request_id=request_id)
+        market_price_prepare_ms = (perf_counter() - price_prepare_started) * 1000
 
         if (
             request.intent == "current_market"
             and self._intelligence_builder is not None
             and prepared.current_price is not None
         ):
-            return await self._respond_with_intelligence(request, prepared, request_id=request_id)
+            return await self._respond_with_intelligence(
+                request,
+                prepared,
+                request_id=request_id,
+                request_started=request_started,
+                classification_ms=classification_ms,
+                market_price_prepare_ms=market_price_prepare_ms,
+            )
 
         # Revalidate at the final boundary because data may expire during processing.
         validate_prepared_analysis_inputs(request, prepared, now=self._decision_clock())
@@ -124,6 +140,9 @@ class BaymaxAIEngine:
         prepared: PreparedAnalysisInput,
         *,
         request_id: UUID | None,
+        request_started: float,
+        classification_ms: float,
+        market_price_prepare_ms: float,
     ) -> BaymaxAIResult:
         """Run the Gate 4 pipeline: Python calculates, Groq proposes, Python validates.
 
@@ -139,27 +158,64 @@ class BaymaxAIEngine:
         except MarketIntelligenceInputUnavailable as exc:
             raise AnalysisInputUnavailable(str(exc)) from exc
 
+        analysis_started = perf_counter()
         report = self._intelligence_engine.analyze(bundle)
         candidate = evaluate_setup(report)
         context = compact_intelligence_context(report, candidate)
+        intelligence_analysis_ms = (perf_counter() - analysis_started) * 1000
 
         proposal: MarketAssessment | None = None
+        model_proposal: str | None = None
+        groq_started = perf_counter()
         try:
             proposal = await self._generator.generate_assessment(request, context)
-        except AnalysisGenerationError:
-            proposal = None
+            model_proposal = proposal.decision
+        except AnalysisGenerationError as exc:
+            model_proposal = exc.model_decision
+            if model_proposal is not None:
+                candidate = candidate.model_copy(
+                    update={
+                        "blocking_reasons": (
+                            *candidate.blocking_reasons,
+                            "Groq explanation rejected because it contained numeric claims",
+                        )
+                    }
+                )
+        groq_proposal_ms = (perf_counter() - groq_started) * 1000
 
         # Stage 3 runs at the release boundary, after all analysis and model
-        # latency, so the market-event age is recomputed against current UTC.
+        # latency, so freshness is recomputed against the current clock.
+        safety_started = perf_counter()
         safety = self._safety_gate.evaluate(
             report,
             candidate,
-            proposal.decision if proposal is not None else None,
+            model_proposal,
             request=request,
             prepared=prepared,
             now=self._decision_clock(),
         )
+        decision_safety_ms = (perf_counter() - safety_started) * 1000
         assessment = build_market_assessment(report, prepared, safety, proposal)
+
+        freshness_veto = any(
+            "expired" in reason.lower() or "freshness" in reason.lower()
+            for reason in safety.block_reasons
+        )
+        logger.info(
+            "Gate 4 analysis timing",
+            extra={
+                "gate4_classification_ms": round(classification_ms, 3),
+                "gate4_market_price_prepare_ms": round(market_price_prepare_ms, 3),
+                "gate4_historical_input_build_ms": bundle.historical_input_build_ms,
+                "gate4_intelligence_analysis_ms": round(intelligence_analysis_ms, 3),
+                "gate4_groq_proposal_ms": round(groq_proposal_ms, 3),
+                "gate4_decision_safety_ms": round(decision_safety_ms, 3),
+                "gate4_total_ms": round((perf_counter() - request_started) * 1000, 3),
+                "gate4_freshness_veto": freshness_veto,
+                "gate4_final_decision": safety.decision,
+                "gate4_model_proposal_available": proposal is not None,
+            },
+        )
 
         return BaymaxAIResult(
             answer=assessment.summary,

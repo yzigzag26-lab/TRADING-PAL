@@ -51,6 +51,7 @@ class MarketIntelligenceInput:
     price: ValidatedPrice
     price_snapshot_id: UUID | None
     timeframes: Mapping[str, TimeframeSeriesInput]
+    historical_input_build_ms: float = 0.0
 
 
 class MarketIntelligenceEngine:
