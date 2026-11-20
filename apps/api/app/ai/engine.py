@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import logging
 from time import perf_counter
 from uuid import UUID
 
@@ -179,7 +179,7 @@ class BaymaxAIEngine:
         logger.info(
             "Gate 4 analysis timing",
             extra={
-                "gate4_historical_input_build_ms": bundle.historical_fetch_ms,
+                "gate4_historical_input_build_ms": bundle.historical_input_build_ms,
                 "gate4_intelligence_analysis_ms": round(indicator_analysis_ms, 3),
                 "gate4_groq_proposal_ms": round(groq_proposal_ms, 3),
                 "gate4_decision_safety_ms": round(decision_safety_ms, 3),
