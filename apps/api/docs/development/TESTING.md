@@ -12,12 +12,19 @@ From apps/api with Python 3.12 and the development extra installed:
     mypy app tests
     pytest
 
-The backend test suite includes deterministic market-data coverage in
+The backend test suite now includes deterministic market-data coverage in
 addition to the API foundation: price freshness, REST recovery, cache
 revalidation, WebSocket lifecycle and trade-ID handling, clock-health failure
 modes, historical candle integrity, and provenance persistence. These tests
 are not a substitute for the production evidence required by the Gate 3
 acceptance contract. Gate 3 has no trading or order-execution capability.
+
+Gate 4 adds deterministic coverage for the market-intelligence engine:
+indicator known-value vectors and warm-up behaviour, swing/structure/zone
+derivation, trend and volatility classification, multi-timeframe alignment,
+verified input-bundle assembly and provenance, scenario level mathematics,
+risk/reward gating, and every fail-closed safety-gate rejection path. These
+tests use synthetic candle fixtures only; they never contact Binance or Groq.
 
 ## Gate 3 — mandatory acceptance testing
 

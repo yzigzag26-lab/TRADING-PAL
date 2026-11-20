@@ -26,23 +26,59 @@ function Markets(){
  const [query,setQuery]=useState("");const pairs=useMemo(()=>["BTC / USDT","ETH / USDT","SOL / USDT","BNB / USDT","XRP / USDT"].filter(x=>x.toLowerCase().includes(query.toLowerCase())),[query]);
  return <><div className="page-heading"><div><div className="eyebrow">MARKET DISCOVERY</div><h1>Markets</h1><p className="subtitle">Find and organise the markets you want to study.</p></div><span className="tag"><span className="status-dot"/> DATA FEED NOT CONNECTED</span></div><div className="notice mb-4"><AlertTriangle size={15}/><span>Market search and live quotes are unavailable until a verified market-data provider is connected. Symbols below are suggested search examples, not live listings or prices.</span></div><section className="panel"><div className="panel-header"><div><div className="panel-title">Market explorer</div><div className="panel-caption">Search common trading pairs to prepare your watchlist</div></div><span className="tag">PUBLIC MARKET DATA · PLANNED</span></div><div className="relative mb-4"><Search size={15} className="absolute left-3 top-3 text-[#727272]"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search a symbol..." className="w-full rounded-lg border border-[#e7e7e7] bg-[#ffffff] py-2.5 pl-9 pr-3 text-xs outline-none focus:border-[#111111]"/></div>{pairs.length?pairs.map(pair=><div className="watch-row" key={pair}><div className="coin-symbol"><span className="coin-icon">{pair.split(" ")[0].slice(0,3)}</span><div><div className="font-semibold">{pair}</div><div className="muted text-[9px]">Suggested pair · not connected</div></div></div><span className="muted text-[10px]">—</span><span className="tag">Unavailable</span></div>):<EmptyState icon={Search} title="No matching symbols" copy="Try another asset symbol."/>}</section></>;
 }
+type ScenarioPayload={decision:string;direction:string;entry_zone:{lower:string;upper:string};stop_loss:string;take_profit_1:string;take_profit_2:string|null;risk_distance:string;reward_distance:string;risk_reward_ratio:string;invalidation:string;methodology:string};
+type AssessmentPayload={decision:"BUY"|"SELL"|"WAIT";summary:string;key_evidence:string[];risks:string[];invalidation_conditions:string[];limitations:string[];timeframe_alignment:string|null;data_quality:string|null;scenario:ScenarioPayload|null};
+type ChatMessage={role:"user"|"assistant";content:string;fileName?:string;assessment?:AssessmentPayload|null;pending?:boolean};
+function VerdictBadge({decision}:{decision:"BUY"|"SELL"|"WAIT"}){return <span className={"verdict verdict-"+decision.toLowerCase()}>{decision}</span>}
+function AssessmentCard({assessment,summary}:{assessment:AssessmentPayload;summary:string}){
+ const s=assessment.scenario;
+ return <div className="assessment-card">
+  <div className="assessment-verdict-row"><VerdictBadge decision={assessment.decision}/>{assessment.timeframe_alignment&&<span className="assess-tag">{assessment.timeframe_alignment.replaceAll("_"," ")}</span>}{assessment.data_quality&&<span className="assess-tag">data: {assessment.data_quality}</span>}</div>
+  <div className="assessment-summary">{summary}</div>
+  {s&&<div className="assess-scenario">
+   <div className="assess-scenario-title">Deterministic scenario · {s.direction}</div>
+   <div className="assess-levels">
+    <div><span>Entry zone</span><strong>{s.entry_zone.lower} – {s.entry_zone.upper}</strong></div>
+    <div><span>Stop-loss</span><strong>{s.stop_loss}</strong></div>
+    <div><span>Take-profit 1</span><strong>{s.take_profit_1}</strong></div>
+    {s.take_profit_2&&<div><span>Take-profit 2</span><strong>{s.take_profit_2}</strong></div>}
+    <div><span>Risk / reward</span><strong>{s.risk_reward_ratio}</strong></div>
+   </div>
+   <div className="assess-invalidation">Invalidation: {s.invalidation}</div>
+  </div>}
+  {assessment.key_evidence.length>0&&<div className="assess-block"><div className="assess-block-title">Key evidence</div><ul>{assessment.key_evidence.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
+  {assessment.risks.length>0&&<div className="assess-block"><div className="assess-block-title">Risks</div><ul>{assessment.risks.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
+  {assessment.invalidation_conditions.length>0&&<div className="assess-block"><div className="assess-block-title">Invalidation conditions</div><ul>{assessment.invalidation_conditions.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
+  {assessment.limitations.length>0&&<div className="assess-block assess-limitations"><div className="assess-block-title">Limitations</div><ul>{assessment.limitations.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
+  <div className="assess-footnote">Analysis only — no order was placed or will be placed. Verify independently before acting.</div>
+ </div>;
+}
 function Analysis(){
  const [draft,setDraft]=useState("");
- const [messages,setMessages]=useState<{role:"user"|"assistant";content:string;fileName?:string}[]>([]);
+ const [messages,setMessages]=useState<ChatMessage[]>([]);
  const [file,setFile]=useState<File|null>(null);
+ const [sending,setSending]=useState(false);
  const fileRef=useRef<HTMLInputElement>(null);
+ const transcriptRef=useRef<HTMLDivElement>(null);
  const prompts=["Analyse BTC / USDT price action","Explain the current market structure","Help me identify key support and resistance","Review this chart for risk and invalidation"];
+ useEffect(()=>{const el=transcriptRef.current;if(el)el.scrollTop=el.scrollHeight},[messages]);
  function chooseFile(next?:File){if(!next)return;if(!["image/png","image/jpeg","image/webp"].includes(next.type)){setFile(null);return}if(next.size>10*1024*1024){setFile(null);return}setFile(next)}
- function sendMessage(e:FormEvent){e.preventDefault();const text=draft.trim();if(!text&&!file)return;setMessages(items=>[...items,{role:"user",content:text||"Please review this chart.",fileName:file?.name},{role:"assistant",content:"Your message is visible in this interface, but Baymax’s AI analysis service is not connected yet. I have not analysed the chart or generated a trading conclusion. Once the backend analysis pipeline is implemented, this conversation will connect to the real intelligence engine."}]);setDraft("");setFile(null);}
+ async function sendMessage(e:FormEvent){e.preventDefault();const text=draft.trim();if((!text&&!file)||sending)return;const outgoing=text||"Please review this chart.";setMessages(items=>[...items,{role:"user",content:outgoing,fileName:file?.name},{role:"assistant",content:"",pending:true}]);setDraft("");setFile(null);setSending(true);
+  const finish=(content:string,assessment?:AssessmentPayload|null)=>setMessages(items=>{const next=[...items];next[next.length-1]={role:"assistant",content,assessment:assessment??null};return next});
+  try{const response=await fetch("/api/v1/analysis/respond",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:outgoing}),cache:"no-store"});
+   if(response.status===401){finish("Your session has expired. Please sign out and sign in again.");return}
+   if(!response.ok){finish(`Baymax could not complete the analysis (HTTP ${response.status}). Verified market data or the AI provider may be unavailable, so no recommendation was produced.`);return}
+   const data=await response.json();finish(data.answer||"",data.assessment??null);
+  }catch{finish("Unable to reach Baymax. Check your connection and try again.");}finally{setSending(false)}}
  return <section className="chat-workspace">
-  <div className="chat-heading"><div className="chat-heading-title"><div className="chat-heading-icon"><BrainCircuit size={17}/></div><div><h1>Baymax</h1><p>Trading intelligence assistant</p></div></div><span className="chat-status"><span className="status-dot"/> AI not connected</span></div>
-  <div className={"chat-transcript "+(messages.length===0?"chat-transcript-empty":"")}>
-   {messages.length===0?<div className="chat-welcome"><div className="chat-welcome-mark"><Activity size={24}/></div><h2>What are we analysing today?</h2><p>Ask about market structure, price action, technical evidence, or upload a chart to prepare an analysis.</p><div className="chat-suggestions">{prompts.map(prompt=><button key={prompt} type="button" onClick={()=>setDraft(prompt)}>{prompt}<ArrowUpRight size={13}/></button>)}</div></div>:<div className="chat-messages">{messages.map((message,index)=><div className={"chat-message "+(message.role==="user"?"chat-message-user":"chat-message-assistant")} key={index}>{message.role==="assistant"?<div className="chat-avatar"><Activity size={15}/></div>:null}<div className="chat-message-content">{message.content}{message.fileName&&<div className="chat-file-chip"><FileImage size={13}/>{message.fileName}</div>}</div></div>)}</div>}
+  <div className="chat-heading"><div className="chat-heading-title"><div className="chat-heading-icon"><BrainCircuit size={17}/></div><div><h1>Baymax</h1><p>Trading intelligence assistant</p></div></div><span className="chat-status"><span className="status-dot"/> Market intelligence</span></div>
+  <div ref={transcriptRef} className={"chat-transcript "+(messages.length===0?"chat-transcript-empty":"")}>
+   {messages.length===0?<div className="chat-welcome"><div className="chat-welcome-mark"><Activity size={24}/></div><h2>What are we analysing today?</h2><p>Ask about market structure, price action, technical evidence, or upload a chart to prepare an analysis.</p><div className="chat-suggestions">{prompts.map(prompt=><button key={prompt} type="button" onClick={()=>setDraft(prompt)}>{prompt}<ArrowUpRight size={13}/></button>)}</div></div>:<div className="chat-messages">{messages.map((message,index)=><div className={"chat-message "+(message.role==="user"?"chat-message-user":"chat-message-assistant")} key={index}>{message.role==="assistant"?<div className="chat-avatar"><Activity size={15}/></div>:null}{message.pending?<div className="chat-message-content"><span className="pending-note">Analysing verified market data across timeframes…</span></div>:message.role==="assistant"&&message.assessment?<div className="chat-message-content"><AssessmentCard assessment={message.assessment} summary={message.content}/>{message.fileName&&<div className="chat-file-chip"><FileImage size={13}/>{message.fileName}</div>}</div>:<div className="chat-message-content">{message.content}{message.fileName&&<div className="chat-file-chip"><FileImage size={13}/>{message.fileName}</div>}</div>}</div>)}</div>}
   </div>
   <form className="chat-composer" onSubmit={sendMessage}>
    {file&&<div className="chat-attachment"><FileImage size={13}/><span>{file.name}</span><button type="button" aria-label="Remove attachment" onClick={()=>setFile(null)}><X size={13}/></button></div>}
    <textarea aria-label="Message Baymax" rows={2} value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();e.currentTarget.form?.requestSubmit()}}} placeholder="Message Baymax..." />
-   <div className="chat-composer-footer"><div className="chat-composer-tools"><input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e=>chooseFile(e.target.files?.[0])}/><button type="button" className="chat-tool-button" onClick={()=>fileRef.current?.click()} aria-label="Attach chart image"><Paperclip size={17}/><span>Attach chart</span></button><span className="chat-composer-hint">PNG, JPG or WebP · max 10 MB</span></div><button className="chat-send-button" type="submit" disabled={!draft.trim()&&!file} aria-label="Send message"><Send size={16}/></button></div>
+   <div className="chat-composer-footer"><div className="chat-composer-tools"><input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e=>chooseFile(e.target.files?.[0])}/><button type="button" className="chat-tool-button" onClick={()=>fileRef.current?.click()} aria-label="Attach chart image"><Paperclip size={17}/><span>Attach chart</span></button><span className="chat-composer-hint">PNG, JPG or WebP · max 10 MB</span></div><button className="chat-send-button" type="submit" disabled={(!draft.trim()&&!file)||sending} aria-label="Send message"><Send size={16}/></button></div>
   </form>
   <p className="chat-disclaimer">Baymax can make mistakes. Verify market data and risk decisions independently. No trade execution is available.</p>
  </section>;

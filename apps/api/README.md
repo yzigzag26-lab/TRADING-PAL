@@ -56,7 +56,7 @@ The Render-local source copy is under `apps/api/docs` and is required because th
 | POST | /api/v1/diagnostics/gate-3/durable-snapshot | Owner session + explicit write confirmation | One-time durable snapshot commit and independent readback verification |
 | GET | /api/v1/health | Public | Process liveness |
 | POST | /api/v1/analysis/prepare | Owner session required | Prepare explicitly classified inputs; does not generate an answer |
-| POST | /api/v1/analysis/respond | Owner session required | Classify a natural-language message, prepare required inputs, and generate a Baymax response |
+| POST | /api/v1/analysis/respond | Owner session required | Classify a natural-language message, prepare verified inputs, run market intelligence, and return a structured Baymax assessment |
 | POST | /api/v1/analysis/history | Owner session required | Retrieve bounded Binance Spot historical OHLCV and persist its provenance |
 | POST | /api/v1/auth/login | Public; password and trusted Origin required | Verify the single owner password and set the session cookie |
 | GET | /api/v1/auth/session | Public | Return only whether the request has a valid owner session |
@@ -84,10 +84,26 @@ generation, and orchestration are separate modules:
   retrieval. Only current_market reaches the Binance service.
 - `app/ai/generator.py` receives the original message and prepared inputs. It
   must not invent missing prices, candles, indicators, volume, or trends.
+  For market requests it also produces a structured JSON assessment
+  (`generate_assessment`) that is schema-validated; its decision must agree
+  with the deterministic safety gate or it is discarded.
 - `app/ai/engine.py` connects those components in that order.
+- `app/intelligence/` is the Gate 4 deterministic engine: pure-Python
+  indicators (SMA/EMA/RSI/MACD/ATR/Bollinger/ADX/volume), trend, confirmed
+  swing structure, support/resistance zones, volatility, and multi-timeframe
+  alignment over verified closed-candle series.
+- `app/market_data/analysis_input.py` assembles the verified five-timeframe
+  input bundle (5m/15m/1h/4h/1d, 300 closed candles each) with per-series
+  provenance.
+- `app/strategy/` derives the deterministic BUY/SELL/WAIT scenario
+  (entry zone, stop-loss, take-profits, risk/reward ≥ 1.5) and applies the
+  fail-closed `DecisionSafetyGate` (3,000 ms price freshness, completeness,
+  provenance, alignment checks).
 - `POST /api/v1/analysis/respond` is owner-session protected and returns the
-  generated answer, selected intent, symbol, market-data status, and whether
-  clarification is required.
+  generated answer, selected intent, symbol, market-data status,
+  clarification flag, and — for market requests — a structured `assessment`
+  object (decision, summary, evidence, risks, invalidation, limitations,
+  alignment, data quality, deterministic scenario).
 
 Configure these variables on the **Render backend only**:
 
@@ -106,7 +122,7 @@ Provider failures return a generic service-unavailable response and never
 expose the API key or raw provider error. Groq can be replaced later by
 implementing the same small completion-client contract.
 
-**Important current limitations:** production uses a background NTP clock-health monitor and remains fail-closed if at least two sources cannot agree within the configured offset and delay thresholds. Production NTP consensus has passed. The provenance migration `20261118_0005` is applied, and one production BTCUSDT snapshot was committed and independently read back from Supabase; see the Gate 3 evidence log. Full deployed-service WebSocket lifecycle recovery remains open. Historical OHLCV retrieval is available through the owner-only endpoint, but natural-language historical analysis and frontend chat integration remain follow-up work. The AI layer does not execute trades or have exchange tools.
+**Important current limitations:** production uses a background NTP clock-health monitor and remains fail-closed if at least two sources cannot agree within the configured offset and delay thresholds. Production NTP consensus has passed. The provenance migration `20261118_0005` is applied, and one production BTCUSDT snapshot was committed and independently read back from Supabase; see the Gate 3 evidence log. Full deployed-service WebSocket lifecycle recovery remains open. Historical OHLCV retrieval is available through the owner-only endpoint, and the frontend chat is connected to `/analysis/respond`; natural-language historical analysis remains follow-up work. The AI layer does not execute trades or have exchange tools.
 
 ## Tests and quality
 
@@ -234,5 +250,5 @@ synthetic data. Forming candles are explicitly marked as not closed. Historical
 data retrieval does not alter the current-price 3-second freshness rule.
 
 This structured endpoint is the backend foundation for historical analysis.
-The natural-language response pipeline and frontend chat integration still
-need to be connected to it in later work.
+The frontend chat is connected to `/analysis/respond`; natural-language
+historical analysis inside that pipeline remains follow-up work.

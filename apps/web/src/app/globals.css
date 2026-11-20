@@ -24,3 +24,27 @@
 
 /* Unified Baymax identity: only the supplied logo and BAYMAX wordmark remain on the password screen. */
 .brand-logo{display:block;width:35px;height:35px;object-fit:contain;flex:none}.brand{gap:11px}.brand-name{color:#111}.login-brand{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:34px}.login-brand .brand-name{color:#111;letter-spacing:.12em;font-size:19px}.login-brand-logo{display:block;width:84px;height:84px;object-fit:contain;flex:none}.login-hero-logo{display:block;width:84px;height:84px;object-fit:contain;margin:0;animation:baymax-float 3.6s ease-in-out infinite;will-change:transform}
+
+/* Gate 4 structured market assessment */
+.verdict{display:inline-flex;align-items:center;font-size:12px;font-weight:800;letter-spacing:.16em;padding:7px 16px;border-radius:999px;border:1px solid #e5e5e5}
+.verdict-buy{color:#15803d;border-color:rgba(21,128,61,.4);background:rgba(21,128,61,.09)}
+.verdict-sell{color:#dc2626;border-color:rgba(220,38,38,.4);background:rgba(220,38,38,.09)}
+.verdict-wait{color:#ffffff;border-color:#111111;background:#111111}
+.assessment-card{display:flex;flex-direction:column;gap:14px}
+.assessment-verdict-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.assess-tag{display:inline-flex;align-items:center;border:1px solid #e5e5e5;color:#8a8a8a;border-radius:999px;padding:4px 9px;font-size:9px;letter-spacing:.04em;text-transform:uppercase}
+.assessment-summary{color:#333;font-size:13px;line-height:1.8;white-space:pre-wrap}
+.assess-scenario{border:1px solid #e7e7e7;border-radius:12px;background:#fafafa;padding:13px 15px}
+.assess-scenario-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a8a8a;margin-bottom:10px}
+.assess-levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.assess-levels div{display:flex;flex-direction:column;gap:3px}
+.assess-levels span{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.08em}
+.assess-levels strong{font-size:12px;font-weight:650;color:#171717}
+.assess-invalidation{margin-top:11px;padding-top:10px;border-top:1px solid #e7e7e7;font-size:10px;color:#8a5a00;line-height:1.6}
+.assess-block{border-top:1px solid #eeeeee;padding-top:11px}
+.assess-block-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a8a8a;margin-bottom:7px}
+.assess-block ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:5px}
+.assess-block li{font-size:11px;color:#555;line-height:1.6}
+.assess-limitations li{color:#999}
+.assess-footnote{font-size:9px;color:#999;border-top:1px solid #eeeeee;padding-top:10px}
+.pending-note{color:#999;font-size:12px;font-style:italic}

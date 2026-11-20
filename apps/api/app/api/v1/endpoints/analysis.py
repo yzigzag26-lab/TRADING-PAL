@@ -10,11 +10,14 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.ai.assessment import MarketAssessment
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.engine import BaymaxAIEngine
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
 from app.auth.security import SESSION_COOKIE_NAME, verify_session_token
 from app.core.config import Settings
+from app.intelligence.analyzer import MarketIntelligenceEngine
+from app.market_data.analysis_input import MarketIntelligenceInputBuilder
 from app.market_data.candles import (
     BinanceInterval,
     HistoricalCandleSeries,
@@ -27,6 +30,7 @@ from app.orchestration.requests import (
     BaymaxRequestOrchestrator,
     PreparedAnalysisInput,
 )
+from app.strategy.decision_safety import DecisionSafetyGate
 
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
 
@@ -85,6 +89,7 @@ class AnalysisConversationResponse(BaseModel):
     market_data_status: str
     needs_clarification: bool
     market_snapshot_id: UUID | None = None
+    assessment: MarketAssessment | None = None
 
 
 def _require_owner(request: Request) -> Settings:
@@ -139,6 +144,7 @@ async def respond_to_message(
         )
 
     client = request.app.state.groq_client
+    require_provenance = request.app.state.require_market_data_provenance
     engine = BaymaxAIEngine(
         classifier=BaymaxIntentClassifier(client),
         generator=BaymaxAnalysisGenerator(client),
@@ -146,8 +152,15 @@ async def respond_to_message(
             request.app.state.market_data_service,
             clock_health_provider=request.app.state.clock_health_provider,
             provenance_repository=request.app.state.market_data_provenance_repository,
-            require_provenance=request.app.state.require_market_data_provenance,
+            require_provenance=require_provenance,
         ),
+        intelligence_builder=MarketIntelligenceInputBuilder(
+            historical=request.app.state.historical_market_data_service,
+            provenance_repository=request.app.state.market_data_provenance_repository,
+            require_provenance=require_provenance,
+        ),
+        intelligence_engine=MarketIntelligenceEngine(),
+        safety_gate=DecisionSafetyGate(require_provenance=require_provenance),
     )
     try:
         result = await engine.respond(
@@ -172,6 +185,7 @@ async def respond_to_message(
         market_data_status=result.market_data_status,
         needs_clarification=result.needs_clarification,
         market_snapshot_id=result.market_snapshot_id,
+        assessment=result.assessment,
     )
 
 
