@@ -283,8 +283,9 @@ def test_groq_numeric_claim_not_present_in_verified_context_is_rejected() -> Non
             decision_requested=True,
         )
         context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
-        with pytest.raises(AnalysisGenerationError, match="numeric claims"):
+        with pytest.raises(AnalysisGenerationError, match="numeric claims") as exc_info:
             await generator.generate_assessment(request, context)
+        assert exc_info.value.model_decision == "BUY"
 
     asyncio.run(run())
 
@@ -373,10 +374,11 @@ def test_groq_numeric_claim_is_rejected_even_when_number_exists_in_context() -> 
             symbol="BTCUSDT",
             decision_requested=True,
         )
-        with pytest.raises(AnalysisGenerationError, match="numeric claims"):
+        with pytest.raises(AnalysisGenerationError, match="numeric claims") as exc_info:
             await generator.generate_assessment(
                 request, {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
             )
+        assert exc_info.value.model_decision == "BUY"
 
     asyncio.run(run())
 
@@ -398,5 +400,29 @@ def test_groq_numeric_claim_with_multiplier_suffix_is_rejected() -> None:
         )
         with pytest.raises(AnalysisGenerationError, match="numeric claims"):
             await generator.generate_assessment(request, {"timeframes": ["5m", "1h"]})
+
+    asyncio.run(run())
+
+
+def test_rejected_groq_explanation_forces_wait_and_preserves_proposal_audit() -> None:
+    class RejectedExplanationGenerator(FakeGenerator):
+        async def generate_assessment(
+            self, request: AnalysisRequest, context: Mapping[str, object]
+        ) -> MarketAssessment:
+            raise AnalysisGenerationError(
+                "Numeric claims are not allowed in model prose",
+                model_decision="BUY",
+            )
+
+    async def run() -> None:
+        report = ts._report(ts.BULLISH_5, zones_1h=ts.BUY_ZONES)
+        engine, _, _ = _engine(report=report, proposal="BUY")
+        engine._generator = cast(BaymaxAnalysisGenerator, RejectedExplanationGenerator())
+        result = await engine.respond("Should I buy BTCUSDT?")
+        assert result.assessment is not None
+        assert result.assessment.decision == "WAIT"
+        assert result.assessment.model_decision == "BUY"
+        assert any("explanation was rejected" in item for item in result.assessment.limitations)
+        assert "Market assessment" in result.assessment.summary
 
     asyncio.run(run())
