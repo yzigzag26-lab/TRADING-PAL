@@ -258,3 +258,72 @@ def test_gate3_block_preserved_without_decision_evidence() -> None:
         assert builder.calls == 0
 
     asyncio.run(run())
+
+
+def test_groq_numeric_claim_not_present_in_verified_context_is_rejected() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"RSI is 99.0 and momentum is strong.",'
+                '"key_evidence":["Trend is bullish"],"risks":[],"invalidation_conditions":[],'
+                '"limitations":[]}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
+        with pytest.raises(AnalysisGenerationError, match="numerical claims"):
+            await generator.generate_assessment(request, context)
+
+    asyncio.run(run())
+
+
+def test_groq_assessment_accepts_numeric_values_grounded_in_verified_context() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"The verified momentum evidence supports a bullish proposal.",'
+                '"key_evidence":["Momentum and trend evidence align."],"risks":["Volatility remains a risk."],'
+                '"invalidation_conditions":["A confirmed trend reversal."],"limitations":[]}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
+        result = await generator.generate_assessment(request, context)
+        assert result.decision == "BUY"
+        assert "verified momentum" in result.summary.lower()
+
+    asyncio.run(run())
+
+
+def test_groq_cannot_supply_or_override_python_scenario_levels() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"Bullish evidence supports the proposal.",'
+                '"key_evidence":[],"risks":[],"invalidation_conditions":[],"limitations":[],'
+                '"entry":99999,"stop_loss":1}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        with pytest.raises(AnalysisGenerationError):
+            await generator.generate_assessment(request, {"current_price": "100.00"})
+
+    asyncio.run(run())
