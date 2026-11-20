@@ -527,3 +527,25 @@ def test_safety_gate_distinguishes_incomplete_series_from_missing_timeframe() ->
     result = _gate(report, evaluate_setup(report), proposal="BUY")
     assert result.decision == "WAIT"
     assert any("Incomplete candle series for timeframe 4h" in reason for reason in result.block_reasons)
+
+
+def test_safety_gate_blocks_timeframe_with_insufficient_closed_history() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    analyses = [
+        item.model_copy(
+            update={
+                "candle_count": 45,
+                "closed_candle_count": 45,
+                "usable": False,
+                "limitations": ("Only 45 closed candles; minimum is 60",),
+            }
+        )
+        if item.interval == "1d"
+        else item
+        for item in report.timeframe_analyses
+    ]
+    report = report.model_copy(update={"timeframe_analyses": tuple(analyses)})
+    result = _gate(report, evaluate_setup(report), proposal="BUY")
+    assert result.decision == "WAIT"
+    assert any("Timeframe 1d is not usable" in reason for reason in result.block_reasons)
+    assert any("only 45 candles" in reason.lower() for reason in result.block_reasons)
