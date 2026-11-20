@@ -9,8 +9,8 @@ and provenance repository. No second candle downloader is introduced.
 from __future__ import annotations
 
 import asyncio
-from time import perf_counter
 from datetime import UTC, datetime, timedelta
+from time import perf_counter
 from uuid import UUID
 
 from app.intelligence.analyzer import (
