@@ -519,11 +519,11 @@ construction returns WAIT. The stop-loss must remain below the entry zone.
 ### Groq explanation boundary
 
 Groq proposes the decision and supplies advisory explanation text. The
-generator rejects numeric tokens in that text unless the token also occurs
-in the verified evidence payload. Python-rendered indicator readings,
-scenario levels and provenance remain authoritative. This filter reduces
-unsupported numerical claims but does not prove the truth of qualitative
-language; model prose remains advisory.
+generator rejects all numeric literals in that text; Python-rendered
+indicator readings, scenario levels and provenance remain authoritative.
+This prevents numeric claims from being introduced or misattributed in
+model prose, but it does not prove the truth of qualitative language;
+model prose remains advisory.
 
 ### Freshness and latency telemetry
 
