@@ -153,6 +153,7 @@ async def respond_to_message(
             clock_health_provider=request.app.state.clock_health_provider,
             provenance_repository=request.app.state.market_data_provenance_repository,
             require_provenance=require_provenance,
+            allow_trading_decisions=True,
         ),
         intelligence_builder=MarketIntelligenceInputBuilder(
             historical=request.app.state.historical_market_data_service,

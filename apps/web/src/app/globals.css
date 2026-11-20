@@ -48,3 +48,17 @@
 .assess-limitations li{color:#999}
 .assess-footnote{font-size:9px;color:#999;border-top:1px solid #eeeeee;padding-top:10px}
 .pending-note{color:#999;font-size:12px;font-style:italic}
+
+/* Gate 4 assessment: timeframe evidence table + details */
+.assess-tf-table{display:flex;flex-direction:column;gap:2px;margin:8px 0 4px}
+.assess-tf-row{display:grid;grid-template-columns:44px 1fr 56px 1.2fr 1fr 64px;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;font-size:10px;color:#3f3f46}
+.assess-tf-head{font-weight:700;color:#71717a;text-transform:uppercase;letter-spacing:.04em;font-size:9px}
+.assess-tf-detail{border-top:1px solid #f0f0f0;padding:6px 0}
+.assess-tf-detail summary{cursor:pointer;font-size:10px;font-weight:600;color:#3f3f46;padding:2px 0}
+.assess-tf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin:6px 0}
+.assess-tf-grid span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:#a1a1aa}
+.assess-tf-grid strong{font-size:10px;color:#18181b}
+.assess-tf-note{font-size:9px;color:#71717a;line-height:1.5;margin-top:4px;word-break:break-word}
+.assess-tf-warn{color:#b45309}
+.assess-tag-warn{background:#fef3c7;color:#92400e}
+.assess-scenario-sell{border-color:#fecaca}

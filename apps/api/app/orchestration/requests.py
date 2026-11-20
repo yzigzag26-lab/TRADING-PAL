@@ -30,6 +30,7 @@ class AnalysisRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4_000)
     intent: RequestIntent
     symbol: str | None = Field(default=None, min_length=1, max_length=30)
+    decision_requested: bool = False
 
     @field_validator("symbol")
     @classmethod
@@ -55,7 +56,9 @@ class PreparedAnalysisInput(BaseModel):
 
     intent: RequestIntent
     market_data_required: bool
-    market_data_status: Literal["not_required", "ready", "historical_not_implemented"]
+    market_data_status: Literal[
+        "not_required", "ready", "historical_not_implemented", "decision_blocked"
+    ]
     current_price: ValidatedPrice | None = None
     market_snapshot_id: UUID | None = None
 
@@ -80,11 +83,13 @@ class BaymaxRequestOrchestrator:
         clock_health_provider: Callable[[], bool],
         provenance_repository: PriceSnapshotRecorder | None = None,
         require_provenance: bool = False,
+        allow_trading_decisions: bool = False,
     ) -> None:
         self._market_data = market_data
         self._clock_health_provider = clock_health_provider
         self._provenance_repository = provenance_repository
         self._require_provenance = require_provenance
+        self._allow_trading_decisions = allow_trading_decisions
 
     async def prepare(
         self,
@@ -105,6 +110,13 @@ class BaymaxRequestOrchestrator:
                 intent=request.intent,
                 market_data_required=False,
                 market_data_status="historical_not_implemented",
+            )
+
+        if request.decision_requested and not self._allow_trading_decisions:
+            return PreparedAnalysisInput(
+                intent=request.intent,
+                market_data_required=True,
+                market_data_status="decision_blocked",
             )
 
         if request.symbol is None:

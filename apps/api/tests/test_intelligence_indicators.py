@@ -132,3 +132,23 @@ def test_indicator_value_helper() -> None:
 
 def test_empty_series_returns_no_readings() -> None:
     assert compute_indicator_readings((), calculated_at=CALCULATED_AT) == ()
+
+
+def test_rsi_is_neutral_50_on_flat_series() -> None:
+    """F5: a completely flat market has no gains or losses -> RSI 50."""
+    readings = _readings([100.0] * 40)
+    rsi = next(r for r in readings if r.name == "RSI")
+    assert rsi.sufficient_history
+    assert rsi.values["value"] == 50.0
+
+
+def test_rsi_stays_100_when_only_gains() -> None:
+    readings = _readings([100.0 + i for i in range(30)])
+    rsi = next(r for r in readings if r.name == "RSI")
+    assert rsi.values["value"] == 100.0
+
+
+def test_rsi_stays_0_when_only_losses() -> None:
+    readings = _readings([200.0 - i for i in range(30)])
+    rsi = next(r for r in readings if r.name == "RSI")
+    assert rsi.values["value"] == 0.0

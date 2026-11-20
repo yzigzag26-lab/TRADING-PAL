@@ -27,13 +27,42 @@ function Markets(){
  return <><div className="page-heading"><div><div className="eyebrow">MARKET DISCOVERY</div><h1>Markets</h1><p className="subtitle">Find and organise the markets you want to study.</p></div><span className="tag"><span className="status-dot"/> DATA FEED NOT CONNECTED</span></div><div className="notice mb-4"><AlertTriangle size={15}/><span>Market search and live quotes are unavailable until a verified market-data provider is connected. Symbols below are suggested search examples, not live listings or prices.</span></div><section className="panel"><div className="panel-header"><div><div className="panel-title">Market explorer</div><div className="panel-caption">Search common trading pairs to prepare your watchlist</div></div><span className="tag">PUBLIC MARKET DATA · PLANNED</span></div><div className="relative mb-4"><Search size={15} className="absolute left-3 top-3 text-[#727272]"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search a symbol..." className="w-full rounded-lg border border-[#e7e7e7] bg-[#ffffff] py-2.5 pl-9 pr-3 text-xs outline-none focus:border-[#111111]"/></div>{pairs.length?pairs.map(pair=><div className="watch-row" key={pair}><div className="coin-symbol"><span className="coin-icon">{pair.split(" ")[0].slice(0,3)}</span><div><div className="font-semibold">{pair}</div><div className="muted text-[9px]">Suggested pair · not connected</div></div></div><span className="muted text-[10px]">—</span><span className="tag">Unavailable</span></div>):<EmptyState icon={Search} title="No matching symbols" copy="Try another asset symbol."/>}</section></>;
 }
 type ScenarioPayload={decision:string;direction:string;entry_zone:{lower:string;upper:string};stop_loss:string;take_profit_1:string;take_profit_2:string|null;risk_distance:string;reward_distance:string;risk_reward_ratio:string;invalidation:string;methodology:string};
-type AssessmentPayload={decision:"BUY"|"SELL"|"WAIT";summary:string;key_evidence:string[];risks:string[];invalidation_conditions:string[];limitations:string[];timeframe_alignment:string|null;data_quality:string|null;scenario:ScenarioPayload|null};
+type ExitGuidancePayload={kind:string;decision:string;note:string;trim_levels:{price:string;method:string}[];breakdown_exit:{price:string;method:string}|null;hold_invalidation:string;methodology:string};
+type IndicatorReading={name:string;parameters:Record<string,number>;values:Record<string,number>;candle_count:number;sufficient_history:boolean};
+type ZoneReading={side:string;lower:string;upper:string;touches:number;strength:number;active:boolean};
+type TimeframeSection={interval:string;usable:boolean;candle_count:number;closed_candle_count:number;series_complete:boolean;snapshot_id:string|null;last_closed_close:string|null;trend_direction:string|null;trend_score:number|null;trend_evidence:string[];structure_kinds:string[];structure_details:string[];zones:ZoneReading[];volatility_level:string|null;volatility_direction:string|null;atr:number|null;atr_percent:number|null;bollinger_width_percentile:number|null;indicators:IndicatorReading[];limitations:string[]};
+type IntelligencePayload={symbol:string;exchange:string;market:string;analyzed_at:string;current_price:string;price_provenance_id:string|null;alignment_status:string;alignment_directions:Record<string,string>;alignment_notes:string[];data_quality:string;readiness:string;missing_inputs:string[];limitations:string[];timeframes:TimeframeSection[]};
+type AssessmentPayload={decision:"BUY"|"SELL"|"WAIT";summary:string;key_evidence:string[];risks:string[];invalidation_conditions:string[];limitations:string[];timeframe_alignment:string|null;data_quality:string|null;scenario:ScenarioPayload|null;exit_guidance:ExitGuidancePayload|null;model_decision:string|null;intelligence:IntelligencePayload|null};
 type ChatMessage={role:"user"|"assistant";content:string;fileName?:string;assessment?:AssessmentPayload|null;pending?:boolean};
 function VerdictBadge({decision}:{decision:"BUY"|"SELL"|"WAIT"}){return <span className={"verdict verdict-"+decision.toLowerCase()}>{decision}</span>}
+function indicatorLabel(reading:IndicatorReading):string{
+ const p=reading.parameters.period?` ${reading.parameters.period}`:"";
+ return reading.name+p;
+}
+function TimeframeDetail({tf}:{tf:TimeframeSection}){
+ const keyIndicators=tf.indicators.filter(i=>i.sufficient_history&&i.values&&Object.keys(i.values).length>0);
+ const zones=tf.zones.filter(z=>z.active);
+ return <details className="assess-tf-detail">
+  <summary>{tf.interval} — {tf.trend_direction??"unavailable"} · {tf.volatility_level??"—"}/{tf.volatility_direction??"—"}</summary>
+  <div className="assess-tf-grid">
+   <div><span>Candles</span><strong>{tf.closed_candle_count} closed / {tf.candle_count} total</strong></div>
+   {tf.last_closed_close&&<div><span>Last close</span><strong>{tf.last_closed_close}</strong></div>}
+   {tf.trend_score!==null&&<div><span>Trend score</span><strong>{tf.trend_score.toFixed(2)}</strong></div>}
+   {tf.atr_percent!==null&&<div><span>ATR %</span><strong>{tf.atr_percent.toFixed(2)}</strong></div>}
+   {tf.bollinger_width_percentile!==null&&<div><span>BB width pct</span><strong>{tf.bollinger_width_percentile.toFixed(0)}</strong></div>}
+  </div>
+  {tf.structure_kinds.length>0&&<div className="assess-tf-note">Structure: {tf.structure_kinds.join(", ")}</div>}
+  {keyIndicators.length>0&&<div className="assess-tf-note">{keyIndicators.map(i=>{const vals=Object.entries(i.values).map(([k,v])=>`${k}=${typeof v==="number"?v.toFixed(4):v}`).join(" ");return `${indicatorLabel(i)}: ${vals}`}).join(" · ")}</div>}
+  {zones.length>0&&<div className="assess-tf-note">{zones.slice(0,4).map(z=>`${z.side} ${z.lower}–${z.upper}`).join(" · ")}</div>}
+  {tf.limitations.length>0&&<div className="assess-tf-note assess-tf-warn">{tf.limitations.join("; ")}</div>}
+ </details>;
+}
 function AssessmentCard({assessment,summary}:{assessment:AssessmentPayload;summary:string}){
  const s=assessment.scenario;
+ const g=assessment.exit_guidance;
+ const intel=assessment.intelligence;
  return <div className="assessment-card">
-  <div className="assessment-verdict-row"><VerdictBadge decision={assessment.decision}/>{assessment.timeframe_alignment&&<span className="assess-tag">{assessment.timeframe_alignment.replaceAll("_"," ")}</span>}{assessment.data_quality&&<span className="assess-tag">data: {assessment.data_quality}</span>}</div>
+  <div className="assessment-verdict-row"><VerdictBadge decision={assessment.decision}/>{assessment.timeframe_alignment&&<span className="assess-tag">{assessment.timeframe_alignment.replaceAll("_"," ")}</span>}{assessment.data_quality&&<span className="assess-tag">data: {assessment.data_quality}</span>}{assessment.model_decision&&assessment.model_decision!==assessment.decision&&<span className="assess-tag assess-tag-warn">model proposed {assessment.model_decision} — vetoed</span>}</div>
   <div className="assessment-summary">{summary}</div>
   {s&&<div className="assess-scenario">
    <div className="assess-scenario-title">Deterministic scenario · {s.direction}</div>
@@ -45,6 +74,23 @@ function AssessmentCard({assessment,summary}:{assessment:AssessmentPayload;summa
     <div><span>Risk / reward</span><strong>{s.risk_reward_ratio}</strong></div>
    </div>
    <div className="assess-invalidation">Invalidation: {s.invalidation}</div>
+  </div>}
+  {g&&<div className="assess-scenario assess-scenario-sell">
+   <div className="assess-scenario-title">Spot exit guidance · SELL is exit/reduction only</div>
+   <div className="assess-invalidation">{g.note}</div>
+   <div className="assess-levels">
+    {g.trim_levels.map((level,i)=><div key={i}><span>Trim level {i+1}</span><strong>{level.price}</strong></div>)}
+    {g.breakdown_exit&&<div><span>Breakdown exit</span><strong>{g.breakdown_exit.price}</strong></div>}
+   </div>
+   <div className="assess-invalidation">Invalidation: {g.hold_invalidation}</div>
+  </div>}
+  {intel&&<div className="assess-block"><div className="assess-block-title">Market intelligence · {intel.symbol} @ {intel.current_price}</div>
+   <div className="assess-tf-table">
+    <div className="assess-tf-row assess-tf-head"><span>TF</span><span>Trend</span><span>Score</span><span>Volatility</span><span>Last close</span><span>Status</span></div>
+    {intel.timeframes.map(tf=><div className="assess-tf-row" key={tf.interval}><span>{tf.interval}</span><span>{tf.trend_direction??"—"}</span><span>{tf.trend_score!==null?tf.trend_score.toFixed(2):"—"}</span><span>{tf.volatility_level?`${tf.volatility_level}/${tf.volatility_direction}`:"—"}</span><span>{tf.last_closed_close??"—"}</span><span>{tf.usable?"usable":"unusable"}</span></div>)}
+   </div>
+   {intel.timeframes.map(tf=><TimeframeDetail key={tf.interval} tf={tf}/>)}
+   {intel.missing_inputs.length>0&&<div className="assess-tf-note assess-tf-warn">Missing inputs: {intel.missing_inputs.join(", ")}</div>}
   </div>}
   {assessment.key_evidence.length>0&&<div className="assess-block"><div className="assess-block-title">Key evidence</div><ul>{assessment.key_evidence.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
   {assessment.risks.length>0&&<div className="assess-block"><div className="assess-block-title">Risks</div><ul>{assessment.risks.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}

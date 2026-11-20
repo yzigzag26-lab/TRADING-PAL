@@ -257,3 +257,35 @@ def test_production_current_market_analysis_fails_closed_without_provenance() ->
         assert market_data.calls == []
 
     asyncio.run(run())
+
+
+def test_current_market_analysis_fails_closed_when_audit_persistence_fails() -> None:
+    class FailingRecorder:
+        def record_price(
+            self,
+            price: ValidatedPrice,
+            *,
+            request_id: UUID | None = None,
+        ) -> UUID:
+            raise RuntimeError("audit storage unavailable")
+
+    async def run() -> None:
+        market_data = FakeMarketData()
+        orchestrator = BaymaxRequestOrchestrator(
+            cast(BinanceMarketDataService, market_data),
+            clock_health_provider=lambda: True,
+            provenance_repository=FailingRecorder(),
+            require_provenance=True,
+        )
+        with pytest.raises(AnalysisInputUnavailable, match="persisted for audit"):
+            await orchestrator.prepare(
+                AnalysisRequest(
+                    message="Analyze BTCUSDT now",
+                    intent="current_market",
+                    symbol="BTCUSDT",
+                ),
+                request_id=uuid4(),
+            )
+        assert market_data.calls == [("BTCUSDT", True)]
+
+    asyncio.run(run())

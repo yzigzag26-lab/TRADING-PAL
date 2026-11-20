@@ -1,23 +1,38 @@
-"""Final fail-closed decision-safety gate for Gate 4 recommendations.
+"""Final fail-closed decision gate for Gate 4 market intelligence.
 
-Composes the Gate 3 freshness/provenance guarantees with Gate 4 integrity
-checks before any BUY/SELL decision is released. Any failed mandatory check
-forces WAIT — the system may explain why, but never recommends on unverified
-inputs.
+The safety gate is the authoritative veto layer. It re-runs the shared Gate 3
+market-evidence validation (freshness recomputed at the *release* time,
+provenance, identity, timestamp ordering) plus report-level checks, then
+validates Groq's proposed decision against the deterministic candidate. It
+never invents levels and never lets the model override verified evidence.
+
+Division of responsibility (approved architecture):
+
+- Python calculates all verified evidence and candidate levels.
+- Groq independently proposes BUY / SELL / WAIT.
+- This gate validates the proposal and decides the final outcome.
 """
 
 from __future__ import annotations
 
-from app.intelligence.analyzer import ANALYSIS_TIMEFRAMES, MarketIntelligenceReport
-from app.market_data.freshness import MAX_PRICE_AGE_MS
-from app.market_data.models import ValidatedPrice
+from datetime import UTC, datetime
+from decimal import Decimal
+
+from app.intelligence.schemas import MarketIntelligenceReport
+from app.market_data.decision_safety import validate_market_price_inputs
+from app.orchestration.requests import AnalysisRequest, PreparedAnalysisInput
 from app.strategy.schemas import Decision, SafetyResult, StrategyOutcome
 
-MAX_PRICE_AGE_MS_GATE = MAX_PRICE_AGE_MS
+MAX_PRICE_AGE_MS = 3000
+EXPECTED_TIMEFRAMES = frozenset({"5m", "15m", "1h", "4h", "1d"})
+MIN_REPORT_TIMEFRAMES = 3
+MIN_USABLE_TIMEFRAMES = 2
+MIN_CANDLES_PER_TIMEFRAME = 60
+MIN_SAFETY_RISK_REWARD = Decimal("1.5")
 
 
 class DecisionSafetyGate:
-    """Verify every mandatory condition immediately before recommendation."""
+    """Evaluate a Groq proposal against verified intelligence evidence."""
 
     def __init__(self, *, require_provenance: bool = False) -> None:
         self._require_provenance = require_provenance
@@ -25,108 +40,164 @@ class DecisionSafetyGate:
     def evaluate(
         self,
         report: MarketIntelligenceReport,
-        outcome: StrategyOutcome,
-        price: ValidatedPrice | None,
+        candidate: StrategyOutcome,
+        proposal: str | None,
+        *,
+        request: AnalysisRequest,
+        prepared: PreparedAnalysisInput,
+        now: datetime,
     ) -> SafetyResult:
-        """Return the final decision; downgrade to WAIT on any failed check."""
+        """Validate ``proposal`` and return the authoritative final decision."""
         checks: list[str] = []
         blocks: list[str] = []
-
-        def check(name: str, passed: bool, failure: str) -> None:
-            checks.append(name)
-            if not passed:
-                blocks.append(failure)
-
-        # Symbol identity across price and every analysed timeframe.
-        symbols = {item.symbol for item in report.timeframe_analyses}
-        symbols.add(report.symbol)
-        check(
-            "symbol_identity",
-            len(symbols) == 1,
-            f"Symbol mismatch across inputs: {sorted(symbols)}",
-        )
-
-        # Current-price freshness (Gate 3 policy, re-verified at this boundary).
-        check(
-            "price_freshness",
-            price is not None and price.age_ms_at_validation <= MAX_PRICE_AGE_MS_GATE,
-            "Current price is missing or older than the 3,000 ms policy",
-        )
-        if price is not None:
-            check(
-                "price_symbol_match",
-                price.symbol == report.symbol,
-                "Validated price symbol does not match the analysis symbol",
+        try:
+            current_time = self._utc(now)
+        except ValueError:
+            return SafetyResult(
+                decision="WAIT",
+                blocked=True,
+                block_reasons=("Safety clock is not timezone-aware",),
+                checks=(),
+                model_proposal=proposal,
             )
 
-        # Required timeframe availability and completeness.
-        present = {item.interval for item in report.timeframe_analyses}
-        missing = [tf for tf in ANALYSIS_TIMEFRAMES if tf not in present]
-        check(
-            "timeframe_coverage",
-            not missing,
-            f"Missing timeframe analyses: {missing}",
-        )
-        incomplete = [
-            item.interval for item in report.timeframe_analyses if not item.series_complete
-        ]
-        check(
-            "series_completeness",
-            not incomplete,
-            f"Incomplete candle series: {incomplete}",
-        )
-        unusable = [item.interval for item in report.timeframe_analyses if not item.usable]
-        check(
-            "timeframe_usability",
-            not unusable,
-            f"Timeframes below minimum usable history: {unusable}",
-        )
+        # --- Gate 3 market-evidence boundary, revalidated at release time ---
+        try:
+            validate_market_price_inputs(request, prepared, now=current_time)
+            checks.append("gate3_market_evidence_revalidated")
+        except Exception as exc:  # AnalysisInputUnavailable or clock anomaly
+            blocks.append(f"Market evidence failed release-time validation: {exc}")
 
-        # Provenance: every consumed series and the price must be auditable.
-        if self._require_provenance:
-            missing_snapshots = [
-                item.interval for item in report.timeframe_analyses if item.snapshot_id is None
-            ]
-            if price is not None:
-                price_ok = report.current_price_snapshot_id is not None
-            else:
-                price_ok = False
-            check(
-                "provenance",
-                not missing_snapshots and price_ok,
-                "Missing snapshot provenance for one or more inputs",
+        # --- Report-level evidence checks ---
+        if report.symbol != request.symbol:
+            blocks.append("Report symbol does not match the validated request symbol")
+        present = {tf.interval for tf in report.timeframe_analyses}
+        missing = sorted(EXPECTED_TIMEFRAMES - present)
+        if missing:
+            blocks.append(f"Missing timeframe(s): {', '.join(missing)}")
+        if len(report.timeframe_analyses) < MIN_REPORT_TIMEFRAMES:
+            blocks.append(
+                f"Only {len(report.timeframe_analyses)} timeframe(s) analyzed; "
+                f"minimum is {MIN_REPORT_TIMEFRAMES}"
             )
-        else:
-            checks.append("provenance(optional)")
+        usable = [tf for tf in report.timeframe_analyses if tf.usable]
+        if len(usable) < MIN_USABLE_TIMEFRAMES:
+            blocks.append(
+                f"Only {len(usable)} usable timeframe(s); minimum is {MIN_USABLE_TIMEFRAMES}"
+            )
+        for tf in report.timeframe_analyses:
+            if not tf.usable:
+                blocks.append(f"Timeframe {tf.interval} is not usable")
+            if not tf.series_complete:
+                blocks.append(f"Incomplete candle series for timeframe {tf.interval}")
+            if tf.candle_count < MIN_CANDLES_PER_TIMEFRAME:
+                blocks.append(f"Timeframe {tf.interval} has only {tf.candle_count} candles")
+            if tf.limitations:
+                blocks.append(
+                    f"Timeframe {tf.interval} has analysis limitations: "
+                    + "; ".join(tf.limitations[:2])
+                )
+            if tf.last_closed_close is None or tf.last_closed_close <= 0:
+                blocks.append(f"Timeframe {tf.interval} lacks a valid close price")
+            if self._require_provenance and tf.snapshot_id is None:
+                blocks.append(f"Timeframe {tf.interval} lacks provenance snapshot")
 
-        # Alignment must not be insufficient for a directional decision.
-        check(
-            "timeframe_alignment",
-            report.alignment.status != "insufficient",
-            "Timeframe alignment evidence is insufficient",
-        )
+        # --- Alignment / readiness checks ---
+        alignment = report.alignment
+        if alignment.status == "conflicting":
+            blocks.append("Multi-timeframe alignment is conflicting")
+        if report.data_quality == "insufficient":
+            blocks.append("Market data quality is insufficient")
+        if report.readiness == "blocked":
+            blocks.append("Report readiness is blocked")
+        if report.missing_inputs:
+            blocks.append("Missing required inputs: " + ", ".join(report.missing_inputs))
 
-        # Deterministic strategy must not already be blocked.
-        check(
-            "strategy_readiness",
-            outcome.proposed_decision == "WAIT" or outcome.scenario is not None,
-            "No defensible deterministic scenario exists",
-        )
+        # --- Candidate-level checks ---
+        if candidate.blocking_reasons:
+            blocks.extend(candidate.blocking_reasons)
+        if candidate.proposed_decision in ("BUY", "SELL"):
+            payload = (
+                candidate.scenario
+                if candidate.proposed_decision == "BUY"
+                else candidate.exit_guidance
+            )
+            if payload is None:
+                blocks.append("Candidate decision lacks its required payload")
+        if candidate.scenario is not None:
+            scenario = candidate.scenario
+            if scenario.risk_reward_ratio < MIN_SAFETY_RISK_REWARD:
+                blocks.append(
+                    f"Scenario risk/reward {scenario.risk_reward_ratio} below "
+                    f"safety minimum {MIN_SAFETY_RISK_REWARD}"
+                )
+            if scenario.stop_loss.price <= 0 or scenario.take_profit_1.price <= 0:
+                blocks.append("Scenario contains a non-positive price level")
 
-        final: Decision = outcome.proposed_decision
-        if blocks:
-            final = "WAIT"
-        elif outcome.blocking_reasons and final != "WAIT":
-            # Strategy produced a scenario but recorded warnings; keep decision.
-            pass
-
+        # --- Proposal validation (Stage 3: Python validates Groq) ---
+        final = self._resolve_proposal(proposal, candidate, blocks, checks)
         return SafetyResult(
             decision=final,
-            scenario=outcome.scenario if final != "WAIT" else None,
-            blocked=final == "WAIT" and outcome.proposed_decision != "WAIT",
+            scenario=(
+                candidate.scenario if final == "BUY" and candidate.scenario is not None else None
+            ),
+            exit_guidance=(
+                candidate.exit_guidance
+                if final == "SELL" and candidate.exit_guidance is not None
+                else None
+            ),
+            blocked=final == "WAIT" and bool(blocks),
             block_reasons=tuple(blocks),
             checks=tuple(checks),
+            model_proposal=proposal,
         )
 
+    @staticmethod
+    def _resolve_proposal(
+        proposal: str | None,
+        candidate: StrategyOutcome,
+        blocks: list[str],
+        checks: list[str],
+    ) -> Decision:
+        """Map Groq's proposal to the final decision with veto authority."""
+        if proposal is None:
+            checks.append("model_proposal_unavailable")
+            blocks.append("No model proposal; deterministic WAIT returned")
+            return "WAIT"
+        if proposal == "WAIT":
+            checks.append("model_proposed_wait")
+            return "WAIT"
+        if blocks:
+            checks.append("model_proposal_vetoed_by_safety")
+            blocks.append(f"Model proposed {proposal} but safety checks failed; forced WAIT")
+            return "WAIT"
+        if proposal == candidate.proposed_decision and candidate.proposed_decision in (
+            "BUY",
+            "SELL",
+        ):
+            checks.append("model_proposal_confirmed_by_evidence")
+            return candidate.proposed_decision
+        # Proposal disagrees with the deterministic candidate.
+        checks.append("model_proposal_mismatch")
+        blocks.append(
+            f"Model proposed {proposal} but deterministic evidence supports "
+            f"{candidate.proposed_decision}; forced WAIT"
+        )
+        return "WAIT"
 
-__all__ = ["DecisionSafetyGate", "MAX_PRICE_AGE_MS_GATE"]
+    @staticmethod
+    def _utc(value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("Safety clock must be timezone-aware")
+        return value.astimezone(UTC)
+
+
+__all__ = [
+    "EXPECTED_TIMEFRAMES",
+    "MAX_PRICE_AGE_MS",
+    "MIN_CANDLES_PER_TIMEFRAME",
+    "MIN_REPORT_TIMEFRAMES",
+    "MIN_SAFETY_RISK_REWARD",
+    "MIN_USABLE_TIMEFRAMES",
+    "DecisionSafetyGate",
+]

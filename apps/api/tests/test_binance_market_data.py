@@ -9,6 +9,8 @@ from typing import Literal
 
 import httpx
 import pytest
+from websockets.asyncio.server import ServerConnection, serve
+from websockets.exceptions import ConnectionClosedError
 
 from app.market_data.binance_rest import BinanceSpotRestClient
 from app.market_data.binance_stream import PLANNED_RECONNECT_SECONDS, BinanceSpotTradeStream
@@ -49,8 +51,39 @@ def test_rest_rate_limit_fails_closed(status: int) -> None:
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         rest = BinanceSpotRestClient(base_url="https://test.invalid", client=client)
-        with pytest.raises(MarketDataUnavailable, match="rate limited"):
+        with pytest.raises(MarketDataUnavailable, match="HTTP 418|HTTP 429"):
             await rest.latest_trade("BTCUSDT")
+        await client.aclose()
+
+    asyncio.run(run())
+
+
+def test_latest_trade_retries_http_429_and_returns_validated_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def run() -> None:
+        calls = 0
+
+        async def sleep(_: float) -> None:
+            return None
+
+        def handler(_: httpx.Request) -> httpx.Response:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return httpx.Response(429, headers={"Retry-After": "0"})
+            return httpx.Response(
+                200,
+                json=[{"id": 124, "price": "95001.12", "time": int(NOW.timestamp() * 1000)}],
+            )
+
+        monkeypatch.setattr("app.market_data.rest_retry.asyncio.sleep", sleep)
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        rest = BinanceSpotRestClient(base_url="https://test.invalid", client=client)
+        event = await rest.latest_trade("BTCUSDT")
+        assert calls == 2
+        assert event.event_id == "124"
+        assert event.price == Decimal("95001.12")
         await client.aclose()
 
     asyncio.run(run())
@@ -147,6 +180,128 @@ def test_stale_websocket_cache_is_recovered_from_rest_and_revalidated() -> None:
         assert rest.calls == 1
         assert result.price == Decimal("95123.45")
         assert result.source == "binance_spot_rest"
+        await service.close()
+
+    asyncio.run(run())
+
+
+def test_cached_price_is_revalidated_at_each_consumption_boundary() -> None:
+    class FakeRest:
+        calls = 0
+
+        async def latest_trade(self, symbol: str) -> PriceEvent:
+            self.calls += 1
+            return PriceEvent(
+                symbol=symbol,
+                price=Decimal("95100"),
+                market_event_timestamp=NOW + timedelta(milliseconds=2_900),
+                received_timestamp=NOW + timedelta(milliseconds=3_001),
+                source="binance_spot_rest",
+                event_id="rest-900",
+            )
+
+    class IdleStream:
+        async def listen(
+            self,
+            symbol: str,
+            *,
+            on_connection_state: Callable[[bool], Awaitable[None]],
+        ) -> AsyncIterator[PriceEvent]:
+            await on_connection_state(True)
+            try:
+                await asyncio.Event().wait()
+            finally:
+                await on_connection_state(False)
+            if False:
+                yield _trade_event(1)
+
+    async def run() -> None:
+        rest = FakeRest()
+        service = BinanceMarketDataService(rest_client=rest, stream=IdleStream())
+        service._started = True
+        service._events["BTCUSDT"] = PriceEvent(
+            symbol="BTCUSDT",
+            price=Decimal("95000"),
+            market_event_timestamp=NOW,
+            received_timestamp=NOW,
+            source="binance_spot_websocket",
+            event_id="stream-1",
+        )
+        service._stream_healthy.add("BTCUSDT")
+
+        at_boundary = await service.get_current_price(
+            "BTCUSDT",
+            clock_healthy=True,
+            now=NOW + timedelta(milliseconds=3_000),
+        )
+        assert at_boundary.price == Decimal("95000")
+        assert rest.calls == 0
+
+        after_boundary = await service.get_current_price(
+            "BTCUSDT",
+            clock_healthy=True,
+            now=NOW + timedelta(milliseconds=3_001),
+        )
+        assert after_boundary.price == Decimal("95100")
+        assert after_boundary.source == "binance_spot_rest"
+        assert rest.calls == 1
+
+        # The recovered REST event is itself a valid cache entry while fresh.
+        still_fresh = await service.get_current_price(
+            "BTCUSDT",
+            clock_healthy=True,
+            now=NOW + timedelta(milliseconds=3_100),
+        )
+        assert still_fresh.price == Decimal("95100")
+        assert rest.calls == 1
+        await service.close()
+
+    asyncio.run(run())
+
+
+def test_invalid_stale_rest_recovery_is_never_cached() -> None:
+    class FakeRest:
+        async def latest_trade(self, symbol: str) -> PriceEvent:
+            return PriceEvent(
+                symbol=symbol,
+                price=Decimal("95000"),
+                market_event_timestamp=NOW - timedelta(seconds=4),
+                received_timestamp=NOW,
+                source="binance_spot_rest",
+                event_id="stale-rest",
+            )
+
+    class IdleStream:
+        async def listen(
+            self,
+            symbol: str,
+            *,
+            on_connection_state: Callable[[bool], Awaitable[None]],
+        ) -> AsyncIterator[PriceEvent]:
+            await on_connection_state(True)
+            try:
+                await asyncio.Event().wait()
+            finally:
+                await on_connection_state(False)
+            if False:
+                yield _trade_event(1)
+
+    async def run() -> None:
+        service = BinanceMarketDataService(rest_client=FakeRest(), stream=IdleStream())
+        service._started = True
+        service._events["BTCUSDT"] = PriceEvent(
+            symbol="BTCUSDT",
+            price=Decimal("94000"),
+            market_event_timestamp=NOW - timedelta(seconds=5),
+            received_timestamp=NOW,
+            source="binance_spot_websocket",
+            event_id="stale-stream",
+        )
+        service._stream_healthy.add("BTCUSDT")
+
+        with pytest.raises(MarketDataUnavailable, match="older than 3 seconds"):
+            await service.get_current_price("BTCUSDT", clock_healthy=True, now=NOW)
+        assert "BTCUSDT" not in service._events
         await service.close()
 
     asyncio.run(run())
@@ -596,5 +751,123 @@ def test_stream_rejects_trade_without_numeric_sequence_id() -> None:
         assert "BTCUSDT" not in service._events
         assert "BTCUSDT" not in service._stream_healthy
         await service.close()
+
+    asyncio.run(run())
+
+
+def test_websocket_client_automatically_pongs_server_ping() -> None:
+    async def run() -> None:
+        pong_received = asyncio.Event()
+        timestamp = int(NOW.timestamp() * 1000)
+
+        async def handler(websocket: ServerConnection) -> None:
+            pong_waiter = await websocket.ping(b"baymax-keepalive-probe")
+            await asyncio.wait_for(pong_waiter, timeout=1)
+            pong_received.set()
+            await websocket.send(
+                json.dumps(
+                    {
+                        "s": "BTCUSDT",
+                        "E": timestamp,
+                        "T": timestamp,
+                        "p": "95000.12",
+                        "t": 9001,
+                    }
+                )
+            )
+            await websocket.wait_closed()
+
+        async with serve(handler, "127.0.0.1", 0) as server:
+            assert server.sockets is not None
+            port = server.sockets[0].getsockname()[1]
+            stream = BinanceSpotTradeStream(
+                base_url=f"ws://127.0.0.1:{port}",
+                connection_lifetime_seconds=5,
+            )
+            iterator = stream.listen("BTCUSDT")
+            try:
+                event = await asyncio.wait_for(anext(iterator), timeout=2)
+                assert event.event_id == "9001"
+                assert pong_received.is_set()
+            finally:
+                await iterator.aclose()
+
+    asyncio.run(run())
+
+
+def test_keepalive_timeout_marks_connection_failed_and_reconnects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.market_data.binance_stream import (
+        WEBSOCKET_PING_INTERVAL_SECONDS,
+        WEBSOCKET_PING_TIMEOUT_SECONDS,
+    )
+
+    connection_count = 0
+    connection_options: list[dict[str, object]] = []
+    timestamp = int(NOW.timestamp() * 1000)
+
+    class FakeWebSocket:
+        def __init__(self, connection_number: int) -> None:
+            self.connection_number = connection_number
+
+        async def recv(self) -> str:
+            if self.connection_number == 1:
+                # websockets raises ConnectionClosedError when its keepalive
+                # ping receives no pong before ping_timeout expires.
+                raise ConnectionClosedError(None, None, None)
+            return json.dumps(
+                {
+                    "s": "BTCUSDT",
+                    "E": timestamp,
+                    "T": timestamp,
+                    "p": "95001.12",
+                    "t": 9002,
+                }
+            )
+
+    class FakeConnection:
+        def __init__(self, connection_number: int) -> None:
+            self.websocket = FakeWebSocket(connection_number)
+
+        async def __aenter__(self) -> FakeWebSocket:
+            return self.websocket
+
+        async def __aexit__(self, *_: object) -> None:
+            return None
+
+    def fake_connect(_: str, **kwargs: object) -> FakeConnection:
+        nonlocal connection_count
+        connection_count += 1
+        connection_options.append(kwargs)
+        return FakeConnection(connection_count)
+
+    async def no_wait(_: float) -> None:
+        return None
+
+    monkeypatch.setattr("app.market_data.binance_stream.connect", fake_connect)
+    monkeypatch.setattr("app.market_data.binance_stream.asyncio.sleep", no_wait)
+
+    async def run() -> None:
+        states: list[bool] = []
+
+        async def on_state(connected: bool) -> None:
+            states.append(connected)
+
+        stream = BinanceSpotTradeStream(connection_lifetime_seconds=5)
+        iterator = stream.listen("BTCUSDT", on_connection_state=on_state)
+        try:
+            event = await asyncio.wait_for(anext(iterator), timeout=1)
+            assert event.event_id == "9002"
+            assert connection_count == 2
+            assert states == [True, False, True]
+            assert len(connection_options) == 2
+            for options in connection_options:
+                assert options["ping_interval"] == WEBSOCKET_PING_INTERVAL_SECONDS
+                assert options["ping_timeout"] == WEBSOCKET_PING_TIMEOUT_SECONDS
+            assert WEBSOCKET_PING_INTERVAL_SECONDS == 20
+            assert WEBSOCKET_PING_TIMEOUT_SECONDS == 60
+        finally:
+            await iterator.aclose()
 
     asyncio.run(run())

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -16,7 +16,9 @@ from app.intelligence.schemas import (
     VolatilityAssessment,
 )
 from app.market_data.models import ValidatedPrice
+from app.orchestration.requests import AnalysisRequest, PreparedAnalysisInput
 from app.strategy.decision_safety import DecisionSafetyGate
+from app.strategy.schemas import SafetyResult, StrategyOutcome
 from app.strategy.setup import evaluate_setup
 
 NOW = datetime(2026, 2, 1, tzinfo=UTC)
@@ -125,19 +127,67 @@ def _report(
     )
 
 
-def _validated_price() -> ValidatedPrice:
+def _validated_price(*, age_ms: int = 10) -> ValidatedPrice:
+    market_time = NOW - timedelta(milliseconds=age_ms)
     return ValidatedPrice(
         exchange="BINANCE",
         market="SPOT",
         symbol="BTCUSDT",
         price=PRICE,
-        market_event_timestamp=NOW,
+        market_event_timestamp=market_time,
         received_timestamp=NOW,
         validated_timestamp=NOW,
-        age_ms_at_validation=10,
+        age_ms_at_validation=age_ms,
         source="binance_spot_rest",
-        event_id="t1",
+        event_id="1001",
     )
+
+
+def _request() -> AnalysisRequest:
+    return AnalysisRequest(
+        message="Should I buy BTCUSDT?",
+        intent="current_market",
+        symbol="BTCUSDT",
+        decision_requested=True,
+    )
+
+
+def _prepared(price: ValidatedPrice | None = None) -> PreparedAnalysisInput:
+    return PreparedAnalysisInput(
+        intent="current_market",
+        market_data_required=True,
+        market_data_status="ready",
+        current_price=price or _validated_price(),
+        market_snapshot_id=uuid4(),
+    )
+
+
+def _gate(
+    report: MarketIntelligenceReport,
+    candidate: StrategyOutcome,
+    proposal: str | None = "BUY",
+    *,
+    now: datetime = NOW,
+    price: ValidatedPrice | None = None,
+    gate: DecisionSafetyGate | None = None,
+) -> SafetyResult:
+    return (gate or DecisionSafetyGate()).evaluate(
+        report,
+        candidate,
+        proposal,
+        request=_request(),
+        prepared=_prepared(price),
+        now=now,
+    )
+
+
+BULLISH_5 = {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"}
+BEARISH_5 = {"5m": "bearish", "15m": "bearish", "1h": "bearish", "4h": "bearish", "1d": "bearish"}
+BUY_ZONES = (
+    _zone("support", "95.00", "96.00"),
+    _zone("resistance", "110.00", "111.00"),
+    _zone("resistance", "120.00", "121.00"),
+)
 
 
 def test_wait_when_alignment_conflicting() -> None:
@@ -163,41 +213,26 @@ def test_wait_when_data_insufficient() -> None:
 
 
 def test_buy_scenario_levels_are_deterministic() -> None:
-    zones = (
-        _zone("support", "95.00", "96.00"),
-        _zone("resistance", "110.00", "111.00"),
-        _zone("resistance", "120.00", "121.00"),
-    )
-    report = _report(
-        {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"},
-        zones_1h=zones,
-    )
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
     outcome = evaluate_setup(report)
     assert outcome.proposed_decision == "BUY"
     scenario = outcome.scenario
     assert scenario is not None
-    # Entry band = price +/- 0.10*ATR(2.0) = 99.8 - 100.2
     assert scenario.entry_zone.lower == Decimal("99.80")
     assert scenario.entry_zone.upper == Decimal("100.20")
-    # Stop = support lower 95.00 - 0.25*ATR(2.0)=0.5 -> 94.50
     assert scenario.stop_loss.price == Decimal("94.50")
-    # TP1 = first resistance lower bound above entry = 110.00
     assert scenario.take_profit_1.price == Decimal("110.00")
     assert scenario.take_profit_2 is not None
     assert scenario.take_profit_2.price == Decimal("120.00")
-    # risk = 100 - 94.5 = 5.5 ; reward = 110 - 100 = 10 ; R:R = 1.82
     assert scenario.risk_reward_ratio == Decimal("1.82")
 
 
 def test_wait_when_risk_reward_too_low() -> None:
     zones = (
-        _zone("support", "98.00", "99.00"),  # stop ~97.5 -> risk ~2.5
-        _zone("resistance", "101.00", "102.00"),  # reward ~1 -> R:R < 1.5
+        _zone("support", "98.00", "99.00"),
+        _zone("resistance", "101.00", "102.00"),
     )
-    report = _report(
-        {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"},
-        zones_1h=zones,
-    )
+    report = _report(BULLISH_5, zones_1h=zones)
     outcome = evaluate_setup(report)
     assert outcome.proposed_decision == "WAIT"
     assert any("Risk/reward" in reason for reason in outcome.blocking_reasons)
@@ -205,43 +240,39 @@ def test_wait_when_risk_reward_too_low() -> None:
 
 def test_wait_when_no_target_zone() -> None:
     zones = (_zone("support", "95.00", "96.00"),)
-    report = _report(
-        {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"},
-        zones_1h=zones,
-    )
+    report = _report(BULLISH_5, zones_1h=zones)
     outcome = evaluate_setup(report)
     assert outcome.proposed_decision == "WAIT"
 
 
-def test_sell_scenario_for_bearish_alignment() -> None:
+def test_sell_produces_spot_exit_guidance_not_short_scenario() -> None:
+    """F3: bearish alignment yields exit guidance, never a short scenario."""
     zones = (
         _zone("support", "90.00", "91.00"),
         _zone("resistance", "104.00", "105.00"),
     )
-    report = _report(
-        {"5m": "bearish", "15m": "bearish", "1h": "bearish", "4h": "bearish", "1d": "bearish"},
-        zones_1h=zones,
-    )
+    report = _report(BEARISH_5, zones_1h=zones)
     outcome = evaluate_setup(report)
     assert outcome.proposed_decision == "SELL"
-    scenario = outcome.scenario
-    assert scenario is not None
-    assert scenario.direction == "bearish"
-    # Stop above resistance upper 105 + 0.5 = 105.50; TP1 = support upper 91.00
-    assert scenario.stop_loss.price == Decimal("105.50")
-    assert scenario.take_profit_1.price == Decimal("91.00")
+    assert outcome.scenario is None
+    guidance = outcome.exit_guidance
+    assert guidance is not None
+    assert guidance.kind == "spot_exit"
+    assert "not a short" in guidance.note
+    assert guidance.trim_levels  # resistance zones above price
+    assert guidance.breakdown_exit is not None
+    assert guidance.breakdown_exit.price == Decimal("90.00")
+
+
+def test_sell_waits_without_any_zone_anchor() -> None:
+    report = _report(BEARISH_5, zones_1h=())
+    outcome = evaluate_setup(report)
+    assert outcome.proposed_decision == "WAIT"
+    assert outcome.exit_guidance is None
 
 
 def test_high_expanding_volatility_blocks_setup() -> None:
-    zones = (
-        _zone("support", "95.00", "96.00"),
-        _zone("resistance", "110.00", "111.00"),
-    )
-    report = _report(
-        {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"},
-        zones_1h=zones,
-    )
-    # Patch the 1h analysis volatility to high+expanding.
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
     analyses = []
     for item in report.timeframe_analyses:
         if item.interval == "1h":
@@ -259,77 +290,139 @@ def test_high_expanding_volatility_blocks_setup() -> None:
     assert any("Volatility" in r for r in outcome.blocking_reasons)
 
 
-def test_safety_gate_passes_clean_buy() -> None:
-    zones = (
-        _zone("support", "95.00", "96.00"),
-        _zone("resistance", "110.00", "111.00"),
-    )
-    report = _report(
-        {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"},
-        zones_1h=zones,
-    )
-    outcome = evaluate_setup(report)
-    result = DecisionSafetyGate().evaluate(report, outcome, _validated_price())
+def test_safety_gate_confirms_valid_buy_proposal() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal="BUY")
     assert result.decision == "BUY"
     assert result.scenario is not None
     assert not result.blocked
+    assert result.model_proposal == "BUY"
 
 
-def test_safety_gate_blocks_on_stale_price() -> None:
-    zones = (
-        _zone("support", "95.00", "96.00"),
-        _zone("resistance", "110.00", "111.00"),
+def test_safety_gate_vetoes_buy_when_price_stale_at_release() -> None:
+    """F1: price fresh at validation but stale at release time -> WAIT."""
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    candidate = evaluate_setup(report)
+    # Price validated 10ms ago; release happens 4s later.
+    result = _gate(
+        report,
+        candidate,
+        proposal="BUY",
+        now=NOW + timedelta(seconds=4),
     )
-    report = _report(
-        {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"},
-        zones_1h=zones,
-    )
-    outcome = evaluate_setup(report)
-    stale = _validated_price().model_copy(update={"age_ms_at_validation": 5000})
-    result = DecisionSafetyGate().evaluate(report, outcome, stale)
     assert result.decision == "WAIT"
     assert result.blocked
-    assert any("3,000 ms" in r for r in result.block_reasons)
+    assert any("expired" in r for r in result.block_reasons)
+
+
+def test_safety_gate_allows_buy_when_price_fresh_at_release() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    candidate = evaluate_setup(report)
+    result = _gate(
+        report,
+        candidate,
+        proposal="BUY",
+        now=NOW + timedelta(milliseconds=500),
+    )
+    assert result.decision == "BUY"
+
+
+def test_safety_gate_vetoes_proposal_on_conflicting_alignment() -> None:
+    report = _report(
+        {"5m": "bullish", "15m": "bullish", "1h": "bearish", "4h": "bearish", "1d": "bearish"},
+        zones_1h=BUY_ZONES,
+        alignment_status="conflicting",
+    )
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal="BUY")
+    assert result.decision == "WAIT"
+    assert any("conflicting" in r.lower() for r in result.block_reasons)
+
+
+def test_safety_gate_forces_wait_when_model_unavailable() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal=None)
+    assert result.decision == "WAIT"
+    assert result.model_proposal is None
+
+
+def test_safety_gate_rejects_model_buy_when_candidate_is_wait() -> None:
+    report = _report(
+        {"5m": "bullish", "15m": "bullish", "1h": "bearish", "4h": "bearish", "1d": "bearish"},
+        alignment_status="conflicting",
+    )
+    candidate = evaluate_setup(report)
+    assert candidate.proposed_decision == "WAIT"
+    result = _gate(report, candidate, proposal="BUY")
+    assert result.decision == "WAIT"
+    assert result.checks and "model_proposal_vetoed_by_safety" in result.checks
+
+
+def test_safety_gate_accepts_wait_proposal() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal="WAIT")
+    assert result.decision == "WAIT"
+    assert result.scenario is None
+    assert not result.blocked
+
+
+def test_safety_gate_confirms_sell_proposal_with_exit_guidance() -> None:
+    zones = (
+        _zone("support", "90.00", "91.00"),
+        _zone("resistance", "104.00", "105.00"),
+    )
+    report = _report(BEARISH_5, zones_1h=zones)
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal="SELL")
+    assert result.decision == "SELL"
+    assert result.exit_guidance is not None
+    assert result.scenario is None
 
 
 def test_safety_gate_blocks_on_incomplete_series() -> None:
-    zones = (
-        _zone("support", "95.00", "96.00"),
-        _zone("resistance", "110.00", "111.00"),
-    )
-    report = _report(
-        {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"},
-        zones_1h=zones,
-    )
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
     analyses = [
         item.model_copy(update={"series_complete": False}) if item.interval == "4h" else item
         for item in report.timeframe_analyses
     ]
     report = report.model_copy(update={"timeframe_analyses": tuple(analyses)})
-    outcome = evaluate_setup(report)
-    result = DecisionSafetyGate().evaluate(report, outcome, _validated_price())
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal="BUY")
     assert result.decision == "WAIT"
     assert any("Incomplete" in r for r in result.block_reasons)
 
 
 def test_safety_gate_blocks_on_missing_timeframe() -> None:
     report = _report({"1h": "bullish"}, alignment_status="insufficient")
-    outcome = evaluate_setup(report)
-    result = DecisionSafetyGate().evaluate(report, outcome, _validated_price())
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal="BUY")
     assert result.decision == "WAIT"
     assert any("Missing timeframe" in r for r in result.block_reasons)
 
 
+def test_safety_gate_blocks_on_symbol_mismatch() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    candidate = evaluate_setup(report)
+    bad_price = _validated_price().model_copy(update={"symbol": "ETHUSDT"})
+    result = _gate(report, candidate, proposal="BUY", price=bad_price)
+    assert result.decision == "WAIT"
+    assert any("symbol" in r.lower() or "Market symbol" in r for r in result.block_reasons)
+
+
+def test_safety_gate_blocks_on_non_decimal_event_id() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    candidate = evaluate_setup(report)
+    bad_price = _validated_price().model_copy(update={"event_id": "t1"})
+    result = _gate(report, candidate, proposal="BUY", price=bad_price)
+    assert result.decision == "WAIT"
+    assert any("event" in r.lower() for r in result.block_reasons)
+
+
 def test_safety_gate_requires_provenance_when_configured() -> None:
-    zones = (
-        _zone("support", "95.00", "96.00"),
-        _zone("resistance", "110.00", "111.00"),
-    )
-    report = _report(
-        {"5m": "bullish", "15m": "bullish", "1h": "bullish", "4h": "bullish", "1d": "bullish"},
-        zones_1h=zones,
-    )
-    # Strip snapshot ids.
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
     analyses = [item.model_copy(update={"snapshot_id": None}) for item in report.timeframe_analyses]
     report = report.model_copy(
         update={
@@ -337,8 +430,9 @@ def test_safety_gate_requires_provenance_when_configured() -> None:
             "current_price_snapshot_id": None,
         }
     )
-    outcome = evaluate_setup(report)
-    gate = DecisionSafetyGate(require_provenance=True)
-    result = gate.evaluate(report, outcome, _validated_price())
+    candidate = evaluate_setup(report)
+    result = _gate(
+        report, candidate, proposal="BUY", gate=DecisionSafetyGate(require_provenance=True)
+    )
     assert result.decision == "WAIT"
     assert any("provenance" in r.lower() for r in result.block_reasons)

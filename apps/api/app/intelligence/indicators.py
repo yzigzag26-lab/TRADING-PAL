@@ -111,7 +111,8 @@ def _rsi_series(closes: Sequence[float], period: int) -> list[float | None]:
 
 def _rsi_value(avg_gain: float, avg_loss: float) -> float:
     if avg_loss == 0.0:
-        return 100.0
+        # A perfectly flat series has neither gains nor losses: neutral RSI.
+        return 50.0 if avg_gain == 0.0 else 100.0
     rs = avg_gain / avg_loss
     return 100.0 - 100.0 / (1.0 + rs)
 

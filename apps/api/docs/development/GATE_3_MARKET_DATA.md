@@ -1,7 +1,7 @@
 # Gate 3 — Binance Spot market data freshness and reliability
 
 **Specification:** Baymax Market Data Freshness & Reliability v1.0  
-**Status:** Owner-approved acceptance contract; Gate 3 implementation is merged and production acceptance is in progress. Production evidence is recorded in Section 19; Gate 3 remains incomplete.  
+**Status:** Gate 3 acceptance audit closed on 2026-11-19. All mandatory applicable criteria G3-01–G3-15 passed; G3-08 is not applicable because no local order book is in scope. G3-05 ping/pong and keepalive-timeout recovery evidence is recorded in Section 31. Production deployment caveats remain explicit.  
 **Applies to:** Gate 3 of the private, single-owner Baymax system.  
 **Exchange:** Binance Spot only.  
 **Access:** Public market data, read-only.  
@@ -518,10 +518,10 @@ same acceptance test.
   snapshot-reference behaviour remains covered by service/API tests.
 - **G3-15:** live Binance REST/WS payload smoke evidence recorded. This is
   supplemental to, not a replacement for, deterministic tests.
-- **G3-05 is the next production acceptance item:** capture evidence for
-  disconnect detection, planned reconnect/resubscription, and restored fresh
-  price acceptance in the deployed service. The diagnostic's second-connection
-  check is not sufficient to close the full lifecycle criterion.
+- **G3-05:** the forced five-second production rotation/recovery diagnostic
+  passed on 2026-11-19 (Section 21). Its evidence is supplemental to the
+  deterministic lifecycle/ping-pong tests; it does not prove a 23h50m
+  uninterrupted connection.
 - **Gate 3 remains incomplete** until every mandatory applicable criterion in
   Section 11 has its required evidence.
 
@@ -549,7 +549,7 @@ The test is isolated from the application-owned service and does not modify
 its 23-hour-50-minute setting. It performs no database write and uses no
 Binance credentials, private endpoints, or trading operations. The runbook and
 owner-authenticated execution steps are in
-[GATE_3_DIAGNOSTICS.md](GATE_3_DIAGNOSTICS.md).
+[Gate 3 production diagnostics](GATE_3_DIAGNOSTICS.md).
 
 A successful deployed response is required before marking G3-05 as production
 verified. The forced five-second exercise verifies the same rotation code
@@ -600,9 +600,9 @@ other applicable acceptance evidence.
   2026-11-19. The response proves disconnect observation, replacement
   subscription, and fresh post-reconnect WebSocket data accepted at 52 ms.
   Retain deterministic lifecycle tests as required evidence.
-- **G3-06:** implementation and expanded deterministic tests are included in
-  the dedicated G3-06 pull request. Final acceptance remains pending review
-  and green backend CI for that exact commit; see Section 22.
+- **G3-06:** merged in PR #38 (main commit
+  `16c9c34545d5bc19c08afa90e273ff63f4e8e192`); backend CI passed on the exact
+  reviewed PR head with 135 tests. See Section 22.
 - **Gate 3 status:** incomplete. Do not mark the gate complete until every
   applicable criterion in Section 11 has reproducible evidence.
 
@@ -634,8 +634,583 @@ and later timestamps, missing/non-numeric IDs, symbol mismatch, non-REST
 recovery payloads, forward gaps, REST recovery failure, REST results behind
 the gap event, and resumed WebSocket acceptance after successful reconciliation.
 
-The implementation and tests are submitted in a dedicated pull request.
-**G3-06 is not accepted until code review and the backend CI suite pass on the
-exact reviewed commit.** No production diagnostic or database write is needed
-for this deterministic sequence-handling criterion. Gate 3 remains incomplete
-until all other applicable acceptance criteria are also evidenced.
+G3-06 was merged in PR #38 as commit
+`16c9c34545d5bc19c08afa90e273ff63f4e8e192`. Backend CI passed on the exact
+reviewed PR head `c25ce33e831b62062c47f4ee2f2f602e870a6375`: Ruff format,
+Ruff lint, mypy, 135 pytest tests, and strict Zensical build. The implementation
+and deterministic evidence are accepted for G3-06; this does not complete
+Gate 3. No production diagnostic or database write was required.
+
+
+## 23. G3-07 candle integrity — implementation and deterministic acceptance
+
+The G3-07 candle-integrity slice enforces the following rules:
+
+- OHLC prices must be finite positive decimals. The candle low cannot exceed
+  the open or close, and the high cannot be below either value.
+- Base, quote, and taker-buy volumes must be finite and non-negative.
+  Taker-buy volumes cannot exceed their corresponding total volumes.
+- Candle open timestamps must align to the requested Binance interval, and
+  the inclusive close timestamp must equal one millisecond before the next
+  interval boundary.
+- Binance kline rows must contain all 12 documented fields. Truncated rows
+  are rejected rather than partially interpreted.
+- The parser marks a candle open until its inclusive close timestamp has
+  passed the supplied current-time boundary. It marks it closed only after
+  that boundary. Open candles are valid forming data, not finalized OHLCV.
+- A historical series must contain unique chronological candles within the
+  requested range. Its missing-open-time list must exactly equal the expected
+  interval boundaries absent from the returned candles. The `complete` flag
+  must agree with that exact missing list.
+- Missing intervals remain explicit after bounded recovery. The service does
+  not interpolate or fabricate candles.
+
+Deterministic tests cover invalid OHLC relationships, non-finite and
+non-positive prices, negative or contradictory volumes, invalid trade counts,
+incorrect interval timestamps, truncated Binance rows, the open/closed
+boundary, exact continuity, false completeness declarations, inaccurate gap
+lists, and out-of-range candles.
+
+G3-07 was merged in PR #39 as commit
+`ce18eaa967c039835a7def46d0d6c4fc8c4fa311`. Backend CI passed on the exact
+reviewed PR head: Ruff format, Ruff lint, mypy (68 source files), all 149
+pytest tests, and strict Zensical documentation build. This verifies the
+deterministic candle-integrity implementation; it does not by itself complete
+Gate 3. No production database write or live Binance diagnostic was required.
+Gate 3 remains incomplete until all other applicable acceptance criteria are
+also evidenced.
+
+
+## 24. G3-08 applicability and G3-09 implementation status
+
+### G3-08 — local order-book integrity: not applicable
+
+G3-08 is conditional on a local depth/order-book implementation. Inspection of
+the current repository found no Binance depth REST adapter
+(`/api/v3/depth`), depth WebSocket stream (`@depth` / `depthUpdate`), local
+order-book synchronization, or depth sequence-recovery implementation.
+The current Gate 3 scope implements public trade streams and historical
+candles, not a local order book. G3-08 is therefore **not applicable to the
+current approved implementation**. Do not add an order-book subsystem solely
+to satisfy this conditional criterion. Reassess only if local depth is
+explicitly added to an approved scope.
+
+### G3-09 — REST rate limits and transient failures: merged and CI-verified
+
+G3-09 was implemented in PR #42
+(`feat: add bounded retry handling for Binance REST`) and merged to
+`main` on 2026-11-19 as commit
+`1013a8afbcd96919e945398812f44b0506240e4b`.
+
+The shared `app.market_data.rest_retry` policy is used by both public Binance
+Spot REST adapters: latest-trade retrieval and historical-kline retrieval.
+Its safeguards are:
+
+- HTTP 429 honours valid delta-seconds and HTTP-date `Retry-After` values.
+  If the server-requested wait exceeds the cumulative wait budget, the request
+  fails closed; it never retries early.
+- Missing or invalid `Retry-After` values use bounded exponential backoff
+  with jitter.
+- HTTP 418 is treated as an IP-ban signal and is never automatically retried.
+- HTTP 408, 5xx responses, and transport failures receive bounded retries.
+  Permanent 4xx responses are not retried.
+- Attempts, cumulative sleep, and total elapsed request time have explicit
+  upper bounds. Cancellation is preserved, and exhaustion returns an
+  unavailable error.
+- Both adapters share the same retry implementation rather than maintaining
+  separate retry policies.
+
+Deterministic mocked-transport tests cover Retry-After handling, budget
+exhaustion, invalid/missing headers, HTTP 418, transient status and transport
+failures, retry exhaustion, deadline cancellation, HTTP-date parsing, and
+permanent client errors. Adapter-level tests verify 429 recovery for both
+latest-trade and historical-kline clients.
+
+**CI evidence for exact PR head**
+`f07784809c14daaa634e43af3c63a5be8843b031`:
+
+- Ruff format — passed.
+- Ruff lint — passed.
+- mypy — passed.
+- pytest — **166 passed, 1 warning**.
+- Strict Zensical documentation build — passed.
+
+The GitHub Actions Backend and Documentation CI workflow passed on that exact
+PR head. Vercel `baymax` and `web` checks were rate-limited by Vercel
+(`retry in 24 hours`); this is not evidence of a successful deployment.
+No production rate-limit or IP-ban test was performed or required. No
+database schema/data changes, Binance credentials, private endpoints, or
+trading operations were introduced.
+
+G3-09 is **merged and CI-verified**. This does not complete Gate 3 and does
+not establish production deployment or live rate-limit behaviour.
+
+**Gate 3 remains incomplete.** Continue with the next applicable acceptance
+criterion below; do not skip its deterministic evidence.
+
+## 25. G3-10 cache freshness enforcement — implementation and CI evidence
+
+G3-10 is implemented in PR #44
+(`fix: enforce cache freshness at consumption`). The change hardens the
+existing `BinanceMarketDataService.get_current_price()` cache boundary:
+
+- Every cached event is revalidated against its source market-event timestamp
+  at the moment it is consumed, using the approved 3,000 ms maximum age.
+- A healthy, still-fresh REST recovery event can be reused from cache, but it
+  is subjected to the same consume-time age validation as a WebSocket event.
+- A stale, future-dated, or otherwise invalid REST recovery response is
+  validated before cache insertion and is never retained as a reusable entry.
+- If cached data expires, the service invalidates it and uses the approved
+  timestamped Binance public REST recovery path. Failed or stale recovery
+  remains unavailable.
+
+Deterministic tests cover the exact 3,000 ms acceptance boundary, the
+3,001 ms expiry boundary, recovery after a cached WebSocket event expires,
+reuse of a fresh REST recovery result, and rejection without caching when
+REST recovery itself is stale. Existing freshness tests continue to cover
+future timestamps, unhealthy source/clock state, and invalid prices.
+
+**CI evidence for exact PR head**
+`8657298d44a441d39b7dd3979a51f4a661df0f85`:
+
+- Ruff format — passed.
+- Ruff lint — passed.
+- mypy — passed.
+- pytest — **168 passed, 1 warning**.
+- Strict Zensical documentation build — passed.
+
+GitHub Actions Backend and Documentation CI run
+[44510167820](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44510167820)
+completed successfully on that exact PR head. Earlier CI attempts caught
+formatting-only issues; those were corrected before this successful run.
+
+**Merge status:** PR #44 was merged to `main` as commit
+`84059a6783d6eff0193549270c64212b7a5b4d7b`. CI verifies the exact PR head;
+this does not by itself establish a production deployment. No production
+database writes, durable diagnostics, new endpoints, exchange credentials,
+private Binance endpoints, or trading operations were used.
+
+**G3-10 is merged and CI-verified.** Gate 3 remains incomplete.
+
+## 26. G3-11 market-data provenance and audit records — implementation and CI evidence
+
+G3-11 is implemented in PR #46
+(`feat: link market-data snapshots to audit records`). It reuses the existing
+append-only `baymax.market_data_snapshots` and `baymax.audit_logs` tables;
+no migration or privilege change is introduced.
+
+For current-price and historical OHLCV provenance:
+- The repository inserts the market snapshot, flushes it to obtain its UUID,
+  then inserts a `market_data.snapshot_recorded` audit row referencing that
+  exact `market_data_snapshot` resource ID.
+- Both rows are committed in the same SQLAlchemy transaction. A failure to
+  write the audit row prevents the snapshot transaction from committing.
+- Both records carry the originating request ID when one is available.
+- Audit metadata identifies exchange, market, symbol, data type, source,
+  validation state and relevant validation details. It deliberately omits
+  raw price values and credentials; the snapshot retains its existing
+  purpose-limited payload.
+- Historical series are audited too, including explicit incomplete status
+  and missing-candle evidence. Gaps are not fabricated or concealed.
+- Current-market orchestration already requires provenance in production;
+  a persistence failure is converted to unavailable and prevents analysis
+  generation. Historical retrieval similarly fails unavailable if persistence
+  fails in the configured production path.
+
+Deterministic tests cover exact snapshot/audit resource linkage, request ID,
+source and validation metadata, metadata minimization, historical incomplete
+series linkage, transaction failure, and orchestration fail-closed behaviour.
+
+**CI evidence for exact PR head**
+`919109ef9f670f8c49405bce9dab77da7a0a9f71`:
+
+- Ruff format — passed.
+- Ruff lint — passed.
+- mypy — passed.
+- pytest — **170 passed, 1 warning**.
+- Strict Zensical documentation build — passed.
+
+GitHub Actions Backend and Documentation CI run
+[44511549531](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44511549531)
+completed successfully on that exact commit. Earlier CI attempts caught
+formatting and lint issues; those were corrected before this successful run.
+
+**Merge status:** implementation PR #46 was merged to `main` as commit
+`327faa7172171848930abc8884dfc79b76537c8f`. The successful CI result verifies
+the exact PR head; it does not by itself establish production deployment.
+No production database writes, diagnostics, schema changes, credentials,
+private Binance endpoints, or trading operations were used.
+
+**G3-11 is merged and CI-verified.** Gate 3 remains incomplete.
+
+## 27. G3-12 decision-safety enforcement — implementation and CI evidence
+
+G3-12 was implemented in PR #54
+(`feat: enforce fail-closed market decision safety`) and merged to
+`main` on 2026-11-19 as commit
+`e43620fb2cce89b87d9e5c6fed6254d831544cea`.
+
+The implementation adds a final validation boundary in the AI response
+pipeline, immediately before response generation. It does not rely on the
+frontend to decide whether market evidence is safe.
+
+The final gate enforces:
+
+- **Freshness:** revalidates the market event at generation time using the
+  approved 3,000 ms limit. Data that expires after retrieval is rejected.
+- **Identity and consistency:** validates the requested symbol, Binance Spot
+  source, numeric trade identity and timestamp ordering. Contradictory or
+  untrusted market evidence is rejected.
+- **Traceability:** requires the persisted market snapshot identity that is
+  linked to its audit record before market-dependent generation.
+- **Historical integrity:** incomplete series, unresolved gaps, open candles,
+  and inconsistent candle identity/timestamps cannot be accepted as complete
+  decision inputs.
+- **Decision intent:** explicit buy/sell/hold, position, entry/exit and
+  recommendation requests are conservatively identified and subjected to
+  the decision-safety gate.
+- **Fail-closed generation:** when a required check fails, the response
+  generator is not called.
+- **Non-market availability:** educational and programming responses remain
+  available without market data.
+
+**Important capability limitation:** Baymax does not yet have a complete,
+validated historical-candle-to-strategy evidence pipeline for issuing
+trade recommendations. Therefore, requests for buy/sell/hold or other
+trading recommendations are currently blocked rather than generated from a
+single live price. Historical analysis also remains unavailable where the
+required validated inputs are not yet implemented. This is intentional
+fail-closed behaviour, not evidence that strategy analysis is complete.
+
+Deterministic regression tests cover freshness expiry after retrieval,
+missing provenance, invalid source and contradictory timestamps, incomplete
+historical series, candle gaps, open candles, explicit recommendation
+requests, and proof that the generator is not invoked for blocked inputs.
+
+**CI evidence for exact PR head**
+`e73ccc289ae91d2af603bafd93dcc7111f30f4c3`:
+
+- Ruff format check — passed.
+- Ruff lint — passed.
+- mypy — passed.
+- pytest — passed.
+- Strict Zensical documentation build — passed.
+
+GitHub Actions Backend and Documentation CI run
+[44517973845](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44517973845)
+completed successfully on that exact PR head. PR #54 was merged as
+`e43620fb2cce89b87d9e5c6fed6254d831544cea`. The CI result verifies the
+reviewed source commit; it does not by itself establish a successful
+production deployment or live production recommendation test.
+
+No production database writes, migrations, Binance credentials, private
+exchange endpoints, trading operations, or production diagnostics were
+performed for this implementation.
+
+**G3-12 is merged and CI-verified.** Gate 3 remains incomplete.
+
+## 28. G3-13 security and scope review — repository findings
+
+The repository/configuration review was performed against the exact source
+commit `d92183a8522acc487a3c8466d6c089667c6d9ff5` (the `main` tip after
+PR #55). The review was read-only: no production credentials were read,
+changed or printed; no production database writes, migrations, diagnostics,
+or deployments were performed.
+
+### Findings
+
+1. **Binance access is public Spot market data only.** The reviewed runtime
+   adapters use `https://data-api.binance.vision` for
+   `/api/v3/trades` and `/api/v3/klines`, and
+   `wss://data-stream.binance.vision` for the public `@trade` stream.
+   Code search found no `api.binance.com`, Futures or Delivery host,
+   `sapi` route, private account/order route, API-key header, request
+   signature, or receive-window parameter in the runtime market-data code.
+
+2. **No Binance credential handling exists in tracked application
+   configuration.** The backend settings do not read Binance key/secret
+   variables; the root and frontend environment templates and Render
+   manifest do not declare them. The Binance adapters make unsigned public
+   requests. No key or secret is passed to the frontend. The repository
+   contains only the two expected `.env.example` templates, not a tracked
+   live `.env` file.
+
+3. **No synthetic production market-data fallback was found.** The reviewed
+   production market-data adapters parse exchange payloads; the decision
+   safety gate requires the approved Binance Spot source identity and
+   persisted provenance before market-dependent generation. Repository
+   searches found no demo, mock, synthetic or fallback market-data path under
+   `apps/api/app`. Existing freshness, candle-integrity, provenance and
+   decision-safety tests cover fail-closed behaviour.
+
+4. **No unapproved market-data provider or additional paid service was
+   declared.** Backend dependencies are the existing FastAPI, SQLAlchemy,
+   PostgreSQL driver, Argon2, HTTP client, WebSocket and migration/tooling
+   packages. Groq remains the configured AI provider; its credential is
+   backend-only. The Render Blueprint declares one existing Baymax API web
+   service. The frontend manifest contains the existing Next.js/React/UI
+   dependencies. No CoinAPI, CCXT, Alpha Vantage, Alpaca, Bybit, Stripe or
+   other additional provider/service wiring was found. Account billing plans
+   were not inspected.
+
+5. **Owner authorization remains in place.** The password is verified against
+   an Argon2id hash. The backend issues an eight-hour signed
+   `__Host-baymax_session` cookie with Secure, HttpOnly and SameSite=Lax
+   attributes. Login and logout validate the configured Origin; CORS rejects
+   wildcard origins and requires HTTPS in production. Analysis, history,
+   Gate 3 diagnostics and durable snapshot endpoints independently verify
+   the owner session. Public Swagger/OpenAPI exposes schemas only; it does
+   not bypass endpoint authorization. The migration workflow is manual,
+   main-only, requires the literal `APPLY` confirmation, and uses the
+   protected `baymax-production` environment.
+
+### Automated regression coverage added
+
+The G3-13 review branch adds
+`apps/api/tests/test_gate_3_security_scope.py` to guard:
+- the approved Binance public Spot hosts and REST/WebSocket route scope;
+- absence of Binance API key/secret variables in tracked environment
+  templates; and
+- the single-service Render manifest with no Binance credentials.
+
+Existing tests additionally cover environment-template hygiene, owner
+login/session properties, untrusted origins, CORS restrictions, and
+unauthenticated access to analysis, history and all three diagnostic routes.
+The frontend proxy integration test confirms the public Swagger/schema path
+does not make the protected diagnostic callable without the owner cookie.
+
+### External Render environment-name verification — owner-confirmed passed
+
+On 2026-11-19, the owner confirmed that the live Render environment configuration
+was intact and explicitly authorized recording the external security check as
+passed. The owner-confirmed check found no Binance API-key or API-secret
+variable names (including equivalent Binance credential names) in the Render
+service environment. No environment-variable values were shared, retrieved,
+or recorded, and no Render settings were changed.
+
+The Render integration exposed service metadata but not the environment-variable
+inventory; therefore this is recorded as an **owner-confirmed external check**,
+not an independently machine-inspected secret-store inventory. The repository
+review remains read-only, and the external check does not attest to deployment
+of a particular source revision.
+
+### Limitations and open verification
+
+- **External secret-store inventory — owner-confirmed passed.** On
+  2026-11-19, the owner confirmed that no Binance API-key/API-secret variable
+  names (including equivalent Binance credential names) are present in the
+  live Render service environment. No variable values were accessed or
+  recorded, and no settings were changed. The Render integration did not
+  expose the variable-name inventory, so this is an owner-confirmed check,
+  not an independent machine inspection.
+- **Dependency reproducibility follow-up:** `apps/web/package.json` has no
+  committed npm lockfile, and frontend CI uses `npm install`. This does not
+  indicate an unapproved provider or dependency, but means frontend
+  dependency resolution can change within declared semver ranges. Track
+  lockfile generation and `npm ci` adoption as supply-chain hardening.
+- This was a repository/static review plus deterministic test coverage. It
+  does not prove a production deployment is running this exact source commit
+  or inspect the hosting provider's secret store.
+
+**G3-13 security and scope review: passed and closed on 2026-11-19.**
+Repository/configuration review, automated regression coverage, and the
+owner-confirmed external Render environment-name check are recorded above.
+The external check found no Binance API-key/API-secret variable names; no
+secret values were accessed. The non-blocking frontend lockfile hardening
+follow-up remains open but does not block G3-13 acceptance. Gate 3 remains
+incomplete pending the other applicable criteria.
+
+
+### Post-merge CI confirmation
+
+After PR #56 was merged to `main` as
+`1fe982f0177b5f646bedd830670b6c6b5f3ef013`, the post-merge GitHub Actions
+run [44528866627](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44528866627)
+completed successfully. Its Python 3.12 quality-checks and documentation-build
+job finished with a successful conclusion. The PR validation also passed on
+the exact reviewed PR head
+`1c42bdcf50d8e8a5b9a11c32d796555e30226e72`.
+
+This confirms repository CI after the security-review merge. The separate
+owner-confirmed Render environment-name check is recorded above. Neither CI
+nor that owner confirmation proves which source revision is currently
+deployed.
+
+## 29. G3-14 backend quality checks and strict documentation-build evidence
+
+G3-14 was verified after PR #58 was merged to `main` as commit
+`831d587bcc7bf892933421a16eb3d58395218360`.
+
+The post-merge GitHub Actions workflow
+[44554444224](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44554444224)
+checked out that exact merge commit and completed successfully. The
+`Python 3.12 quality checks and documentation build` job reported:
+
+- Ruff format check — passed (73 files already formatted).
+- Ruff lint — passed.
+- mypy — passed (73 source files; no issues).
+- pytest — **187 passed, 1 warning**.
+- Strict Zensical documentation build — passed (no issues found).
+
+The single pytest warning is a Starlette deprecation warning concerning
+`httpx` with `starlette.testclient`; it did not fail the job.
+
+**G3-14 backend quality checks and strict documentation build: passed and
+CI-verified on the merged main commit.** This evidence verifies the backend
+quality/test suite and documentation build for the stated source revision.
+It does not prove that Render is currently serving that revision or that
+production market-data acceptance is complete.
+
+**Next:** G3-15 live Binance payload-parsing smoke evidence remains to be
+verified. G3-08 remains not applicable because no local depth book is
+implemented. Gate 3 remains incomplete until every other applicable
+acceptance criterion has reproducible evidence.
+
+## 30. G3-15 live Binance payload-parsing smoke evidence
+
+G3-15 was exercised against live Binance public Spot market data on
+2026-11-19 from a GitHub Actions runner, using Baymax's existing production
+adapter implementations:
+
+- REST: `BinanceSpotRestClient.latest_trade("BTCUSDT")`, backed by the
+  public `data-api.binance.vision/api/v3/trades` endpoint.
+- WebSocket: `BinanceSpotTradeStream.listen("BTCUSDT")`, backed by the
+  public `data-stream.binance.vision/ws/btcusdt@trade` stream.
+
+Both live responses were parsed into the canonical `PriceEvent` model. The
+smoke test validates Binance/Spot identity, BTCUSDT symbol, the expected
+adapter source, a finite positive `Decimal` price, numeric trade ID, and
+timezone-aware market/receive timestamps. The WebSocket event also preserves
+the exchange event timestamp separately from the trade timestamp.
+
+### Freshness observation
+
+The first live WebSocket sample parsed successfully but its trade timestamp
+was **10,067 ms old** when received, exceeding the 3,000 ms Gate 3 freshness
+limit. This is a stale event, not a parser failure. It must not be used for
+market-dependent analysis. The temporary smoke test was refined to separate
+payload parsing from freshness acceptance and to assert that the existing
+`validate_price_event()` boundary accepts a fresh event or rejects an event
+older than 3,000 ms. Existing deterministic freshness tests remain the
+authoritative boundary tests; the live smoke does not weaken that policy.
+
+### CI evidence
+
+The final temporary verification test was run on exact PR head
+`2914dc03f9da5eb7c89d0e390d09cd9845adab5d` by GitHub Actions run
+[44557857928](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44557857928).
+The job completed successfully:
+
+- Ruff format check — passed (74 files already formatted).
+- Ruff lint — passed.
+- mypy — passed (74 source files; no issues).
+- pytest — **188 passed, 1 warning**, including the live REST/WebSocket
+  payload-parsing smoke test.
+- Strict Zensical documentation build — passed.
+
+The one warning is the existing Starlette deprecation warning concerning
+`httpx` with `starlette.testclient`; it did not fail CI.
+
+The live smoke test was temporary and was not merged into the application or
+permanent test suite. Its verification-only PR #60 was closed unmerged after
+the evidence was captured. The temporary standalone script and temporary
+workflow were also removed. Ruff formatting, Ruff lint, and mypy all passed
+for the temporary test before cleanup. No temporary test file or workflow is
+retained on `main`.
+
+**G3-15 live payload parsing: passed and CI-verified against live public
+Binance Spot REST and WebSocket data.** This verifies the repository adapter
+parsers on a GitHub-hosted runner. It does not prove that Render is currently
+serving the same source revision, nor does it establish strategy quality or
+enable trading recommendations. The observed stale WebSocket sample was
+rejected by the freshness boundary and must remain unavailable to analysis.
+
+No Binance credentials, private endpoints, database writes, production
+diagnostic mutations, or trading operations were used.
+
+**Gate 3 remains subject to a final acceptance audit.** G3-08 remains not
+applicable because Baymax has no local order-book implementation. Do not
+declare the overall Gate 3 complete solely from this smoke test.
+
+## 31. Final Gate 3 acceptance audit — 2026-11-19
+
+The final audit checked the binding acceptance matrix in Section 11 against
+merged implementation, deterministic tests, production diagnostics, security
+review, live adapter smoke evidence, and post-merge GitHub Actions results.
+This is an evidence audit, not a new implementation or deployment.
+
+| Criterion | Audit result | Evidence / qualification |
+|---|---|---|
+| G3-01 | **Passed** | Production diagnostic verified public Binance Spot REST and WebSocket connectivity; the live adapter smoke separately parsed real public REST and WebSocket payloads. Public-only scope is covered by repository/configuration review. |
+| G3-02 | **Passed** | Deterministic freshness tests cover the 3,000 ms acceptance boundary and rejection beyond it; source timestamps are preserved. |
+| G3-03 | **Passed** | Current-market orchestration obtains validated market data; cache reads are revalidated at consumption and stale cache triggers bounded REST recovery or unavailable. Educational/programming intents do not fetch market data; historical retrieval is a separate bounded endpoint. |
+| G3-04 | **Passed** | Freshness validation rejects missing/untrusted timestamps, unhealthy source and unhealthy clock; NTP monitor tests cover insufficient, disagreeing, excessive-offset and expired clock consensus. Production NTP consensus was also observed. |
+| G3-05 | **Passed** | Deterministic in-process WebSocket server test sends a protocol ping and waits for the client's automatic pong before delivering a trade. A second deterministic test asserts the 20s ping interval and 60s timeout, injects the websockets `ConnectionClosedError` emitted for an expired keepalive, and verifies disconnect-state reporting, reconnection and resumed trade delivery. Existing lifecycle tests cover the 23h50m rotation setting. The owner-authenticated five-second production rotation diagnostic also passed with resubscription and a fresh 52 ms post-reconnect event. |
+| G3-06 | **Passed** | Deterministic duplicate/out-of-order trade-ID, forward-gap, REST reconciliation, failed/behind recovery and resumed-stream tests passed. |
+| G3-07 | **Passed** | Deterministic OHLC, volume, interval alignment, open/closed state, chronology, continuity and explicit gap tests passed. |
+| G3-08 | **Not applicable** | No local depth/order-book subsystem is implemented. Reassess only if depth is added to approved scope. |
+| G3-09 | **Passed** | Shared bounded REST retry policy covers 429/Retry-After, 418 no-retry, transient failures, permanent 4xx, cancellation and bounded attempts/waits. |
+| G3-10 | **Passed** | Cache-expiry and consume-time revalidation tests cover the 3,000/3,001 ms boundary, stale recovery and valid fresh-cache reuse. |
+| G3-11 | **Passed** | Snapshot and audit rows are transactionally linked; failure blocks analysis. Production durable snapshot commit and independent read-only database readback were recorded. |
+| G3-12 | **Passed** | Final pre-generation safety gate blocks stale, incomplete, contradictory, untrusted or untraceable inputs and prevents generator invocation. Trading recommendations remain intentionally blocked until the separate strategy-evidence pipeline exists. |
+| G3-13 | **Passed** | Static repository/configuration security review and regression tests passed. The absence of Binance credential variable names in Render was owner-confirmed; the integration did not expose the inventory for independent machine inspection. |
+| G3-14 | **Passed** | Post-merge backend CI run [44558506927](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44558506927) on documentation merge commit fc7e879cab42ad279cd892e1c3d1e7822701ec98 passed Ruff format/lint, mypy, pytest and strict Zensical build. |
+| G3-15 | **Passed** | Live public Binance Spot REST and WebSocket payloads parsed through repository adapters on GitHub Actions; final smoke run [44557857928](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44557857928) passed 188 tests. A 10,067 ms WebSocket event was correctly classified as stale. This smoke was not executed inside the Render process. |
+
+### G3-05 ping/pong verification and closure evidence
+
+Implementation PR [#63](https://github.com/yzigzag26-lab/TRADING-PAL/pull/63)
+was merged to `main` as `9e791400ffb6dacec7a44c38259849a87e7da4a8`.
+The WebSocket adapter now names its keepalive policy explicitly:
+`WEBSOCKET_PING_INTERVAL_SECONDS = 20` and
+`WEBSOCKET_PING_TIMEOUT_SECONDS = 60`.
+
+Two deterministic tests were added to
+`apps/api/tests/test_binance_market_data.py`:
+
+1. `test_websocket_client_automatically_pongs_server_ping` starts an
+   in-process WebSocket server, sends a protocol-level ping, waits for the
+   matching pong, and only then sends a trade payload. The repository adapter
+   receives and parses that trade, proving the client's protocol ping/pong
+   handling works.
+2. `test_keepalive_timeout_marks_connection_failed_and_reconnects` verifies
+   the configured 20s/60s keepalive options and injects the
+   `ConnectionClosedError` used by the websockets client when a keepalive
+   ping is not acknowledged before timeout. It asserts the stream reports the
+   connection down, opens a new connection, reports it up, and resumes trade
+   delivery. The timeout exception is injected deterministically rather than
+   waiting 60 seconds for a wall-clock timeout; the first test independently
+   exercises real protocol-level pong handling.
+
+Validation on exact PR head
+`72044ddc318ee7167d896a50597e98a5e4db25f8`:
+[GitHub Actions run 44563515699](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44563515699)
+passed Ruff format (73 files already formatted), Ruff lint, mypy (73 source
+files), pytest (**189 passed, 1 warning**) and strict Zensical build. The
+warning is non-blocking and is recorded in the workflow output.
+
+No changes were made to the 3,000 ms freshness boundary or 23h50m planned
+rotation. No credentials, private endpoints, production database writes,
+production diagnostics or trading operations were used for these tests.
+
+### Required closure action
+
+No further G3-05 implementation action remains. Its protocol-level pong handling and deterministic timeout/recovery path are now covered and CI-verified as recorded above.
+
+### Final decision
+
+**Gate 3 acceptance is COMPLETE as of 2026-11-19.** G3-01–G3-07 and
+G3-09–G3-15 are passed; G3-08 is not applicable because no local order-book
+subsystem is implemented. G3-05 now has deterministic protocol-level pong
+handling and keepalive-timeout recovery coverage, plus the successful
+owner-authenticated production rotation diagnostic. All mandatory applicable
+acceptance criteria have reproducible evidence. This is Gate 3 acceptance of
+the merged source and test evidence; it is not a claim that Render has been
+independently verified to be serving the final merge commit.
+
+Separate release caveats remain explicit: the live payload smoke ran on a
+GitHub-hosted runner rather than inside Render, and the owner-confirmed Render
+secret-name check was not independently machine-inspected. The successful
+backend CI and source-level acceptance do not prove the final commit is
+currently deployed to Render. Frontend Vercel checks were rate-limited on
+some PRs; this does not change the backend Gate 3 acceptance result.

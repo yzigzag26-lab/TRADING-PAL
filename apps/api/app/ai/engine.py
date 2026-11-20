@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.ai.assessment import (
     MarketAssessment,
+    build_market_assessment,
     compact_intelligence_context,
-    deterministic_fallback_summary,
 )
 from app.ai.classifier import BaymaxIntentClassifier, IntentClassificationError
 from app.ai.generator import AnalysisGenerationError, BaymaxAnalysisGenerator
@@ -17,6 +19,10 @@ from app.market_data.analysis_input import (
     MarketIntelligenceInputBuilder,
     MarketIntelligenceInputUnavailable,
 )
+from app.market_data.decision_safety import (
+    is_trading_decision_request,
+    validate_prepared_analysis_inputs,
+)
 from app.orchestration.requests import (
     AnalysisInputUnavailable,
     AnalysisRequest,
@@ -24,7 +30,6 @@ from app.orchestration.requests import (
     PreparedAnalysisInput,
 )
 from app.strategy.decision_safety import DecisionSafetyGate
-from app.strategy.schemas import Scenario
 from app.strategy.setup import evaluate_setup
 
 
@@ -41,27 +46,6 @@ class BaymaxAIResult:
     assessment: MarketAssessment | None = None
 
 
-def _scenario_payload(scenario: Scenario) -> dict[str, object]:
-    return {
-        "decision": scenario.decision,
-        "direction": scenario.direction,
-        "entry_zone": {
-            "lower": str(scenario.entry_zone.lower),
-            "upper": str(scenario.entry_zone.upper),
-        },
-        "stop_loss": str(scenario.stop_loss.price),
-        "take_profit_1": str(scenario.take_profit_1.price),
-        "take_profit_2": (
-            str(scenario.take_profit_2.price) if scenario.take_profit_2 is not None else None
-        ),
-        "risk_distance": str(scenario.risk_distance),
-        "reward_distance": str(scenario.reward_distance),
-        "risk_reward_ratio": str(scenario.risk_reward_ratio),
-        "invalidation": scenario.invalidation,
-        "methodology": scenario.methodology,
-    }
-
-
 class BaymaxAIEngine:
     """Connect Groq classification, verified input orchestration and generation."""
 
@@ -74,6 +58,7 @@ class BaymaxAIEngine:
         intelligence_builder: MarketIntelligenceInputBuilder | None = None,
         intelligence_engine: MarketIntelligenceEngine | None = None,
         safety_gate: DecisionSafetyGate | None = None,
+        decision_clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._classifier = classifier
         self._generator = generator
@@ -81,6 +66,7 @@ class BaymaxAIEngine:
         self._intelligence_builder = intelligence_builder
         self._intelligence_engine = intelligence_engine or MarketIntelligenceEngine()
         self._safety_gate = safety_gate or DecisionSafetyGate()
+        self._decision_clock = decision_clock or (lambda: datetime.now(UTC))
 
     async def respond(
         self,
@@ -107,6 +93,10 @@ class BaymaxAIEngine:
             message=message,
             intent=classification.intent,
             symbol=classification.symbol,
+            decision_requested=(
+                classification.decision_requested
+                or is_trading_decision_request(message, intent=classification.intent)
+            ),
         )
         prepared = await self._orchestrator.prepare(request, request_id=request_id)
 
@@ -117,6 +107,8 @@ class BaymaxAIEngine:
         ):
             return await self._respond_with_intelligence(request, prepared, request_id=request_id)
 
+        # Revalidate at the final boundary because data may expire during processing.
+        validate_prepared_analysis_inputs(request, prepared, now=self._decision_clock())
         answer = await self._generator.generate(request, prepared)
         return BaymaxAIResult(
             answer=answer,
@@ -133,7 +125,14 @@ class BaymaxAIEngine:
         *,
         request_id: UUID | None,
     ) -> BaymaxAIResult:
-        """Run the full Gate 4 pipeline and return a structured assessment."""
+        """Run the Gate 4 pipeline: Python calculates, Groq proposes, Python validates.
+
+        Stage 1: deterministic multi-timeframe analysis and candidate levels.
+        Stage 2: Groq independently proposes BUY / SELL / WAIT from the evidence.
+        Stage 3: the safety gate revalidates freshness/provenance at release time
+        and vetoes any unsafe or unsupported proposal.
+        Stage 4: the validated decision is returned with full evidence.
+        """
         assert self._intelligence_builder is not None
         try:
             bundle = await self._intelligence_builder.build(prepared, request_id=request_id)
@@ -141,59 +140,26 @@ class BaymaxAIEngine:
             raise AnalysisInputUnavailable(str(exc)) from exc
 
         report = self._intelligence_engine.analyze(bundle)
-        outcome = evaluate_setup(report)
-        safety = self._safety_gate.evaluate(report, outcome, prepared.current_price)
-        context = compact_intelligence_context(report, outcome, safety)
+        candidate = evaluate_setup(report)
+        context = compact_intelligence_context(report, candidate)
 
-        assessment: MarketAssessment
+        proposal: MarketAssessment | None = None
         try:
-            draft = await self._generator.generate_assessment(request, context)
+            proposal = await self._generator.generate_assessment(request, context)
         except AnalysisGenerationError:
-            assessment = MarketAssessment(
-                decision=safety.decision,
-                summary=deterministic_fallback_summary(report, safety),
-                limitations=tuple(report.limitations[:10])
-                + ("AI interpretation unavailable; deterministic summary shown",),
-                timeframe_alignment=report.alignment.status,
-                data_quality=report.data_quality,
-                scenario=(
-                    _scenario_payload(safety.scenario) if safety.scenario is not None else None
-                ),
-            )
-        else:
-            if draft.decision != safety.decision:
-                # The deterministic safety gate is authoritative; a disagreeing
-                # model interpretation is discarded entirely.
-                assessment = MarketAssessment(
-                    decision=safety.decision,
-                    summary=deterministic_fallback_summary(report, safety),
-                    limitations=tuple(report.limitations[:10])
-                    + (
-                        "Model interpretation disagreed with the deterministic "
-                        "decision and was discarded",
-                    ),
-                    timeframe_alignment=report.alignment.status,
-                    data_quality=report.data_quality,
-                    scenario=(
-                        _scenario_payload(safety.scenario) if safety.scenario is not None else None
-                    ),
-                )
-            else:
-                assessment = draft.model_copy(
-                    update={
-                        "decision": safety.decision,
-                        "timeframe_alignment": report.alignment.status,
-                        "data_quality": report.data_quality,
-                        "scenario": (
-                            _scenario_payload(safety.scenario)
-                            if safety.scenario is not None
-                            else None
-                        ),
-                        "limitations": tuple(
-                            dict.fromkeys((*draft.limitations, *report.limitations[:10]))
-                        ),
-                    }
-                )
+            proposal = None
+
+        # Stage 3 runs at the release boundary, after all analysis and model
+        # latency, so the market-event age is recomputed against current UTC.
+        safety = self._safety_gate.evaluate(
+            report,
+            candidate,
+            proposal.decision if proposal is not None else None,
+            request=request,
+            prepared=prepared,
+            now=self._decision_clock(),
+        )
+        assessment = build_market_assessment(report, prepared, safety, proposal)
 
         return BaymaxAIResult(
             answer=assessment.summary,

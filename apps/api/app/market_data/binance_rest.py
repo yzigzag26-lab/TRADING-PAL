@@ -10,6 +10,7 @@ import httpx
 
 from app.market_data.freshness import MarketDataUnavailable
 from app.market_data.models import PriceEvent
+from app.market_data.rest_retry import DEFAULT_RETRY_POLICY, RestRetryPolicy, get_with_retry
 
 BINANCE_SPOT_REST_BASE_URL = "https://data-api.binance.vision"
 
@@ -23,11 +24,13 @@ class BinanceSpotRestClient:
         base_url: str = BINANCE_SPOT_REST_BASE_URL,
         timeout_seconds: float = 4.0,
         client: httpx.AsyncClient | None = None,
+        retry_policy: RestRetryPolicy = DEFAULT_RETRY_POLICY,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout_seconds
         self._client = client
         self._owns_client = client is None
+        self._retry_policy = retry_policy
 
     async def __aenter__(self) -> BinanceSpotRestClient:
         if self._client is None:
@@ -49,16 +52,12 @@ class BinanceSpotRestClient:
             raise RuntimeError("Use BinanceSpotRestClient as an async context manager")
 
         try:
-            response = await client.get(
+            response = await get_with_retry(
+                client,
                 f"{self._base_url}/api/v3/trades",
                 params={"symbol": normalized, "limit": 1},
+                policy=self._retry_policy,
             )
-            if response.status_code in (418, 429):
-                retry_after = response.headers.get("Retry-After")
-                raise MarketDataUnavailable(
-                    f"Binance REST rate limited the request (HTTP {response.status_code}); "
-                    f"Retry-After={retry_after or 'not-provided'}"
-                )
             response.raise_for_status()
             payload: Any = response.json()
         except MarketDataUnavailable:

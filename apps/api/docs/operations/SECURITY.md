@@ -91,3 +91,21 @@ are in [Gate 3 — Binance Spot market data](../development/GATE_3_MARKET_DATA.m
 - Test failure paths and negative authorization cases before release.
 
 The current production boundaries are implemented in the FastAPI application and documented in the Gate 3 contract and production diagnostics runbook. Continue to attach reproducible tests and operational evidence to each acceptance criterion; do not treat implementation presence alone as acceptance.
+
+
+## G3-13 repository review record
+
+The Gate 3 repository/configuration review was performed against
+`d92183a8522acc487a3c8466d6c089667c6d9ff5`. The tracked runtime code and
+configuration use only Binance public Spot market-data endpoints and do not
+read or expose Binance credentials. The review found no private Binance
+account/trading routes, synthetic production market-data fallback, or
+additional provider/service declaration. Owner-session checks remain on
+protected analysis, history and diagnostics routes.
+
+The live Render environment-variable names were not inspected; therefore
+the repository review does not certify the absence of unused Binance
+credentials in the hosting secret store. Verify names only before closing
+G3-13. No secret values were read. The frontend also lacks a committed npm
+lockfile; track lockfile and `npm ci` adoption as a non-blocking
+supply-chain hardening follow-up.

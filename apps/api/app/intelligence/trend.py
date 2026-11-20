@@ -82,13 +82,21 @@ def classify_trend(
             f"Close {close:.6g} is {'above' if delta > 0 else 'below'} EMA20 {ema20:.6g}"
         )
     if ema50 is not None and ema20 is not None:
-        direction = 1.0 if ema20 > ema50 else -1.0
-        vote(direction, 0.20, "EMA20 vs EMA50")
-        evidence.append(f"EMA20 {'above' if ema20 > ema50 else 'below'} EMA50")
+        if ema20 == ema50:
+            vote(0.0, 0.05, "EMA20 equals EMA50")
+            evidence.append("EMA20 equals EMA50 (neutral)")
+        else:
+            direction = 1.0 if ema20 > ema50 else -1.0
+            vote(direction, 0.20, "EMA20 vs EMA50")
+            evidence.append(f"EMA20 {'above' if ema20 > ema50 else 'below'} EMA50")
     if sma20 is not None and sma50 is not None:
-        direction = 1.0 if sma20 > sma50 else -1.0
-        vote(direction, 0.10, "SMA20 vs SMA50")
-        evidence.append(f"SMA20 {'above' if sma50 is None or sma20 > sma50 else 'below'} SMA50")
+        if sma20 == sma50:
+            vote(0.0, 0.03, "SMA20 equals SMA50")
+            evidence.append("SMA20 equals SMA50 (neutral)")
+        else:
+            direction = 1.0 if sma20 > sma50 else -1.0
+            vote(direction, 0.10, "SMA20 vs SMA50")
+            evidence.append(f"SMA20 {'above' if sma20 > sma50 else 'below'} SMA50")
     if rsi is not None:
         if rsi > 55:
             vote(1.0, 0.10, "RSI momentum")

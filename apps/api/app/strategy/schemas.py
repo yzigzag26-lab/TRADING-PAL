@@ -48,6 +48,25 @@ class Scenario(BaseModel):
     methodology: str = Field(min_length=1, max_length=200)
 
 
+class ExitGuidance(BaseModel):
+    """Spot-only SELL guidance: exit/reduction of an existing long holding.
+
+    Baymax V1 has no short, margin or futures capability. A SELL assessment
+    therefore never carries entry/stop/target short-trade structure; it only
+    describes where an existing spot position could be reduced or exited.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["spot_exit"] = "spot_exit"
+    decision: Literal["SELL"] = "SELL"
+    note: str = Field(min_length=1, max_length=500)
+    trim_levels: tuple[PriceLevel, ...] = ()
+    breakdown_exit: PriceLevel | None = None
+    hold_invalidation: str = Field(min_length=1, max_length=500)
+    methodology: str = Field(min_length=1, max_length=200)
+
+
 class StrategyOutcome(BaseModel):
     """Result of deterministic setup evaluation before the safety gate."""
 
@@ -56,6 +75,7 @@ class StrategyOutcome(BaseModel):
     proposed_decision: Decision
     direction: BiasDirection
     scenario: Scenario | None = None
+    exit_guidance: ExitGuidance | None = None
     reasons: tuple[str, ...] = ()
     blocking_reasons: tuple[str, ...] = ()
 
@@ -67,15 +87,18 @@ class SafetyResult(BaseModel):
 
     decision: Decision
     scenario: Scenario | None = None
+    exit_guidance: ExitGuidance | None = None
     blocked: bool
     block_reasons: tuple[str, ...] = ()
     checks: tuple[str, ...] = ()
+    model_proposal: str | None = None
 
 
 __all__ = [
     "BiasDirection",
     "Decision",
     "EntryZone",
+    "ExitGuidance",
     "PriceLevel",
     "SafetyResult",
     "Scenario",

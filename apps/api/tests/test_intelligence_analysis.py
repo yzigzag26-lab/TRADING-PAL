@@ -46,7 +46,8 @@ def _downtrend(
 
 
 def _rangebound(count: int = 120, interval: str = "1h") -> list[HistoricalCandle]:
-    closes = [100.0 + (0.6 if i % 2 else -0.6) for i in range(count)]
+    # Period-4 square wave: zero drift, symmetric so EMAs converge to ~100.
+    closes = [100.0 + (0.6 if (i // 2) % 2 == 0 else -0.6) for i in range(count)]
     return candle_series(
         count,
         interval,  # type: ignore[arg-type]
@@ -236,3 +237,14 @@ def test_analyzer_marks_unusable_short_series() -> None:
     analysis = report.timeframe_analyses[0]
     assert not analysis.usable
     assert analysis.closed_candle_count == 20
+
+
+def test_trend_flat_series_is_neutral_not_bearish() -> None:
+    """F5: equal moving averages must not be classified as bearish."""
+    from app.intelligence.indicators import compute_indicator_readings
+
+    candles = candle_series(150, "1h", [(99.9, 100.1, 99.8, 100.0)] * 150, start=BASE_TIME)
+    readings = compute_indicator_readings(candles, calculated_at=NOW)
+    trend = classify_trend(candles, readings)
+    assert trend.direction in {"ranging", "transitioning", "uncertain"}
+    assert any("neutral" in item for item in trend.evidence)

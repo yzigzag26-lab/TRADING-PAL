@@ -210,20 +210,25 @@ class BinanceMarketDataService:
                 return validate_price_event(
                     event,
                     now=now,
-                    source_healthy=normalized in self._stream_healthy,
+                    source_healthy=(
+                        event.source == "binance_spot_rest" or normalized in self._stream_healthy
+                    ),
                     clock_healthy=clock_healthy,
                 )
             except MarketDataUnavailable:
                 self._events.pop(normalized, None)
 
         recovered = await self._rest.latest_trade(normalized)
-        self._events[normalized] = recovered
-        recovered_id = self._numeric_trade_id(recovered)
-        if recovered_id is not None:
-            self._last_trade_ids[normalized] = recovered_id
-        return validate_price_event(
+        # Validate before caching: a stale, future-dated, or otherwise invalid
+        # REST response must never remain available as a reusable cache entry.
+        validated = validate_price_event(
             recovered,
             now=now,
             source_healthy=True,
             clock_healthy=clock_healthy,
         )
+        self._events[normalized] = recovered
+        recovered_id = self._numeric_trade_id(recovered)
+        if recovered_id is not None:
+            self._last_trade_ids[normalized] = recovered_id
+        return validated

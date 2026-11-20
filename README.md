@@ -56,16 +56,74 @@ invalidation. It does not execute trades.
 
 ### Gate 3 — market-data freshness and reliability
 
-**Gate 3 is implemented and remains in production acceptance testing.** The
-append-only provenance store and exact snapshot references are implemented.
-Production evidence now confirms NTP consensus, Binance Spot REST and basic
-WebSocket reconnection, plus one committed BTCUSDT snapshot independently read
-back from Supabase. The durable persistence criterion is verified; full
-WebSocket lifecycle recovery remains the next production acceptance item.
-Other mandatory criteria remain open until their required deterministic and
-operational evidence is recorded. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md).
+**Gate 3 acceptance is complete as of 2026-11-19:** all mandatory applicable criteria G3-01–G3-15 passed; G3-08 is not applicable because no local order book is implemented. G3-05 protocol-level pong and keepalive-timeout recovery are now deterministic-test and CI verified. This confirms source/test acceptance, not independent proof that Render is serving the final commit. See the [final acceptance audit](docs/development/GATE_3_MARKET_DATA.md#31-final-gate-3-acceptance-audit--2026-11-19).
+Production evidence records NTP/REST smoke checks, a durable BTCUSDT snapshot
+commit with independent Supabase readback, and the G3-05 forced five-second
+WebSocket rotation/recovery diagnostic. G3-06 trade-sequence integrity and
+G3-07 candle integrity are merged with deterministic CI evidence. G3-08 is
+not applicable because no local depth book is implemented. G3-09 bounded REST
+retry handling is merged in PR #42. G3-10 cache freshness enforcement is
+merged in PR #44 (commit
+`84059a6783d6eff0193549270c64212b7a5b4d7b`) and passed Backend and
+Documentation CI on its exact PR head: Ruff format/lint, mypy, 168 pytest
+tests (1 warning), and strict Zensical build.
 
-A successful connection or a green CI run alone does not complete Gate 3.
+G3-11 snapshot-to-audit linkage was implemented in PR #46 and merged to `main`
+as commit `327faa7172171848930abc8884dfc79b76537c8f`. Current-price and
+historical snapshots are linked to append-only audit rows in the same database
+transaction, with request and snapshot identity; persistence failure blocks
+market-dependent analysis.
+
+G3-12 decision-safety enforcement was implemented in PR #54 and merged to
+`main` as commit `e43620fb2cce89b87d9e5c6fed6254d831544cea`. A final
+backend gate revalidates freshness, source/symbol/trade identity, timestamp
+consistency and snapshot/audit provenance immediately before AI generation.
+Incomplete historical series, unresolved gaps and open candles cannot be
+accepted as complete decision inputs; unsafe requests stop before the
+generator is called. Educational/programming responses remain available.
+Trade recommendations are intentionally blocked until Baymax has a complete,
+validated historical-candle and strategy-evidence pipeline. Backend and
+Documentation CI passed on exact PR head
+`e73ccc289ae91d2af603bafd93dcc7111f30f4c3`: Ruff format/lint, mypy, pytest
+and strict Zensical build.
+
+**G3-11 and G3-12 are merged and CI-verified.** The G3-13
+repository/configuration security and scope review was performed against
+source commit `d92183a8522acc487a3c8466d6c089667c6d9ff5`. The review found
+only public Binance Spot market-data adapters, no Binance credential handling
+or private/trading routes in tracked source/configuration, no synthetic
+production market-data fallback, and no additional provider/service
+declaration. Existing owner-session authorization remains enforced and is
+covered by tests.
+
+**G3-13 is closed:** the repository/configuration review passed, and the
+owner confirmed that no Binance API-key/API-secret variable names are present
+in the live Render environment. No secret values were accessed or recorded;
+the Render integration did not expose the variable-name inventory, so this
+external check is explicitly attributed to owner confirmation rather than
+independent machine inspection. The frontend npm-lockfile hardening note
+remains non-blocking. See the [Gate 3 contract](docs/development/GATE_3_MARKET_DATA.md)
+for findings and evidence.
+
+**G3-14 is passed and CI-verified** on the merged main commit
+`831d587bcc7bf892933421a16eb3d58395218360`. Post-merge GitHub Actions run
+[44554444224](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44554444224)
+passed Ruff format, Ruff lint, mypy, **187 pytest tests (1 warning)**, and
+the strict Zensical documentation build. This confirms CI for that source
+revision; it does not independently prove the Render deployment is running
+that revision. G3-15 live Binance payload parsing has now passed against live public Spot
+REST and WebSocket data using the repository adapters. The temporary smoke
+test passed in GitHub Actions run
+[44557857928](https://github.com/yzigzag26-lab/TRADING-PAL/actions/runs/44557857928)
+on exact test commit `2914dc03f9da5eb7c89d0e390d09cd9845adab5d` (188 pytest
+tests passed, one existing warning; Ruff, mypy, and strict docs build passed).
+An initial WebSocket event was 10,067 ms old and was treated as stale; the
+freshness validator must reject such events. The temporary test was removed
+after verification and was not merged. This does not prove the Render
+deployment is running that revision. See the [Gate 3 evidence](docs/development/GATE_3_MARKET_DATA.md).
+
+
+A successful connection or green CI run alone does not complete Gate 3.
 The binding acceptance criteria require reproducible test and operational
 evidence.
 
@@ -95,7 +153,7 @@ execution or paid market-data provider is part of the approved Gate 3 scope.
 
 - Frontend: [apps/web/README.md](apps/web/README.md)
 - Backend: [apps/api/README.md](apps/api/README.md)
-- Phase 1 foundation handoff: [docs/IMPLEMENTATION_HANDOFF.md](docs/IMPLEMENTATION_HANDOFF.md)
+- Archived Phase 1 planning baseline (historical, not current implementation instructions): [docs/IMPLEMENTATION_HANDOFF.md](docs/IMPLEMENTATION_HANDOFF.md)
 - Engineering documentation index: [docs/index.md](docs/index.md)
 - Gate 3 acceptance contract: [docs/development/GATE_3_MARKET_DATA.md](docs/development/GATE_3_MARKET_DATA.md)
 - Gate 4 market intelligence: [docs/development/GATE_4_MARKET_INTELLIGENCE.md](docs/development/GATE_4_MARKET_INTELLIGENCE.md)
