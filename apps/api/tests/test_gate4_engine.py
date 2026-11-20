@@ -295,7 +295,7 @@ def test_groq_assessment_accepts_non_numeric_explanation_with_numeric_context() 
     async def run() -> None:
         client = FakeGroq(
             [
-                '{"decision":"BUY","summary":"The verified momentum evidence supports a bullish proposal.",'
+                '{"decision":"BUY","summary":"The 5m and 1h trends support a bullish proposal.",'
                 '"key_evidence":["Momentum and trend evidence align."],"risks":["Volatility remains a risk."],'
                 '"invalidation_conditions":["A confirmed trend reversal."],"limitations":[]}'
             ]
@@ -310,7 +310,7 @@ def test_groq_assessment_accepts_non_numeric_explanation_with_numeric_context() 
         context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
         result = await generator.generate_assessment(request, context)
         assert result.decision == "BUY"
-        assert "verified momentum" in result.summary.lower()
+        assert "5m and 1h trends" in result.summary
 
     asyncio.run(run())
 
@@ -378,5 +378,26 @@ def test_groq_numeric_claim_is_rejected_even_when_number_exists_in_context() -> 
             await generator.generate_assessment(
                 request, {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
             )
+
+    asyncio.run(run())
+
+
+def test_groq_numeric_claim_with_multiplier_suffix_is_rejected() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"The setup offers a 3x reward.",'
+                '"key_evidence":[],"risks":[],"invalidation_conditions":[],"limitations":[]}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        with pytest.raises(AnalysisGenerationError, match="numeric claims"):
+            await generator.generate_assessment(request, {"timeframes": ["5m", "1h"]})
 
     asyncio.run(run())
