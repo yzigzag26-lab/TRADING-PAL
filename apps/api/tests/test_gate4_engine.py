@@ -4,6 +4,7 @@ validation, and Gate 3 safety integration (findings F1/F2/F4)."""
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -325,5 +326,23 @@ def test_groq_cannot_supply_or_override_python_scenario_levels() -> None:
         )
         with pytest.raises(AnalysisGenerationError):
             await generator.generate_assessment(request, {"current_price": "100.00"})
+
+    asyncio.run(run())
+
+
+def test_gate4_pipeline_emits_stage_latency_and_freshness_metrics(caplog: pytest.LogCaptureFixture) -> None:
+    async def run() -> None:
+        report = ts._report(ts.BULLISH_5, zones_1h=ts.BUY_ZONES)
+        engine, _, _ = _engine(report=report, proposal="BUY")
+        with caplog.at_level(logging.INFO, logger="app.ai.engine"):
+            result = await engine.respond("Should I buy BTCUSDT?")
+        assert result.assessment is not None
+        record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
+        assert record.gate4_historical_fetch_ms == 0.0
+        assert record.gate4_indicator_analysis_ms >= 0
+        assert record.gate4_groq_proposal_ms >= 0
+        assert record.gate4_decision_safety_ms >= 0
+        assert record.gate4_total_ms >= 0
+        assert record.gate4_freshness_veto is False
 
     asyncio.run(run())
