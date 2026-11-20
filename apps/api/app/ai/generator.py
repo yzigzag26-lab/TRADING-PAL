@@ -42,21 +42,11 @@ class _AssessmentDraft(BaseModel):
     limitations: list[str] = Field(default_factory=list)
 
 
-_NUMERIC_TOKEN = re.compile(r"(?<![A-Za-z_])[-+]?\d+(?:\.\d+)?%?")
+_NUMERIC_TOKEN = re.compile(r"(?<![A-Za-z_])[-+]?\\d+(?:\\.\\d+)?%?(?![A-Za-z_])")
 
 
-def _unsupported_numeric_claims(
-    draft: _AssessmentDraft,
-    context: Mapping[str, object],
-) -> tuple[str, ...]:
-    """Find numeric literals in model prose that are absent from verified context.
-
-    Groq is not a numerical source of truth. Numerical values must originate
-    from the deterministic evidence payload and are rendered separately by
-    Python in the structured assessment.
-    """
-    verified_payload = json.dumps(dict(context), sort_keys=True, separators=(",", ":"))
-    verified_tokens = set(_NUMERIC_TOKEN.findall(verified_payload))
+def _unsupported_numeric_claims(draft: _AssessmentDraft) -> tuple[str, ...]:
+    """Return numeric literals in model prose; Python renders all numeric facts."""
     model_text = " ".join(
         (
             draft.summary,
@@ -66,7 +56,8 @@ def _unsupported_numeric_claims(
             *draft.limitations,
         )
     )
-    return tuple(sorted(set(_NUMERIC_TOKEN.findall(model_text)) - verified_tokens))
+    return tuple(sorted(set(_NUMERIC_TOKEN.findall(model_text))))
+
 
 
 class BaymaxAnalysisGenerator:
@@ -207,7 +198,7 @@ class BaymaxAnalysisGenerator:
             raise AnalysisGenerationError("Baymax could not generate a market assessment") from exc
         if draft.decision not in {"BUY", "SELL", "WAIT"}:
             raise AnalysisGenerationError("Baymax returned an invalid decision")
-        unsupported_numbers = _unsupported_numeric_claims(draft, context)
+        unsupported_numbers = _unsupported_numeric_claims(draft)
         if unsupported_numbers:
             raise AnalysisGenerationError(
                 "Baymax returned numerical claims absent from verified market evidence"
