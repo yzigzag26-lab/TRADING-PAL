@@ -162,7 +162,7 @@ class MarketIntelligenceInputBuilder:
             price=price,
             price_snapshot_id=prepared.market_snapshot_id,
             timeframes=timeframes,
-            historical_fetch_ms=round(historical_fetch_ms, 3),
+            historical_input_build_ms=round(historical_fetch_ms, 3),
         )
 
 
