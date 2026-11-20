@@ -288,7 +288,7 @@ def test_groq_assessment_accepts_numeric_values_grounded_in_verified_context() -
     async def run() -> None:
         client = FakeGroq(
             [
-                '{"decision":"BUY","summary":"The verified momentum evidence supports a bullish proposal.",'
+                '{"decision":"BUY","summary":"RSI is 52.3 and the verified price is 100.00.",'
                 '"key_evidence":["Momentum and trend evidence align."],"risks":["Volatility remains a risk."],'
                 '"invalidation_conditions":["A confirmed trend reversal."],"limitations":[]}'
             ]
@@ -303,7 +303,7 @@ def test_groq_assessment_accepts_numeric_values_grounded_in_verified_context() -
         context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
         result = await generator.generate_assessment(request, context)
         assert result.decision == "BUY"
-        assert "verified momentum" in result.summary.lower()
+        assert "RSI is 52.3" in result.summary
 
     asyncio.run(run())
 
