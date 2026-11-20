@@ -487,3 +487,43 @@ def test_buy_uses_below_price_support_not_overhead_support() -> None:
     assert outcome.scenario.stop_loss.price == Decimal("94.50")
     assert outcome.scenario.stop_loss.price < outcome.scenario.entry_zone.lower
     assert outcome.scenario.take_profit_1.price > PRICE
+
+
+def test_safety_gate_requires_all_five_timeframes_to_be_usable() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    analyses = [
+        item.model_copy(
+            update={
+                "usable": False,
+                "limitations": ("Only 45 closed candles; minimum is 60",),
+            }
+        )
+        if item.interval == "1d"
+        else item
+        for item in report.timeframe_analyses
+    ]
+    report = report.model_copy(update={"timeframe_analyses": tuple(analyses)})
+    candidate = evaluate_setup(report)
+    result = _gate(report, candidate, proposal="BUY")
+    assert result.decision == "WAIT"
+    assert any("Only 4 usable timeframe(s); minimum is 5" in reason for reason in result.block_reasons)
+    assert any("Timeframe 1d is not usable" in reason for reason in result.block_reasons)
+
+
+def test_safety_gate_distinguishes_incomplete_series_from_missing_timeframe() -> None:
+    report = _report(BULLISH_5, zones_1h=BUY_ZONES)
+    analyses = [
+        item.model_copy(
+            update={
+                "series_complete": False,
+                "limitations": ("Series incomplete: 2 missing intervals",),
+            }
+        )
+        if item.interval == "4h"
+        else item
+        for item in report.timeframe_analyses
+    ]
+    report = report.model_copy(update={"timeframe_analyses": tuple(analyses)})
+    result = _gate(report, evaluate_setup(report), proposal="BUY")
+    assert result.decision == "WAIT"
+    assert any("Incomplete candle series for timeframe 4h" in reason for reason in result.block_reasons)
