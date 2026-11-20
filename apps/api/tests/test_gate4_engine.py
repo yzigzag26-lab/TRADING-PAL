@@ -283,7 +283,7 @@ def test_groq_numeric_claim_not_present_in_verified_context_is_rejected() -> Non
             decision_requested=True,
         )
         context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
-        with pytest.raises(AnalysisGenerationError, match="numerical claims"):
+        with pytest.raises(AnalysisGenerationError, match="numeric claims"):
             await generator.generate_assessment(request, context)
 
     asyncio.run(run())
@@ -372,7 +372,7 @@ def test_groq_numeric_claim_is_rejected_even_when_number_exists_in_context() -> 
             symbol="BTCUSDT",
             decision_requested=True,
         )
-        with pytest.raises(AnalysisGenerationError, match="numerical claims"):
+        with pytest.raises(AnalysisGenerationError, match="numeric claims"):
             await generator.generate_assessment(
                 request, {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
             )
