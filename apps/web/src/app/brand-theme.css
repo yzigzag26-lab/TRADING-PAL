@@ -1,0 +1,228 @@
+/* Baymax visual system — Foundable-inspired clarity, with an original financial-intelligence identity. */
+:root {
+  color-scheme: light;
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --line: #e6e9ed;
+  --text: #171a1f;
+  --muted: #747d88;
+  --green: #0f766e;
+  --green-dim: rgba(15, 118, 110, .08);
+  --accent: #0f766e;
+  --accent-soft: rgba(15, 118, 110, .09);
+  --surface-subtle: #f4f6f7;
+  --surface-raised: #ffffff;
+  --shadow-soft: 0 8px 28px rgba(18, 27, 35, .045);
+}
+html, body { background: var(--bg); color: var(--text); }
+body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+::selection { background: rgba(15, 118, 110, .18); color: inherit; }
+
+.sidebar { background: #f8f9fa; border-color: var(--line); }
+.brand { padding-bottom: 34px; }
+.brand-logo { width: 38px; height: 38px; }
+.brand-name { letter-spacing: .16em; font-size: 13px; font-weight: 760; }
+.nav-label { color: #8a929c; font-size: 9px; letter-spacing: .16em; }
+.nav-list { gap: 4px; }
+.nav-item { border-radius: 10px; color: #59616b; padding: 11px 12px; }
+.nav-item:hover { background: #eef2f3; color: #171a1f; }
+.nav-item.active { color: #0b625b; background: rgba(15, 118, 110, .085); border-color: rgba(15, 118, 110, .12); font-weight: 650; }
+.sidebar-note { background: #fff; border-color: var(--line); box-shadow: 0 4px 16px rgba(18, 27, 35, .025); }
+.sidebar-note .text-\[\#111111\] { color: var(--accent); }
+.profile-mini { border-color: var(--line); }
+.avatar { background: #e8efed; color: #155e57; }
+
+.topbar { background: rgba(255,255,255,.9); border-color: var(--line); }
+.breadcrumb strong { color: var(--text); }
+.icon-btn { background: var(--panel); color: #59616b; border-color: var(--line); }
+.icon-btn:hover { background: var(--surface-subtle); border-color: #cbd3d8; color: var(--text); }
+.status-pill, .tag { border-color: var(--line); background: var(--surface-subtle); color: #69727d; }
+.status-dot { box-shadow: none; }
+.content { padding-top: 39px; }
+.page-heading { margin-bottom: 29px; }
+.eyebrow { color: var(--accent); font-size: 9px; letter-spacing: .17em; }
+h1 { color: var(--text); font-weight: 660; letter-spacing: -.05em; }
+.subtitle { color: var(--muted); font-size: 12px; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; border-radius: 9px; }
+.btn-primary:hover { background: #0b625b; border-color: #0b625b; color: #fff; }
+.btn-secondary { background: var(--panel); border-color: var(--line); color: var(--text); border-radius: 9px; }
+.btn-secondary:hover { background: var(--surface-subtle); border-color: #cbd3d8; }
+.metric-card, .panel { background: var(--panel); border-color: var(--line); border-radius: 15px; box-shadow: var(--shadow-soft); }
+.metric-card { padding: 18px; }
+.metric-top { color: #737d88; }
+.metric-icon { border-color: var(--line); color: var(--accent); background: var(--accent-soft); }
+.metric-value { color: var(--text); font-size: 24px; }
+.metric-foot, .panel-caption { color: var(--muted); }
+.panel { padding: 20px; }
+.panel-title { color: var(--text); font-size: 12px; font-weight: 700; }
+.empty-state { border-color: #dce2e5; background: #fafbfb; border-radius: 12px; }
+.empty-icon { background: #edf4f2; color: var(--accent); }
+.empty-title { color: var(--text); }
+.empty-copy { color: var(--muted); }
+.watch-row { border-color: var(--line); }
+.coin-icon { background: #edf1f2; color: #46515b; }
+.form-field label { color: #59616b; }
+.form-field input, .form-field select, .form-field textarea { background: var(--panel); border-color: var(--line); color: var(--text); }
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.settings-row { border-color: var(--line); }
+.toggle { background: #e9edef; border-color: #d9dfe3; }
+.toggle:after { background: #7b858f; }
+.toggle.on { background: #d4eee8; border-color: #a9d8cc; }
+.toggle.on:after { background: #0f766e; }
+.notice { background: #f1f5f4; border-color: #dce8e5; color: #52615e; }
+.notice svg { color: #687b76; }
+.bottom-nav { background: rgba(255,255,255,.96); border-color: var(--line); }
+.bottom-nav button { color: #89929b; }
+.bottom-nav button.active { color: var(--accent); }
+
+.chat-heading { border-color: var(--line); }
+.chat-heading-icon, .chat-welcome-mark { background: #edf4f2; border-color: #dce9e5; color: var(--accent); }
+.chat-heading h1, .chat-welcome h2 { color: var(--text); }
+.chat-heading p, .chat-welcome > p { color: var(--muted); }
+.chat-status { border-color: var(--line); color: var(--muted); background: var(--surface-subtle); }
+.chat-suggestions button { background: var(--panel); border-color: var(--line); color: #4c5660; }
+.chat-suggestions button:hover { background: var(--surface-subtle); border-color: #cbd5d8; }
+.chat-suggestions svg { color: var(--accent); }
+.chat-message-user .chat-message-content { background: #edf2f1; color: var(--text); }
+.chat-message-assistant .chat-message-content { color: #333c44; }
+.chat-avatar, .chat-file-chip { background: var(--panel); border-color: var(--line); color: var(--text); }
+.chat-composer { background: var(--panel); border-color: #dce1e5; box-shadow: 0 8px 30px rgba(18,27,35,.07); }
+.chat-composer:focus-within { border-color: #9abbb3; box-shadow: 0 8px 30px rgba(15,118,110,.09); }
+.chat-composer textarea { color: var(--text); }
+.chat-tool-button { background: var(--panel); border-color: var(--line); color: #59636d; }
+.chat-tool-button:hover { background: var(--surface-subtle); }
+.chat-send-button { background: var(--accent); color: #fff; }
+.chat-disclaimer { color: #858e97; }
+
+.login-screen { background: var(--bg); color: var(--text); }
+.login-card { background: var(--panel); border-color: var(--line); box-shadow: var(--shadow-soft); }
+.login-brand .brand-name { color: var(--text); }
+.login-form label { color: #4e5862; }
+.login-form input { background: var(--panel); border-color: var(--line); color: var(--text); }
+.login-form input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.login-submit { background: var(--accent); border-color: var(--accent); color: #fff; }
+.login-submit:hover { background: #0b625b; border-color: #0b625b; }
+.login-message { background: var(--surface-subtle); color: var(--text); }
+.login-foot { color: var(--muted); }
+
+/* The theme control is intentionally outside the authenticated app tree so it is also available on login. */
+.theme-toggle {
+  position: fixed;
+  z-index: 60;
+  right: 24px;
+  bottom: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 6px 22px rgba(0,0,0,.09);
+  font-size: 11px;
+  font-weight: 650;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.theme-toggle:hover { border-color: #9aaba8; transform: translateY(-1px); }
+.theme-toggle svg { color: var(--accent); }
+
+@media (max-width: 760px) {
+  .content { padding-top: 25px; }
+  .panel { padding: 16px; }
+  .theme-toggle { right: 14px; bottom: calc(78px + env(safe-area-inset-bottom)); min-height: 38px; }
+}
+
+/* Dark theme: preserve the same hierarchy and semantic contrast, not just invert the page. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0a0d11;
+  --panel: #12171d;
+  --line: #27303a;
+  --text: #f1f4f5;
+  --muted: #a0aab4;
+  --green: #9adfd0;
+  --green-dim: rgba(91, 190, 167, .13);
+  --accent: #91d8c8;
+  --accent-soft: rgba(91, 190, 167, .12);
+  --surface-subtle: #171e25;
+  --surface-raised: #151b22;
+  --shadow-soft: 0 8px 30px rgba(0,0,0,.18);
+}
+[data-theme="dark"] html, [data-theme="dark"] body { background: var(--bg); color: var(--text); }
+[data-theme="dark"] .sidebar { background: #0e1318; border-color: var(--line); }
+[data-theme="dark"] .nav-label { color: #8995a1; }
+[data-theme="dark"] .nav-item { color: #aab4be; }
+[data-theme="dark"] .nav-item:hover { background: #1a232b; color: var(--text); }
+[data-theme="dark"] .nav-item.active { background: rgba(91,190,167,.13); border-color: rgba(145,216,200,.18); color: #b8f0e3; }
+[data-theme="dark"] .sidebar-note { background: #131a20; border-color: var(--line); }
+[data-theme="dark"] .sidebar-note p, [data-theme="dark"] .profile-status { color: var(--muted); }
+[data-theme="dark"] .avatar { background: #203b37; color: #c4f3e8; }
+[data-theme="dark"] .topbar { background: rgba(10,13,17,.92); border-color: var(--line); }
+[data-theme="dark"] .breadcrumb, [data-theme="dark"] .breadcrumb strong { color: var(--text); }
+[data-theme="dark"] .icon-btn { background: #151c23; border-color: var(--line); color: #c2cbd3; }
+[data-theme="dark"] .icon-btn:hover { background: #202a33; border-color: #43515d; color: #fff; }
+[data-theme="dark"] .status-pill, [data-theme="dark"] .tag { background: #171e25; border-color: var(--line); color: #b2bdc6; }
+[data-theme="dark"] .metric-card, [data-theme="dark"] .panel { background: var(--panel); border-color: var(--line); box-shadow: var(--shadow-soft); }
+[data-theme="dark"] .metric-top, [data-theme="dark"] .metric-foot, [data-theme="dark"] .panel-caption { color: var(--muted); }
+[data-theme="dark"] .metric-icon { background: rgba(91,190,167,.12); border-color: #31534e; color: #a5e9d9; }
+[data-theme="dark"] .empty-state { background: #151c22; border-color: #34404a; }
+[data-theme="dark"] .empty-icon { background: #203b37; color: #a5e9d9; }
+[data-theme="dark"] .empty-title, [data-theme="dark"] .panel-title, [data-theme="dark"] .metric-value { color: var(--text); }
+[data-theme="dark"] .empty-copy, [data-theme="dark"] .muted { color: var(--muted); }
+[data-theme="dark"] .watch-row, [data-theme="dark"] .settings-row { border-color: var(--line); }
+[data-theme="dark"] .coin-icon { background: #202a32; color: #d7e0e6; }
+[data-theme="dark"] .form-field label, [data-theme="dark"] .settings-label { color: #d8e0e5; }
+[data-theme="dark"] .form-field input, [data-theme="dark"] .form-field select, [data-theme="dark"] .form-field textarea { background: #0f151b; border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .form-field input:focus, [data-theme="dark"] .form-field select:focus, [data-theme="dark"] .form-field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+[data-theme="dark"] .toggle { background: #252e37; border-color: #3b4650; }
+[data-theme="dark"] .toggle:after { background: #aab4be; }
+[data-theme="dark"] .toggle.on { background: #254d45; border-color: #3a7769; }
+[data-theme="dark"] .toggle.on:after { background: #b2f0e2; }
+[data-theme="dark"] .notice { background: #19231f; border-color: #30473f; color: #c2d5ce; }
+[data-theme="dark"] .notice svg { color: #a8c8bc; }
+[data-theme="dark"] .bottom-nav { background: rgba(14,19,24,.97); border-color: var(--line); }
+[data-theme="dark"] .bottom-nav button { color: #929eaa; }
+[data-theme="dark"] .bottom-nav button.active { color: #a5e9d9; }
+[data-theme="dark"] .chat-heading { border-color: var(--line); }
+[data-theme="dark"] .chat-heading-icon, [data-theme="dark"] .chat-welcome-mark { background: #203b37; border-color: #31534e; color: #a5e9d9; }
+[data-theme="dark"] .chat-heading h1, [data-theme="dark"] .chat-welcome h2 { color: var(--text); }
+[data-theme="dark"] .chat-heading p, [data-theme="dark"] .chat-welcome > p { color: var(--muted); }
+[data-theme="dark"] .chat-status { background: #171e25; border-color: var(--line); color: #b2bdc6; }
+[data-theme="dark"] .chat-suggestions button { background: #131a20; border-color: var(--line); color: #d2dbe1; }
+[data-theme="dark"] .chat-suggestions button:hover { background: #1b252d; border-color: #46545f; }
+[data-theme="dark"] .chat-message-user .chat-message-content { background: #202b32; color: var(--text); }
+[data-theme="dark"] .chat-message-assistant .chat-message-content { color: #d3dbe0; }
+[data-theme="dark"] .chat-avatar, [data-theme="dark"] .chat-file-chip { background: #151c23; border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .chat-composer { background: #12171d; border-color: #34404a; box-shadow: 0 8px 30px rgba(0,0,0,.24); }
+[data-theme="dark"] .chat-composer:focus-within { border-color: #5c978a; box-shadow: 0 8px 30px rgba(0,0,0,.28); }
+[data-theme="dark"] .chat-composer textarea { color: var(--text); }
+[data-theme="dark"] .chat-tool-button { background: #171e25; border-color: var(--line); color: #c1cbd2; }
+[data-theme="dark"] .chat-tool-button:hover { background: #202a32; }
+[data-theme="dark"] .chat-send-button { background: #9adfd0; color: #10201c; }
+[data-theme="dark"] .chat-disclaimer { color: #929da7; }
+[data-theme="dark"] .login-screen { background: var(--bg); color: var(--text); }
+[data-theme="dark"] .login-card { background: var(--panel); border-color: var(--line); }
+[data-theme="dark"] .login-brand .brand-name { color: var(--text); }
+[data-theme="dark"] .login-form label { color: #d5dde2; }
+[data-theme="dark"] .login-form input { background: #0f151b; border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .login-form input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+[data-theme="dark"] .login-submit { background: #9adfd0; border-color: #9adfd0; color: #10201c; }
+[data-theme="dark"] .login-submit:hover { background: #b4ebdf; border-color: #b4ebdf; color: #10201c; }
+[data-theme="dark"] .login-message { background: #1b252d; color: #e3e9ed; }
+[data-theme="dark"] .login-foot { color: var(--muted); }
+[data-theme="dark"] .theme-toggle { background: #151c23; border-color: #34404a; color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+[data-theme="dark"] .theme-toggle:hover { border-color: #5b8c81; }
+
+/* Override a few fixed Tailwind utility colours used by the existing page without changing its behaviour. */
+[data-theme="dark"] [class*="bg-[#ffffff]"],
+[data-theme="dark"] [class*="bg-[#f7f7f8]"],
+[data-theme="dark"] [class*="bg-[#f4f4f4]"] { background-color: var(--surface-raised) !important; }
+[data-theme="dark"] [class*="border-[#e5e5e5]"],
+[data-theme="dark"] [class*="border-[#e7e7e7]"] { border-color: var(--line) !important; }
+[data-theme="dark"] [class*="text-[#111111]"] { color: var(--text) !important; }
+[data-theme="dark"] [class*="text-[#727272]"] { color: var(--muted) !important; }
+[data-theme="dark"] [class*="text-[#545454]"] { color: #c1cbd2 !important; }
+[data-theme="dark"] [class*="text-[#777777]"] { color: var(--muted) !important; }
