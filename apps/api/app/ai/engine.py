@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+import logging
+from time import perf_counter
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -31,6 +33,8 @@ from app.orchestration.requests import (
 )
 from app.strategy.decision_safety import DecisionSafetyGate
 from app.strategy.setup import evaluate_setup
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,23 +138,29 @@ class BaymaxAIEngine:
         Stage 4: the validated decision is returned with full evidence.
         """
         assert self._intelligence_builder is not None
+        total_started = perf_counter()
         try:
             bundle = await self._intelligence_builder.build(prepared, request_id=request_id)
         except MarketIntelligenceInputUnavailable as exc:
             raise AnalysisInputUnavailable(str(exc)) from exc
 
+        analysis_started = perf_counter()
         report = self._intelligence_engine.analyze(bundle)
+        indicator_analysis_ms = (perf_counter() - analysis_started) * 1000
         candidate = evaluate_setup(report)
         context = compact_intelligence_context(report, candidate)
 
         proposal: MarketAssessment | None = None
+        groq_started = perf_counter()
         try:
             proposal = await self._generator.generate_assessment(request, context)
         except AnalysisGenerationError:
             proposal = None
+        groq_proposal_ms = (perf_counter() - groq_started) * 1000
 
         # Stage 3 runs at the release boundary, after all analysis and model
-        # latency, so the market-event age is recomputed against current UTC.
+        # latency, so freshness is recomputed against the current clock.
+        safety_started = perf_counter()
         safety = self._safety_gate.evaluate(
             report,
             candidate,
@@ -159,7 +169,26 @@ class BaymaxAIEngine:
             prepared=prepared,
             now=self._decision_clock(),
         )
+        decision_safety_ms = (perf_counter() - safety_started) * 1000
         assessment = build_market_assessment(report, prepared, safety, proposal)
+
+        freshness_veto = any(
+            "expired" in reason.lower() or "freshness" in reason.lower()
+            for reason in safety.block_reasons
+        )
+        logger.info(
+            "Gate 4 analysis timing",
+            extra={
+                "gate4_historical_fetch_ms": bundle.historical_fetch_ms,
+                "gate4_indicator_analysis_ms": round(indicator_analysis_ms, 3),
+                "gate4_groq_proposal_ms": round(groq_proposal_ms, 3),
+                "gate4_decision_safety_ms": round(decision_safety_ms, 3),
+                "gate4_total_ms": round((perf_counter() - total_started) * 1000, 3),
+                "gate4_freshness_veto": freshness_veto,
+                "gate4_final_decision": safety.decision,
+                "gate4_model_proposal_available": proposal is not None,
+            },
+        )
 
         return BaymaxAIResult(
             answer=assessment.summary,
