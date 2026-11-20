@@ -75,15 +75,15 @@ def _containing_zone(zones: list[PriceZone], price: Decimal) -> PriceZone | None
 
 
 def _protective_zone(zones: list[PriceZone], price: Decimal, *, bullish: bool) -> PriceZone | None:
-    """Nearest protective zone: containing first, then closest beyond price."""
+    """Return a zone on the protective side of price; never substitute an opposite-side zone."""
     containing = _containing_zone(zones, price)
     if containing is not None:
         return containing
     if bullish:
         below = [zone for zone in zones if zone.upper <= price]
-        return max(below, key=lambda zone: zone.upper) if below else (zones[0] if zones else None)
+        return max(below, key=lambda zone: zone.upper) if below else None
     above = [zone for zone in zones if zone.lower >= price]
-    return min(above, key=lambda zone: zone.lower) if above else (zones[-1] if zones else None)
+    return min(above, key=lambda zone: zone.lower) if above else None
 
 
 def evaluate_setup(report: MarketIntelligenceReport) -> StrategyOutcome:
