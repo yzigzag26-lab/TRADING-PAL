@@ -436,3 +436,54 @@ def test_safety_gate_requires_provenance_when_configured() -> None:
     )
     assert result.decision == "WAIT"
     assert any("provenance" in r.lower() for r in result.block_reasons)
+
+
+def test_buy_waits_when_all_support_zones_are_above_current_price() -> None:
+    zones = (
+        _zone("support", "102.00", "103.00"),
+        _zone("resistance", "110.00", "111.00"),
+    )
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=zones))
+    assert outcome.proposed_decision == "WAIT"
+    assert outcome.scenario is None
+    assert any("No active support zone" in reason for reason in outcome.blocking_reasons)
+
+
+def test_buy_accepts_support_zone_containing_current_price() -> None:
+    zones = (
+        _zone("support", "99.00", "101.00"),
+        _zone("resistance", "110.00", "111.00"),
+    )
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=zones))
+    assert outcome.proposed_decision == "BUY"
+    assert outcome.scenario is not None
+    assert outcome.scenario.stop_loss.price < outcome.scenario.entry_zone.lower
+
+
+def test_buy_accepts_support_zone_below_current_price() -> None:
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=BUY_ZONES))
+    assert outcome.proposed_decision == "BUY"
+    assert outcome.scenario is not None
+    assert outcome.scenario.stop_loss.price < outcome.scenario.entry_zone.lower
+
+
+def test_buy_waits_when_no_support_zones_exist() -> None:
+    zones = (_zone("resistance", "110.00", "111.00"),)
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=zones))
+    assert outcome.proposed_decision == "WAIT"
+    assert outcome.scenario is None
+    assert any("No active support zone" in reason for reason in outcome.blocking_reasons)
+
+
+def test_buy_uses_below_price_support_not_overhead_support() -> None:
+    zones = (
+        _zone("support", "95.00", "96.00"),
+        _zone("support", "102.00", "103.00"),
+        _zone("resistance", "110.00", "111.00"),
+    )
+    outcome = evaluate_setup(_report(BULLISH_5, zones_1h=zones))
+    assert outcome.proposed_decision == "BUY"
+    assert outcome.scenario is not None
+    assert outcome.scenario.stop_loss.price == Decimal("94.50")
+    assert outcome.scenario.stop_loss.price < outcome.scenario.entry_zone.lower
+    assert outcome.scenario.take_profit_1.price > PRICE
