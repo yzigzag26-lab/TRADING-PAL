@@ -278,10 +278,11 @@ with `proposal=None` → deterministic WAIT.
 `DecisionSafetyGate.evaluate(report, candidate, proposal, …)` runs at the
 **release boundary** — after candle retrieval, indicator calculation and
 Groq latency — so freshness is recomputed against the current clock, not
-the original validation timestamp. The pipeline records stage timings for
-historical retrieval, indicator analysis, Groq proposal generation, safety
-validation and total processing duration. It also records whether the final
-safety result was vetoed specifically for freshness.
+the original validation timestamp. The pipeline records intent
+classification, initial price retrieval/provenance, historical input
+assembly, deterministic intelligence analysis, Groq proposal generation,
+safety validation and total processing duration. It also records whether
+freshness specifically caused the final veto.
 
 ### Gate 3 integration (shared boundary)
 
@@ -388,11 +389,11 @@ Gate 3 block was waiting for.
 - `build_market_assessment()` uses Groq's summary/evidence/risks only when
   `model_decision == decision`; otherwise the deterministic fallback summary
   is used and the limitation notes the veto.
-- The generator rejects model prose containing numeric tokens that do not
-  occur in the verified evidence payload. Python remains the only source for
-  the structured indicator readings and scenario levels rendered in the UI.
-  This is a numerical-claim guard, not a semantic proof: qualitative Groq
-  explanations remain model-authored and must be treated as advisory.
+- The generator rejects **all numeric literals** in Groq's summary,
+  evidence, risks, invalidation conditions and limitations, even if a number
+  also appears in the prompt. Python alone renders numerical indicator
+  readings, current price and scenario levels. This is not a semantic proof:
+  qualitative Groq explanations remain model-authored and advisory.
 - `deterministic_fallback_summary()` contains only verified facts.
 
 ## 12. API contract
