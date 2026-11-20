@@ -477,13 +477,12 @@ Deterministic unit tests (no live network) cover:
 - `tests/test_decision_safety.py`, `tests/test_analysis_orchestration.py`,
   `tests/test_ai_engine.py` — Gate 3 regression coverage.
 
-**Verification status at handover:** `ruff format --check app tests`,
-`ruff check app tests` and `mypy app tests` (strict, 94 files) pass; the
-full `pytest` suite passes (253 tests). Frontend `npm run lint` (0 errors,
-pre-existing warnings) and `npm run typecheck` pass. `npm run build` could
-not complete on the authoring machine (Next.js SWC binary download kept
-failing) and `zensical build --strict` was not run (tool not installed
-locally) — both must be verified in CI/owner environment before merge.
+**Gate 4 baseline verification before this remediation:** the merged
+implementation reported 253 passing backend tests, Ruff formatting/lint and
+strict mypy. The merged-commit CI subsequently passed the frontend production
+build and strict Zensical documentation build. The remediation branch adds
+new regression coverage and must pass its own CI before acceptance; no
+remediation test count is claimed until that run completes.
 
 ## 16. Known limitations
 
@@ -507,7 +506,7 @@ locally) — both must be verified in CI/owner environment before merge.
   cryptographic or semantic proof of factual correctness.
 
 
-## 18. Gate 4 remediation notes
+## 17. Gate 4 remediation notes
 
 ### Protective support selection
 
@@ -557,17 +556,14 @@ series, invalid close data or required-provenance failure blocks a
 directional recommendation. The report may still describe the available
 evidence, but the final result is WAIT.
 
-## 17. Handover checklist
+## 18. Handover checklist
 
-- [x] Full `pytest` suite green (253 tests, Gate 1–4).
-- [x] `ruff format --check app tests`, `ruff check app tests`,
-      `mypy app tests` green locally.
+- [ ] Full backend `pytest` suite green on this remediation branch.
+- [ ] `ruff format --check app tests`, `ruff check app tests`,
+      `mypy app tests` green on this remediation branch.
 - [ ] `npm run lint`, `npm run typecheck`, `npm run build` green for
-      `apps/web` — lint/typecheck pass locally; **build not verified**
-      (SWC download failure on authoring machine; verify in CI).
-- [ ] `zensical build --strict` green — **not run locally** (tool not
-      installed); verify in CI.
+      `apps/web` on this remediation branch.
+- [ ] `zensical build --strict` green on this remediation branch.
 - [ ] Owner review of decision thresholds (R:R ≥ 1.5, volatility gate,
       swing window, zone tolerance) before production reliance.
 - [ ] No production deployment without explicit owner approval.
-- [ ] Remediation branch CI must pass before owner review.
