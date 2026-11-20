@@ -28,6 +28,10 @@ class CompletionClient(Protocol):
 class AnalysisGenerationError(Exception):
     """Raised when Baymax cannot generate a safe response."""
 
+    def __init__(self, message: str, *, model_decision: str | None = None) -> None:
+        super().__init__(message)
+        self.model_decision = model_decision
+
 
 class _AssessmentDraft(BaseModel):
     """Validated shape of the model's structured assessment output."""
@@ -203,7 +207,8 @@ class BaymaxAnalysisGenerator:
         unsupported_numbers = _unsupported_numeric_claims(draft)
         if unsupported_numbers:
             raise AnalysisGenerationError(
-                "Baymax returned numeric claims; all numerical facts are rendered by Python"
+                "Baymax returned numeric claims; all numerical facts are rendered by Python",
+                model_decision=draft.decision,
             )
         return MarketAssessment(
             decision=draft.decision,  # type: ignore[arg-type]
