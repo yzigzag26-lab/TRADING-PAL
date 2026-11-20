@@ -201,7 +201,7 @@ class BaymaxAnalysisGenerator:
         unsupported_numbers = _unsupported_numeric_claims(draft)
         if unsupported_numbers:
             raise AnalysisGenerationError(
-                "Baymax returned numerical claims absent from verified market evidence"
+                "Baymax returned numeric claims; all numerical facts are rendered by Python"
             )
         return MarketAssessment(
             decision=draft.decision,  # type: ignore[arg-type]
