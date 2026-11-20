@@ -248,7 +248,7 @@ def test_release_time_freshness_vetoes_stale_price(
         assert result.assessment.decision == "WAIT"
         assert result.assessment.model_decision == "BUY"
         record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
-        assert record.gate4_freshness_veto is True
+        assert record.__dict__["gate4_freshness_veto"] is True
 
     asyncio.run(run())
 
@@ -347,14 +347,14 @@ def test_gate4_pipeline_emits_stage_latency_and_freshness_metrics(
             result = await engine.respond("Should I buy BTCUSDT?")
         assert result.assessment is not None
         record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
-        assert record.gate4_classification_ms >= 0
-        assert record.gate4_market_price_prepare_ms >= 0
-        assert record.gate4_historical_input_build_ms == 0.0
-        assert record.gate4_intelligence_analysis_ms >= 0
-        assert record.gate4_groq_proposal_ms >= 0
-        assert record.gate4_decision_safety_ms >= 0
-        assert record.gate4_total_ms >= 0
-        assert record.gate4_freshness_veto is False
+        assert record.__dict__["gate4_classification_ms"] >= 0
+        assert record.__dict__["gate4_market_price_prepare_ms"] >= 0
+        assert record.__dict__["gate4_historical_input_build_ms"] == 0.0
+        assert record.__dict__["gate4_intelligence_analysis_ms"] >= 0
+        assert record.__dict__["gate4_groq_proposal_ms"] >= 0
+        assert record.__dict__["gate4_decision_safety_ms"] >= 0
+        assert record.__dict__["gate4_total_ms"] >= 0
+        assert record.__dict__["gate4_freshness_veto"] is False
 
     asyncio.run(run())
 
