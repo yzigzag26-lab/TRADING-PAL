@@ -284,11 +284,11 @@ def test_groq_numeric_claim_not_present_in_verified_context_is_rejected() -> Non
     asyncio.run(run())
 
 
-def test_groq_assessment_accepts_numeric_values_grounded_in_verified_context() -> None:
+def test_groq_assessment_accepts_non_numeric_explanation_with_numeric_context() -> None:
     async def run() -> None:
         client = FakeGroq(
             [
-                '{"decision":"BUY","summary":"RSI is 52.3 and the verified price is 100.00.",'
+                '{"decision":"BUY","summary":"The verified momentum evidence supports a bullish proposal.",'
                 '"key_evidence":["Momentum and trend evidence align."],"risks":["Volatility remains a risk."],'
                 '"invalidation_conditions":["A confirmed trend reversal."],"limitations":[]}'
             ]
@@ -303,7 +303,7 @@ def test_groq_assessment_accepts_numeric_values_grounded_in_verified_context() -
         context = {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
         result = await generator.generate_assessment(request, context)
         assert result.decision == "BUY"
-        assert "RSI is 52.3" in result.summary
+        assert "verified momentum" in result.summary.lower()
 
     asyncio.run(run())
 
@@ -344,5 +344,28 @@ def test_gate4_pipeline_emits_stage_latency_and_freshness_metrics(caplog: pytest
         assert record.gate4_decision_safety_ms >= 0
         assert record.gate4_total_ms >= 0
         assert record.gate4_freshness_veto is False
+
+    asyncio.run(run())
+
+
+def test_groq_numeric_claim_is_rejected_even_when_number_exists_in_context() -> None:
+    async def run() -> None:
+        client = FakeGroq(
+            [
+                '{"decision":"BUY","summary":"RSI is 52.3.",'
+                '"key_evidence":[],"risks":[],"invalidation_conditions":[],"limitations":[]}'
+            ]
+        )
+        generator = BaymaxAnalysisGenerator(client)
+        request = AnalysisRequest(
+            message="Analyse BTCUSDT",
+            intent="current_market",
+            symbol="BTCUSDT",
+            decision_requested=True,
+        )
+        with pytest.raises(AnalysisGenerationError, match="numerical claims"):
+            await generator.generate_assessment(
+                request, {"current_price": "100.00", "indicators": {"rsi14": 52.3}}
+            )
 
     asyncio.run(run())
