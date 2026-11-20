@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 import logging
 from time import perf_counter
-from datetime import UTC, datetime
 from uuid import UUID
 
 from app.ai.assessment import (
