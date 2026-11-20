@@ -506,13 +506,8 @@ def test_safety_gate_requires_all_five_timeframes_to_be_usable() -> None:
     candidate = evaluate_setup(report)
     result = _gate(report, candidate, proposal="BUY")
     assert result.decision == "WAIT"
-    assert any(
-        "Only 4 usable timeframe(s); minimum is 5" in reason
-        for reason in result.block_reasons
-    )
-    assert any(
-        "Timeframe 1d is not usable" in reason for reason in result.block_reasons
-    )
+    assert any("Only 4 usable timeframe(s); minimum is 5" in reason for reason in result.block_reasons)
+    assert any("Timeframe 1d is not usable" in reason for reason in result.block_reasons)
 
 
 def test_safety_gate_distinguishes_incomplete_series_from_missing_timeframe() -> None:
@@ -531,10 +526,7 @@ def test_safety_gate_distinguishes_incomplete_series_from_missing_timeframe() ->
     report = report.model_copy(update={"timeframe_analyses": tuple(analyses)})
     result = _gate(report, evaluate_setup(report), proposal="BUY")
     assert result.decision == "WAIT"
-    assert any(
-        "Incomplete candle series for timeframe 4h" in reason
-        for reason in result.block_reasons
-    )
+    assert any("Incomplete candle series for timeframe 4h" in reason for reason in result.block_reasons)
 
 
 def test_safety_gate_blocks_timeframe_with_insufficient_closed_history() -> None:
