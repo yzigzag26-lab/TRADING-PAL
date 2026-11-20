@@ -339,7 +339,7 @@ def test_gate4_pipeline_emits_stage_latency_and_freshness_metrics(caplog: pytest
         assert result.assessment is not None
         record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
         assert record.gate4_historical_input_build_ms == 0.0
-        assert record.gate4_indicator_analysis_ms >= 0
+        assert record.gate4_intelligence_analysis_ms >= 0
         assert record.gate4_groq_proposal_ms >= 0
         assert record.gate4_decision_safety_ms >= 0
         assert record.gate4_total_ms >= 0
