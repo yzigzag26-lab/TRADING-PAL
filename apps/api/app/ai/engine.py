@@ -180,7 +180,7 @@ class BaymaxAIEngine:
             "Gate 4 analysis timing",
             extra={
                 "gate4_historical_input_build_ms": bundle.historical_fetch_ms,
-                "gate4_indicator_analysis_ms": round(indicator_analysis_ms, 3),
+                "gate4_intelligence_analysis_ms": round(indicator_analysis_ms, 3),
                 "gate4_groq_proposal_ms": round(groq_proposal_ms, 3),
                 "gate4_decision_safety_ms": round(decision_safety_ms, 3),
                 "gate4_total_ms": round((perf_counter() - total_started) * 1000, 3),
