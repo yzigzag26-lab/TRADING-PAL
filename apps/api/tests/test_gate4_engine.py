@@ -233,17 +233,20 @@ def test_groq_unavailable_returns_deterministic_wait() -> None:
     asyncio.run(run())
 
 
-def test_release_time_freshness_vetoes_stale_price() -> None:
+def test_release_time_freshness_vetoes_stale_price(caplog: pytest.LogCaptureFixture) -> None:
     """F1: price ages past 3s during analysis -> final assessment is WAIT."""
 
     async def run() -> None:
         report = ts._report(ts.BULLISH_5, zones_1h=ts.BUY_ZONES)
         stale_clock = lambda: datetime.now(UTC) + timedelta(seconds=10)  # noqa: E731
         engine, _, _ = _engine(report=report, proposal="BUY", decision_clock=stale_clock)
-        result = await engine.respond("Should I buy BTCUSDT?")
+        with caplog.at_level(logging.INFO, logger="app.ai.engine"):
+            result = await engine.respond("Should I buy BTCUSDT?")
         assert result.assessment is not None
         assert result.assessment.decision == "WAIT"
         assert result.assessment.model_decision == "BUY"
+        record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
+        assert record.gate4_freshness_veto is True
 
     asyncio.run(run())
 
@@ -338,6 +341,8 @@ def test_gate4_pipeline_emits_stage_latency_and_freshness_metrics(caplog: pytest
             result = await engine.respond("Should I buy BTCUSDT?")
         assert result.assessment is not None
         record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
+        assert record.gate4_classification_ms >= 0
+        assert record.gate4_market_price_prepare_ms >= 0
         assert record.gate4_historical_input_build_ms == 0.0
         assert record.gate4_intelligence_analysis_ms >= 0
         assert record.gate4_groq_proposal_ms >= 0
