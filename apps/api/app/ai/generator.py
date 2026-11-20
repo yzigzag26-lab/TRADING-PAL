@@ -42,11 +42,12 @@ class _AssessmentDraft(BaseModel):
     limitations: list[str] = Field(default_factory=list)
 
 
-_NUMERIC_TOKEN = re.compile(r"(?<![A-Za-z_])[-+]?\d+(?:\.\d+)?%?(?![A-Za-z_])")
+_TIMEFRAME_LABELS = ("5m", "15m", "1h", "4h", "1d")
+_NUMERIC_TOKEN = re.compile(r"\d+(?:\.\d+)?")
 
 
 def _unsupported_numeric_claims(draft: _AssessmentDraft) -> tuple[str, ...]:
-    """Return numeric literals in model prose; Python renders all numeric facts."""
+    """Return numeric literals in model prose, excluding standard timeframe labels."""
     model_text = " ".join(
         (
             draft.summary,
@@ -56,6 +57,8 @@ def _unsupported_numeric_claims(draft: _AssessmentDraft) -> tuple[str, ...]:
             *draft.limitations,
         )
     )
+    for label in _TIMEFRAME_LABELS:
+        model_text = re.sub(rf"\b{label}\b", "", model_text)
     return tuple(sorted(set(_NUMERIC_TOKEN.findall(model_text))))
 
 
