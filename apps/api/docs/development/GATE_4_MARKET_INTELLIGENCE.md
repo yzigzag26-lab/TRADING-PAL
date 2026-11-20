@@ -124,9 +124,10 @@ it never fetches the price itself. For each timeframe it:
 - Records every series through `MarketDataProvenanceRepository.
   record_historical_series()` and stamps the returned snapshot ID onto the
   series and the per-timeframe analysis.
-- Fetches all five timeframes concurrently (`asyncio.gather`). A single
-  timeframe failure degrades the report rather than aborting it; the safety
-  gate decides whether the remaining evidence is still defensible.
+- Fetches all five timeframes concurrently (`asyncio.gather`). A failed
+  retrieval is recorded as a missing timeframe rather than aborting the
+  diagnostic report. However, the final decision gate requires **all five**
+  timeframes to be present, usable and complete; degraded reports are WAIT-only.
 - Fails closed (`MarketIntelligenceInputUnavailable` → HTTP 503) when the
   verified price or its provenance snapshot is missing, or when provenance
   persistence fails.
@@ -277,7 +278,10 @@ with `proposal=None` → deterministic WAIT.
 `DecisionSafetyGate.evaluate(report, candidate, proposal, …)` runs at the
 **release boundary** — after candle retrieval, indicator calculation and
 Groq latency — so freshness is recomputed against the current clock, not
-the original validation timestamp.
+the original validation timestamp. The pipeline records stage timings for
+historical retrieval, indicator analysis, Groq proposal generation, safety
+validation and total processing duration. It also records whether the final
+safety result was vetoed specifically for freshness.
 
 ### Gate 3 integration (shared boundary)
 
@@ -306,9 +310,13 @@ Gate 3 block was waiting for.
 
 ### Report and candidate checks
 
-- All five expected timeframes (`5m, 15m, 1h, 4h, 1d`) present; ≥3 analyses,
-  ≥2 usable; each series complete, ≥60 candles, valid close, no unresolved
-  limitations; per-timeframe provenance when `require_provenance` is set.
+- **All five expected timeframes (`5m, 15m, 1h, 4h, 1d`) are mandatory for a
+  directional decision.** All five must be present, usable, complete, contain
+  at least 60 closed candles, have a valid last close and have no unresolved
+  limitations. Per-timeframe provenance is mandatory when
+  `require_provenance` is set. The alignment classifier's three-timeframe
+  minimum is only an analytical classification threshold; it does not relax
+  the stricter five-timeframe decision gate.
 - Alignment must not be `conflicting`; data quality not `insufficient`;
   readiness not `blocked`; no missing inputs.
 - Candidate blocking reasons propagate; a BUY/SELL candidate must carry its
@@ -380,6 +388,11 @@ Gate 3 block was waiting for.
 - `build_market_assessment()` uses Groq's summary/evidence/risks only when
   `model_decision == decision`; otherwise the deterministic fallback summary
   is used and the limitation notes the veto.
+- The generator rejects model prose containing numeric tokens that do not
+  occur in the verified evidence payload. Python remains the only source for
+  the structured indicator readings and scenario levels rendered in the UI.
+  This is a numerical-claim guard, not a semantic proof: qualitative Groq
+  explanations remain model-authored and must be treated as advisory.
 - `deterministic_fallback_summary()` contains only verified facts.
 
 ## 12. API contract
@@ -417,8 +430,9 @@ diagnostics endpoints are unchanged.
   flight.
 - 401 responses prompt re-authentication; other failures render an honest
   unavailable message — no fabricated analysis.
-- Chart image attachments remain client-side only; the backend contract is
-  text-only (documented limitation).
+- The unsupported chart-image attachment control has been removed. The
+  composer accepts text only until a real Vision upload/API path is
+  implemented; the backend contract remains text-only.
 
 ## 14. Security and fail-closed behaviour
 
@@ -432,8 +446,9 @@ diagnostics endpoints are unchanged.
 - Stale, missing, incomplete, contradictory, or unverifiable evidence always
   resolves to WAIT — including staleness introduced *during* analysis
   (release-time revalidation), not only at initial validation.
-- Groq cannot fabricate market evidence, alter verified numbers, or force a
-  recommendation: its proposal is schema-validated and safety-gated.
+- Groq cannot alter Python's structured numeric fields or force a
+  recommendation. Unsupported numeric literals in model prose are rejected;
+  qualitative prose remains advisory rather than independently verified.
 - No new environment variables were required; all periods, thresholds and
   timeframes are versioned constants in the modules above.
 
@@ -462,18 +477,18 @@ Deterministic unit tests (no live network) cover:
 - `tests/test_decision_safety.py`, `tests/test_analysis_orchestration.py`,
   `tests/test_ai_engine.py` — Gate 3 regression coverage.
 
-**Verification status at handover:** `ruff format --check app tests`,
-`ruff check app tests` and `mypy app tests` (strict, 94 files) pass; the
-full `pytest` suite passes (253 tests). Frontend `npm run lint` (0 errors,
-pre-existing warnings) and `npm run typecheck` pass. `npm run build` could
-not complete on the authoring machine (Next.js SWC binary download kept
-failing) and `zensical build --strict` was not run (tool not installed
-locally) — both must be verified in CI/owner environment before merge.
+**Gate 4 baseline verification before this remediation:** the merged
+implementation reported 253 passing backend tests, Ruff formatting/lint and
+strict mypy. The merged-commit CI subsequently passed the frontend production
+build and strict Zensical documentation build. The remediation branch adds
+new regression coverage and must pass its own CI before acceptance; no
+remediation test count is claimed until that run completes.
 
 ## 16. Known limitations
 
 - VWAP is not computed (no session-anchor convention defined).
-- Chart-image analysis is not implemented; attachments are display-only.
+- Chart-image analysis is not implemented; the frontend does not offer an
+  attachment control.
 - Natural-language `historical_market` intent still returns
   `historical_not_implemented` in the respond pipeline (the structured
   `/analysis/history` endpoint is unaffected).
@@ -485,20 +500,70 @@ locally) — both must be verified in CI/owner environment before merge.
 - SELL guidance describes levels for an existing holding; Baymax has no
   position data, so it cannot know whether the user actually holds the
   asset — this is stated in every SELL response.
-- Groq interpretation is advisory prose over deterministic facts; if the
-  provider is unavailable or its proposal is unsafe, the deterministic
-  fallback/WAIT result is shown.
+- Groq interpretation is advisory prose over deterministic facts. Unsupported
+  numeric claims are rejected; provider failure or invalid output produces a
+  deterministic fallback and WAIT. Qualitative model claims are not a
+  cryptographic or semantic proof of factual correctness.
 
-## 17. Handover checklist
 
-- [x] Full `pytest` suite green (253 tests, Gate 1–4).
-- [x] `ruff format --check app tests`, `ruff check app tests`,
-      `mypy app tests` green locally.
+## 17. Gate 4 remediation notes
+
+### Protective support selection
+
+A bullish BUY candidate may use only an active support zone containing the
+validated price or entirely below it. An overhead zone is never a substitute
+for protective support. If no valid protective support exists, setup
+construction returns WAIT. The stop-loss must remain below the entry zone.
+
+### Groq explanation boundary
+
+Groq proposes the decision and supplies advisory explanation text. The
+generator rejects numeric tokens in that text unless the token also occurs
+in the verified evidence payload. Python-rendered indicator readings,
+scenario levels and provenance remain authoritative. This filter reduces
+unsupported numerical claims but does not prove the truth of qualitative
+language; model prose remains advisory.
+
+### Freshness and latency telemetry
+
+The market-price release limit remains **3,000 ms**. The system does not
+increase this threshold to improve recommendation frequency. It logs:
+- concurrent historical candle retrieval duration;
+- deterministic indicator-analysis duration;
+- Groq proposal duration;
+- final safety-validation duration;
+- total Gate 4 pipeline duration; and
+- whether freshness caused the final veto.
+
+No live production latency distribution is claimed by this code change.
+Runtime measurements must be collected from an approved, monitored
+environment. A fresh-price refresh is not performed after Groq: safely
+refreshing would require rebuilding price-dependent candidate levels and
+re-evaluating the proposal, while another model call could make the refreshed
+price stale again. Until a fully bounded refresh/re-evaluation protocol is
+implemented, expired inputs remain WAIT.
+
+### Strict five-timeframe decision policy
+
+The analysis classifier can describe alignment when at least three
+timeframes are usable. That is not sufficient to authorize BUY or SELL.
+The final decision gate requires all five configured intervals to be
+present, usable, complete and free of unresolved limitations:
+`5m`, `15m`, `1h`, `4h`, `1d`.
+
+Unavailable retrieval, insufficient closed-candle history, incomplete
+series, invalid close data or required-provenance failure blocks a
+directional recommendation. The report may still describe the available
+evidence, but the final result is WAIT.
+
+## 18. Handover checklist
+
+- [ ] Full backend `pytest` suite green on this remediation branch.
+- [ ] `ruff format --check app tests`, `ruff check app tests`,
+      `mypy app tests` green on this remediation branch.
 - [ ] `npm run lint`, `npm run typecheck`, `npm run build` green for
-      `apps/web` — lint/typecheck pass locally; **build not verified**
-      (SWC download failure on authoring machine; verify in CI).
-- [ ] `zensical build --strict` green — **not run locally** (tool not
-      installed); verify in CI.
+      `apps/web` on this remediation branch.
+- [ ] `zensical build --strict` green on this remediation branch.
 - [ ] Owner review of decision thresholds (R:R ≥ 1.5, volatility gate,
       swing window, zone tolerance) before production reliance.
-- [ ] No production deployment or merge without explicit owner approval.
+- [ ] No production deployment without explicit owner approval.
