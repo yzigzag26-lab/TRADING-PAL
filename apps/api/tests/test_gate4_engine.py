@@ -247,9 +247,7 @@ def test_release_time_freshness_vetoes_stale_price(
         assert result.assessment is not None
         assert result.assessment.decision == "WAIT"
         assert result.assessment.model_decision == "BUY"
-        record = next(
-            item for item in caplog.records if item.message == "Gate 4 analysis timing"
-        )
+        record = next(item for item in caplog.records if item.message == "Gate 4 analysis timing")
         assert record.gate4_freshness_veto is True
 
     asyncio.run(run())
