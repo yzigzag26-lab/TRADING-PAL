@@ -165,11 +165,22 @@ class BaymaxAIEngine:
         intelligence_analysis_ms = (perf_counter() - analysis_started) * 1000
 
         proposal: MarketAssessment | None = None
+        model_proposal: str | None = None
         groq_started = perf_counter()
         try:
             proposal = await self._generator.generate_assessment(request, context)
-        except AnalysisGenerationError:
-            proposal = None
+            model_proposal = proposal.decision
+        except AnalysisGenerationError as exc:
+            model_proposal = exc.model_decision
+            if model_proposal is not None:
+                candidate = candidate.model_copy(
+                    update={
+                        "blocking_reasons": (
+                            *candidate.blocking_reasons,
+                            "Groq explanation rejected because it contained numeric claims",
+                        )
+                    }
+                )
         groq_proposal_ms = (perf_counter() - groq_started) * 1000
 
         # Stage 3 runs at the release boundary, after all analysis and model
@@ -178,7 +189,7 @@ class BaymaxAIEngine:
         safety = self._safety_gate.evaluate(
             report,
             candidate,
-            proposal.decision if proposal is not None else None,
+            model_proposal,
             request=request,
             prepared=prepared,
             now=self._decision_clock(),
