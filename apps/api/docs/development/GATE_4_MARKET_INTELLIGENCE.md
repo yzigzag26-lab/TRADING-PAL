@@ -447,7 +447,7 @@ diagnostics endpoints are unchanged.
   resolves to WAIT — including staleness introduced *during* analysis
   (release-time revalidation), not only at initial validation.
 - Groq cannot alter Python's structured numeric fields or force a
-  recommendation. Unsupported numeric literals in model prose are rejected;
+  recommendation. All numeric literals in model prose are rejected;
   qualitative prose remains advisory rather than independently verified.
 - No new environment variables were required; all periods, thresholds and
   timeframes are versioned constants in the modules above.
@@ -528,8 +528,9 @@ language; model prose remains advisory.
 
 The market-price release limit remains **3,000 ms**. The system does not
 increase this threshold to improve recommendation frequency. It logs:
-- concurrent historical candle retrieval duration;
-- deterministic indicator-analysis duration;
+- concurrent historical input-build duration (candle retrieval plus
+  provenance persistence);
+- deterministic intelligence-analysis duration;
 - Groq proposal duration;
 - final safety-validation duration;
 - total Gate 4 pipeline duration; and
@@ -553,8 +554,21 @@ present, usable, complete and free of unresolved limitations:
 
 Unavailable retrieval, insufficient closed-candle history, incomplete
 series, invalid close data or required-provenance failure blocks a
-directional recommendation. The report may still describe the available
-evidence, but the final result is WAIT.
+directional recommendation. These cases remain distinguishable in the
+report:
+- **Unavailable retrieval:** the requested interval has no returned series
+  and appears in `missing_inputs` and report limitations.
+- **Insufficient history:** a series exists, but fewer than 60 closed candles
+  are available; the timeframe is marked unusable with a candle-count
+  limitation.
+- **Incomplete series:** a series exists but has unresolved missing intervals;
+  `series_complete` is false and the limitation identifies the gap count.
+- **Provenance failure:** a required snapshot is absent or could not be
+  persisted; the input builder fails closed, or the safety gate blocks the
+  affected timeframe when provenance is required.
+
+The report may still describe available evidence, but the final result is
+WAIT.
 
 ## 18. Handover checklist
 
