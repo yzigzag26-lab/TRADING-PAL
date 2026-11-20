@@ -42,7 +42,7 @@ class _AssessmentDraft(BaseModel):
     limitations: list[str] = Field(default_factory=list)
 
 
-_NUMERIC_TOKEN = re.compile(r"(?<![A-Za-z_])[-+]?\\d+(?:\\.\\d+)?%?(?![A-Za-z_])")
+_NUMERIC_TOKEN = re.compile(r"(?<![A-Za-z_])[-+]?\d+(?:\.\d+)?%?(?![A-Za-z_])")
 
 
 def _unsupported_numeric_claims(draft: _AssessmentDraft) -> tuple[str, ...]:
